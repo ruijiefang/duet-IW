@@ -13,7 +13,7 @@
     gmp
     camlidl
     apron
-    Z3
+    z3
     OCRS
     ntl
     ocamlgraph))

@@ -9,7 +9,7 @@ depends: [
   "gmp"
   "camlidl"
   "apron"
-  "z3"
+  "Z3"
   "OCRS"
   "ntl"
   "ocamlgraph"
