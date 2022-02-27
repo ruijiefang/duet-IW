@@ -737,7 +737,7 @@ let refine (u : int) (art : art_context) (cfg : cfg_t) : bool =
   let u_lbl = art.neg_assertion_phi (*ARR.get art.vertex_labels u*) in 
   let vertex_interpolants = K.interpolate u_path_cond u_lbl in 
   match vertex_interpolants with 
-  | `Invalid -> | `Unknown -> failwith "program contains an ERROR ; done\n"
+  | `Invalid  | `Unknown -> failwith "program contains an ERROR ; done\n"
   | `Valid formulae -> 
     relabel u @@ List.combine u_path (formulae @ [ mk_false () ] ); true
 
