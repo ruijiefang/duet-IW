@@ -589,20 +589,13 @@ type art_context = {
   is_leaf : (bool ARR.t) ;  (** NEW! *)
   is_covered : (bool ARR.t) ;  (** NEW! *)
   counter : int ref;
-  covers: (int * int) list; (* TODO: make this data structure more efficient. :-) *) 
+  covers: (int * int) list; (* TODO:   *)  
   error_loc : int 
 }
 
 type art_path = int list 
 
 type cfg_t = K.t label WG.t
-
-(* Retrieves the source vertex in the control-flow graph. *)
-(* let get_source (cfg : cfg_t) =
-  let ans = WG.fold_vertex (fun (v:int) (acc:int) ->
-      let in_deg = WG.in_degree v cfg in 
-      if in_deg == 0 then v else acc) cfg  0 in 
-  Printf.printf "get_source : ans = %d\n" ans ; ans *)
 
 let mk_true () = Syntax.mk_true Ctx.context
 let mk_false () = Syntax.mk_false Ctx.context 
@@ -641,6 +634,14 @@ module IntFormulaMap = BatMap.Make(Int)
 
 let s_memo : (bool IntFormulaMap.t) ref = ref (IntFormulaMap.empty)
 
+
+let mypp_weights s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i K.pp f) l
+
+
+let mypp_formula s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i (Syntax.pp_expr_unnumbered Ctx.context) @@ f) l
+
+
+
 (* reachability. *)
 let is_approx_reachable (art : art_context) (cfg : cfg_t) (u : int) (v : int)
  =  let entry = u in
@@ -657,6 +658,8 @@ let is_approx_reachable (art : art_context) (cfg : cfg_t) (u : int) (v : int)
       Ctx.mk_and [K.guard path; Ctx.mk_not phi]
       |> SrkSimplify.simplify_terms srk
     in
+    logf "over-approximated path condition: %a \n"
+      (Syntax.pp_expr_unnumbered Ctx.context) path_condition;
     match Wedge.is_sat Ctx.context path_condition with
     | `Sat -> s_memo := IntFormulaMap.add entry true (!s_memo) ; true
     | `Unsat -> s_memo := IntFormulaMap.add entry false (!s_memo) ; false
@@ -723,6 +726,7 @@ let get_path v art =
 
 (* Refinining the ART. *)
 let refine (u : int) (art : art_context) (cfg : cfg_t) : bool = 
+  let _ = Printf.printf "Refining cfg vertex %d \n" @@ ARR.get art.maps_to u in
   let rec relabel u path_interpolants =
     let one u interpolant =
       let prev_lbl = ARR.get art.vertex_labels u in 
@@ -783,7 +787,6 @@ let rec dfs (v : int) (art : art_context) (g : cfg_t) : art_context =
       raise @@ Mexception "error assertion is reachable!"
     end
    else 
-    if enable_symb_exec then 
      expand_from v g art';
      (* For all children w of v, dfs(w) *)
      ARR.fold_left (fun art w -> dfs w art g) art' (ARR.get art.children v) 
@@ -899,12 +902,12 @@ let make_transition_system rg =
         in
 
         let entry = (RG.block_entry rg block).did in
-        (*let exit = (RG.block_exit rg block).did in
+        let exit = (RG.block_exit rg block).did in
         let point_of_interest v =
           v = entry || v = exit || SrkUtil.Int.Map.mem v (!assertions)
         in
         let tg = TS.simplify point_of_interest tg in
-        let tg = TS.remove_temporaries tg in*)
+        let tg = TS.remove_temporaries tg in
         let tg =
           if !forward_inv_gen then let _ = Printf.printf "forward inv gen...\n" in
             Log.phase "Forward invariant generation"

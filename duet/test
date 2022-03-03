@@ -1,0 +1,5 @@
+(declare-const phi_a Int)
+(declare-const phi_d Int)
+(assert (and (= (+ (- phi_a) 12) 0) (= (+ (- phi_d) 21) 0)
+               (not (or (< (+ phi_a -1) 0) (< (+ (- phi_a) 1) 0)))))
+(check-sat)
