@@ -433,3 +433,4 @@ let select_ite interp ?(env=Env.empty) expr =
   in
   let expr' = rewrite interp.srk ~down:rewriter expr in
   (expr', !conditions)
+

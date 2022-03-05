@@ -110,6 +110,8 @@ val abstract_subwedge :
     implementation by returning [`Unknown] as soon as it finds a disjunct that
     it can't prove to be infeasible.  *)
 val is_sat : 'a context -> 'a formula -> [ `Sat | `Unsat | `Unknown ]
+val is_sat_model : 'a context -> 'a formula -> [ `Sat of 'a Interpretation.interpretation | `Unsat | `Unknown ]
+
 
 (** Compute lower and upper bounds for a symbol that are implied by the given
     formula (if they exist).  The upper and lower bounds may involve only
@@ -155,3 +157,4 @@ val cover : ?subterm:(symbol -> bool) ->
   (symbol -> bool) ->
   'a formula ->
   'a formula
+

@@ -2027,9 +2027,84 @@ let is_sat srk phi =
           go ()
   in
   if Symbol.Map.is_empty nonlinear then
-    Smt.Solver.check solver []
+     Smt.Solver.check solver []
   else
     go ()
+
+let is_sat_model srk phi =
+      let phi = eliminate_ite srk phi in
+      let phi =
+        SrkSimplify.simplify_terms srk phi
+      in
+      let solver = Smt.mk_solver ~theory:"QF_LIRA" srk in
+      let uninterp_phi =
+        rewrite srk
+          ~down:(nnf_rewriter srk)
+          ~up:(Nonlinear.uninterpret_rewriter srk)
+          phi
+      in
+      let (lin_phi, nonlinear) = SrkSimplify.purify srk uninterp_phi in
+      let nonlinear_defs =
+        Symbol.Map.enum nonlinear
+        /@ (fun (symbol, expr) ->
+            match Expr.refine srk expr with
+            | `ArithTerm t -> mk_eq srk (mk_const srk symbol) t
+            | `Formula phi -> mk_iff srk (mk_const srk symbol) phi
+            | `ArrTerm _ -> assert false)
+        |> BatList.of_enum
+      in
+      let nonlinear = Symbol.Map.map (Nonlinear.interpret srk) nonlinear in
+      let rec replace_defs_term term =
+        substitute_const
+          srk
+          (fun x ->
+             try replace_defs_term (Symbol.Map.find x nonlinear)
+             with Not_found -> mk_const srk x)
+          term
+      in
+      let replace_defs =
+        substitute_const
+          srk
+          (fun x ->
+             try replace_defs_term (Symbol.Map.find x nonlinear)
+             with Not_found -> mk_const srk x)
+      in
+      Smt.Solver.add solver [lin_phi];
+      Smt.Solver.add solver nonlinear_defs;
+      let lemma psi =
+        Smt.Solver.add solver [Nonlinear.uninterpret srk psi]
+      in
+      let rec go () =
+        match Smt.Solver.get_model solver with
+        | `Unsat -> `Unsat
+        | `Unknown -> `Unknown
+        | `Sat model ->
+          match Interpretation.select_implicant model lin_phi with
+          | None -> assert false
+          | Some implicant ->
+            let cs = CS.mk_empty srk in
+            let constraint_partition =
+              List.map replace_defs implicant
+              |> Polyhedron.of_implicant ~admit:true cs
+              |> Polyhedron.try_fourier_motzkin cs (fun _ -> false)
+              |> Polyhedron.implicant_of cs
+              |> SrkSimplify.partition_implicant
+            in
+            let is_sat constraints =
+              let wedge = of_atoms srk constraints in
+              strengthen ~lemma wedge;
+              generalized_fourier_motzkin lemma Monomial.degrevlex wedge;
+              not (is_bottom wedge)
+            in
+            if List.for_all is_sat constraint_partition then
+              `Unknown
+            else
+              go ()
+      in
+      if Symbol.Map.is_empty nonlinear then
+        Smt.Solver.get_model ~symbols:[] solver 
+      else
+        go ()
 
 let reduce ~lemma wedge =
   let srk = wedge.srk in
@@ -2375,3 +2450,4 @@ let abstract_equalities ?exists:(p=fun _ -> true) ?subterm:(subterm=(fun _ -> tr
       to_formula = to_formula }
   in
   abstract_subwedge_weak wedge_eq srk phi
+
