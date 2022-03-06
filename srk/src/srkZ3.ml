@@ -564,8 +564,66 @@ let optimize_box ?(context=Z3.mk_context []) srk phi objectives =
     logf ~level:`warn "Caught Z3 exception: %s" x;
     `Unknown
 
-let interpolate_seq ?context:_ _ _ =
-  failwith "SrkZ3.interpolate_seq not implemented"
+  let z3 = context in
+  let of_formula = z3_of_formula srk z3 in
+  let formula_of = formula_of_z3 srk in
+  let rec make_pattern phi = function
+    | [psi] ->
+      Z3.Boolean.mk_and z3 [
+        Z3.Interpolation.mk_interpolant z3 phi;
+        of_formula psi
+      ]
+    | psi::rest ->
+      make_pattern
+        (Z3.Boolean.mk_and z3 [
+            Z3.Interpolation.mk_interpolant z3 phi;
+            of_formula psi
+          ])
+        rest
+    | [] ->
+      invalid_arg "interpolate_seq: input sequence must be of length >= 2"
+  in
+  let params = Z3.Params.mk_params z3 in
+  let pattern =
+    if seq = [] then
+      invalid_arg "interpolate_seq: input sequence must be of length >= 2";
+    make_pattern (of_formula (List.hd seq)) (List.tl seq)
+  in
+  match Z3.Interpolation.compute_interpolant z3 pattern params with
+  | (_, Some interp, None) -> `Unsat (List.map formula_of interp)
+  | (_, None, Some m) ->
+    `Sat (Interpretation.wrap srk (Solver.model_get_value srk z3 m))
+  | (_, _, _) -> `Unknown
+
+ 
+(* commented out version is for Z3 4.8+ ABI *) 
+ (*let load_smtlib2 ?(context=Z3.mk_context []) srk str =
+  let z3 = context in
+  let ast = Z3.SMT.parse_smtlib2_string z3 str [] [] [] [] in
+  let sym_of_decl =
+    let cos =
+      Memo.memo (fun (name, typ) ->
+          mk_symbol srk ~name typ)
+    in
+    fun decl ->
+      let open Z3 in
+      let sym = FuncDecl.get_name decl in
+      match FuncDecl.get_domain decl with
+      | [] ->
+        cos (Symbol.to_string sym, typ_of_sort (FuncDecl.get_range decl))
+      | dom ->
+        let typ =
+          `TyFun (List.map typ_of_sort dom,
+                  typ_of_sort (FuncDecl.get_range decl))
+        in
+        cos (Symbol.to_string sym, typ)
+  in
+  Z3.AST.ASTVector.to_expr_list ast
+  |> List.map (fun expr ->
+         match Expr.refine_coarse srk (of_z3 srk sym_of_decl expr) with
+         | `Formula phi -> phi
+         | `Term _ -> invalid_arg "load_smtlib2")
+  |> mk_and srk*)
 
 (*let load_smtlib2 ?(context=Z3.mk_context []) srk str =
   let z3 = context in
