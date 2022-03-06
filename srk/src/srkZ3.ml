@@ -567,7 +567,7 @@ let optimize_box ?(context=Z3.mk_context []) srk phi objectives =
 let interpolate_seq ?context:_ _ _ =
   failwith "SrkZ3.interpolate_seq not implemented"
 
-let load_smtlib2 ?(context=Z3.mk_context []) srk str =
+(*let load_smtlib2 ?(context=Z3.mk_context []) srk str =
   let z3 = context in
   let ast = Z3.SMT.parse_smtlib2_string z3 str [] [] [] [] in
   let sym_of_decl =
@@ -593,7 +593,34 @@ let load_smtlib2 ?(context=Z3.mk_context []) srk str =
          match Expr.refine_coarse srk (of_z3 srk sym_of_decl expr) with
          | `Formula phi -> phi
          | `Term _ -> invalid_arg "load_smtlib2")
-  |> mk_and srk
+  |> mk_and srk*)
+
+let load_smtlib2 ?(context=Z3.mk_context []) srk str =
+  let z3 = context in
+  let ast = Z3.SMT.parse_smtlib2_string z3 str [] [] [] [] in
+  let sym_of_decl =
+    let cos =
+      Memo.memo (fun (name, typ) ->
+          mk_symbol srk ~name typ)
+    in
+    fun decl ->
+      let open Z3 in
+      let sym = FuncDecl.get_name decl in
+      match FuncDecl.get_domain decl with
+      | [] ->
+        cos (Symbol.to_string sym, typ_of_sort (FuncDecl.get_range decl))
+      | dom ->
+        let typ =
+          `TyFun (List.map typ_of_sort dom,
+                  typ_of_sort (FuncDecl.get_range decl))
+        in
+        cos (Symbol.to_string sym, typ)
+  in
+  match Expr.refine_coarse srk (of_z3 srk sym_of_decl ast) with (* ruijief: it was Expr.refine. *)
+  | `Formula phi -> phi
+  | `Term _ -> invalid_arg "load_smtlib2"
+
+
 
 let of_goal srk g =
   List.map (formula_of_z3 srk) (Z3.Goal.get_formulas g)
@@ -761,3 +788,4 @@ module CHC = struct
 
   let to_string solver = Z3.Fixedpoint.to_string solver.fp
 end
+
