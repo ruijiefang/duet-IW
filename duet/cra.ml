@@ -590,7 +590,8 @@ type art_context = {
   is_covered : (bool ARR.t) ;  (** NEW! *)
   counter : int ref;
   covers: (int * int) list; (* TODO:   *)  
-  error_loc : int 
+  error_loc : int ;
+   model : Ctx.t Interpretation.interpretation option 
 }
 
 type art_path = int list 
@@ -625,7 +626,8 @@ let new_art (cfg : TS.t) (entry : int) (err_loc : int) (phi : Ctx.formula) : art
     (* error location. *)
     error_loc = err_loc  ; 
     is_leaf = ARR.singleton true ; 
-    is_covered = ARR.singleton false }
+    is_covered = ARR.singleton false ; 
+    model = None}
 
 
 let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module MonotoneDom) else (module TransitionDom))
@@ -690,11 +692,28 @@ let expand_from ?(pre_path:K.t option) (v : int) (cfg : TS.t) (art : art_context
       let cfg_vertex = ARR.get art.maps_to v in 
       let out_edges = WG.fold_succ_e (fun (_, weight, u) acc -> (u, weight) :: acc) cfg cfg_vertex [] in 
       if enable_pruning then 
-        List.iter (fun (u, _) -> 
+        List.iter (fun (u, w) -> 
+          let wt = match w with | Call _ -> failwith "" | Weight w' -> w' in 
+          let wt_formula = begin match pre_path with None -> wt | Some f-> K.mul f wt end |> K.guard in
+          match art.model with 
+          | None -> 
           begin match is_approx_reachable art art.graph u art.error_loc with 
           | true -> add_art_node art v u (mk_true ())
-          | false -> () (* pruned off *) end) out_edges
-      else List.iter (fun (u, _) ->  (* _ -> weight **) add_art_node art v u (mk_true ()) ) out_edges 
+          | false -> () (* pruned off *) end
+          | Some m -> 
+            let result = Interpretation.evaluate_formula m wt_formula in 
+            begin match result && (is_approx_reachable art art.graph u art.error_loc) with 
+            | true -> add_art_node art v u (mk_true ())
+            | false -> () (* pruned off *) end
+          ) out_edges
+      else List.iter (fun (u, w) ->  (* _ -> weight **)
+      let wt = match w with | Call _ -> failwith "" | Weight w' -> w' in 
+      let wt_formula = begin match pre_path with None -> wt | Some f-> K.mul f wt end |> K.guard in
+      match art.model with 
+      | None -> add_art_node art v u (mk_true ())
+      | Some m -> 
+        begin match Interpretation.evaluate_formula m wt_formula with 
+        | true -> add_art_node art v u (mk_true ()) | false -> () end) out_edges 
 
 let cfg_edge_from_tree_edge (t : art_context) (u : int) (v : int) =
   let cfg_vertex_u = ARR.get t.maps_to u in 
@@ -709,6 +728,14 @@ let rec path_condition (a : art_path) (t : art_context) : K.t list =
   | u :: [ v ] -> 
     [ cfg_edge_from_tree_edge t u v ]
   | u :: v :: a' -> cfg_edge_from_tree_edge t u v :: path_condition (v :: a') t
+
+
+let rec compose_path_condition (l : K.t list) = 
+  match l with 
+  | [] -> failwith ""
+  | [ c ] -> c
+  | a :: t -> K.mul a (compose_path_condition t)
+  
 
 (* Test if v is in subtree of u. *)
 let rec sub_tree_of (v : int) (u : int) (art : art_context) = 
@@ -739,20 +766,20 @@ let refine (u : int) (art : art_context) (cfg : cfg_t) : bool =
   let u_path = get_path u art in 
   let u_path_cond = path_condition u_path art in 
   let u_lbl = art.neg_assertion_phi (*ARR.get art.vertex_labels u*) in 
+  let _ = print_path art u_path in 
+  let _ = mypp_weights "path condition" u_path_cond in 
+  let _ = mypp_formula "vertex label" [ art.neg_assertion_phi ] in  (* this used to be u_lbl :-) *)
   let vertex_interpolants = K.interpolate u_path_cond u_lbl in 
   match vertex_interpolants with 
-  | `Invalid  | `Unknown -> failwith "program contains an ERROR ; done\n"
+  | `Invalid -> 
+    failwith "bad: Invalid interpolation result"
+  | `Unknown -> failwith "bad: Unknown interpolation result"
   | `Valid formulae -> 
+    Printf.printf "interpolant formula length: %d\n" @@ List.length formulae ; 
+    List.iter (fun f -> logf ~level:`always "interpolant formula: \n%a"
+    (Syntax.pp_expr_unnumbered Ctx.context) @@ f) formulae ; 
+    Printf.printf "path length: %d\n" @@ List.length u_path ; 
     relabel u @@ List.combine u_path (formulae @ [ mk_false () ] ); true
-
-(* Decide if a vertex v is covered. *)
-(* A vertex v \in V is said to be covered
- <=> Exists (w,x) \in Covering relation such that w is ancestor of v. *)
-let is_covered (v : int) (art : art_context) = 
-  let parents = List.rev @@ get_path v art in 
-  List.fold_right (fun w acc -> 
-    if acc (* parent already covered *) then acc 
-    else List.mem_assoc w art.covers) parents false
 
 (* Attempt to add (v,w) into the covering relation. *)
 let cover (v : int) (w : int) (art : art_context) = 
