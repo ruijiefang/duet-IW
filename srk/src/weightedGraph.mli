@@ -53,6 +53,9 @@ val msat_path_weight : 'a t -> vertex list -> 'a t
    paths starting at [v] in [g]. *)
 val omega_path_weight : 'a t -> ('a,'b) omega_algebra -> vertex -> 'b
 
+(* ruijief: added in_degree function. *)
+val in_degree : vertex -> 'a t -> int
+
 (** [cut_graph g c] computes the cut graph g'
     g' = <c, \{ (u, w, v) : (u, v) in c x c,
                           w is the sum of all paths from u to v in g not going

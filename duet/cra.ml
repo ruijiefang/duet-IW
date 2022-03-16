@@ -569,8 +569,14 @@ module TSDisplay = ExtGraph.Display.MakeLabeled
 
 module SA = Abstract.MakeAbstractRSY(Ctx)
 
+(*****************************************************************************
+    McMillan's algorithm [McMillan '06] for lazy abstraction with refinement.
+*******************************************************************************)
+
 let force_covering = false 
 let enable_pruning = false
+
+let enable_symb_exec = false
 
 exception Mexception of string 
 module ARR = Batteries.DynArray 
@@ -589,14 +595,21 @@ type art_context = {
   is_leaf : (bool ARR.t) ;  (** NEW! *)
   is_covered : (bool ARR.t) ;  (** NEW! *)
   counter : int ref;
-  covers: (int * int) list; (* TODO:   *)  
-  error_loc : int ;
-   model : Ctx.t Interpretation.interpretation option 
+  covers: (int * int) list; (* TODO: make this data structure more efficient. :-) *) 
+  error_loc : int ; 
+  model : Ctx.t Interpretation.interpretation option 
 }
 
 type art_path = int list 
 
 type cfg_t = K.t label WG.t
+
+(* Retrieves the source vertex in the control-flow graph. *)
+(* let get_source (cfg : cfg_t) =
+  let ans = WG.fold_vertex (fun (v:int) (acc:int) ->
+      let in_deg = WG.in_degree v cfg in 
+      if in_deg == 0 then v else acc) cfg  0 in 
+  Printf.printf "get_source : ans = %d\n" ans ; ans *)
 
 let mk_true () = Syntax.mk_true Ctx.context
 let mk_false () = Syntax.mk_false Ctx.context 
@@ -627,7 +640,8 @@ let new_art (cfg : TS.t) (entry : int) (err_loc : int) (phi : Ctx.formula) : art
     error_loc = err_loc  ; 
     is_leaf = ARR.singleton true ; 
     is_covered = ARR.singleton false ; 
-    model = None}
+    model = None } 
+
 
 
 let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module MonotoneDom) else (module TransitionDom))
@@ -635,14 +649,6 @@ let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module Monotone
 module IntFormulaMap = BatMap.Make(Int)
 
 let s_memo : (bool IntFormulaMap.t) ref = ref (IntFormulaMap.empty)
-
-
-let mypp_weights s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i K.pp f) l
-
-
-let mypp_formula s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i (Syntax.pp_expr_unnumbered Ctx.context) @@ f) l
-
-
 
 (* reachability. *)
 let is_approx_reachable (art : art_context) (cfg : cfg_t) (u : int) (v : int)
@@ -720,8 +726,9 @@ let cfg_edge_from_tree_edge (t : art_context) (u : int) (v : int) =
   let cfg_vertex_v = ARR.get t.maps_to v in 
   match WG.edge_weight t.graph cfg_vertex_u cfg_vertex_v with 
   | Call _ -> failwith "Call not implemented"
-  | Weight w -> w
-
+  | Weight w ->
+    List.iteri (fun i f -> logf ~level:`always "edge weight %d->%d: %a\n" cfg_vertex_u cfg_vertex_v (Syntax.pp_smtlib2 Ctx.context) @@ (K.guard f)) [w]
+    ; w
 let rec path_condition (a : art_path) (t : art_context) : K.t list = 
   match a with 
   | [] | [ _ ] -> raise @@ Mexception "error : cannot return path condition for path vertices < 2."
@@ -729,10 +736,9 @@ let rec path_condition (a : art_path) (t : art_context) : K.t list =
     [ cfg_edge_from_tree_edge t u v ]
   | u :: v :: a' -> cfg_edge_from_tree_edge t u v :: path_condition (v :: a') t
 
-
 let rec compose_path_condition (l : K.t list) = 
   match l with 
-  | [] -> failwith ""
+  | [] -> failwith "cannot compose list of empty conditions"
   | [ c ] -> c
   | a :: t -> K.mul a (compose_path_condition t)
   
@@ -750,6 +756,19 @@ let vertex_implication (u : int) (v : int) (t : art_context) =
 let get_path v art =
    let rec aux v art = if v == -1 then [] else v :: (aux (ARR.get art.parents v) art) in 
    List.rev (aux v art)
+
+let mypp_weights s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i K.pp f) l
+let mypp_formula s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i (Syntax.pp_expr_unnumbered Ctx.context) @@ f) l
+
+let print_path (t:art_context) p = 
+  let l = List.length p in 
+  Printf.printf "(%d) tree path: " l;
+  List.iteri (fun i x -> 
+    if i < l - 1 then Printf.printf "%d -> " x else Printf.printf "%d\n" x) p ;
+  Printf.printf "    CFG path: ";
+  List.iteri (fun i x ->
+    if i < l - 1 then Printf.printf "%d -> " @@ ARR.get t.maps_to x else Printf.printf "%d\n" @@ ARR.get t.maps_to x) p  
+
 
 (* Refinining the ART. *)
 let refine (u : int) (art : art_context) (cfg : cfg_t) : bool = 
@@ -778,8 +797,23 @@ let refine (u : int) (art : art_context) (cfg : cfg_t) : bool =
     Printf.printf "interpolant formula length: %d\n" @@ List.length formulae ; 
     List.iter (fun f -> logf ~level:`always "interpolant formula: \n%a"
     (Syntax.pp_expr_unnumbered Ctx.context) @@ f) formulae ; 
+
     Printf.printf "path length: %d\n" @@ List.length u_path ; 
     relabel u @@ List.combine u_path (formulae @ [ mk_false () ] ); true
+    (*
+    match vertex_interpolants with 
+    | `Unsat formulae -> 
+      relabel u @@ List.combine u_path formulae; true
+    | `Sat _ | `Unknown -> false *)
+
+(* Decide if a vertex v is covered. *)
+(* A vertex v \in V is said to be covered
+ <=> Exists (w,x) \in Covering relation such that w is ancestor of v. *)
+let is_covered (v : int) (art : art_context) = 
+  let parents = List.rev @@ get_path v art in 
+  List.fold_right (fun w acc -> 
+    if acc (* parent already covered *) then acc 
+    else List.mem_assoc w art.covers) parents false
 
 (* Attempt to add (v,w) into the covering relation. *)
 let cover (v : int) (w : int) (art : art_context) = 
@@ -796,6 +830,7 @@ let cover (v : int) (w : int) (art : art_context) =
 
 (* Close. *)
 let close (v : int) (art : art_context) =  
+  Printf.printf "   closing vertex %d\n" v ;
   let rec aux w = 
     if w == v then art
     else 
@@ -806,6 +841,7 @@ let close (v : int) (art : art_context) =
         cover v w art else aux (w + 1) in aux 0
 
 let rec dfs (v : int) (art : art_context) (g : cfg_t) : art_context = 
+  Printf.printf " > dfs %d \n" v ;
   let art' = close v art in
   if not (is_covered v art') then 
     let cfg_v = ARR.get art.maps_to v in
@@ -814,11 +850,21 @@ let rec dfs (v : int) (art : art_context) (g : cfg_t) : art_context =
       raise @@ Mexception "error assertion is reachable!"
     end
    else 
-     expand_from v g art';
+    Printf.printf " > dfs: expanding vertex %d\n" v ; 
+    if enable_symb_exec then 
+      expand_from ~pre_path:(path_condition (get_path v art') art' |> compose_path_condition) v g art' 
+    else expand_from v g art';
      (* For all children w of v, dfs(w) *)
      ARR.fold_left (fun art w -> dfs w art g) art' (ARR.get art.children v) 
   else art'
 
+
+(**
+ unwind ():
+  while there exists an uncovered leaf v in V:
+    for all w in V such that w ancestor of v: close(w) 
+    dfs(v)
+  *)
 
 let unwind ts (entry : int) (v : int) (phi : Ctx.formula) = 
   let it = ref 0 in 
@@ -826,24 +872,29 @@ let unwind ts (entry : int) (v : int) (phi : Ctx.formula) =
   (* Returns a pair (b, l) indicating whether `art` has uncovered leaf, and if so, a list of leaves. *)
   let has_uncovered_leaf art = 
     let rec aux (n:int) = 
+      Printf.printf " aux %d\n" n ; 
       let cond = (ARR.get art.is_leaf n) && (not (ARR.get art.is_covered n)) in 
+      Printf.printf " is %d leaf ? %b is covered ? %b \n" n (ARR.get art.is_leaf n) (ARR.get art.is_covered n) ;
       match n with
-      | 0 -> if cond then (true, [ 0 ]) else (false, [])
+      | 0 -> Printf.printf "boundary case 0 reached\n" ; if cond then (true, [ 0 ]) else (false, [])
       | x -> let (cond', ls) = aux (n - 1) in if cond then (true, x :: ls) else (cond', ls)
     in let res = aux !(art.counter) in Printf.printf " aux done\n" ; res 
   in while true do 
+    Printf.printf "deciding if ART has uncovered leaf...\n" ;
     let exists, ls = has_uncovered_leaf !art  in 
+    Printf.printf "decided. list of uncovered_leaves has size %d\n" @@ List.length ls ; 
     let rec walk_ancestors u =  
       match u with 
       | -1 -> ()
       | v -> art := close u !art; walk_ancestors (u - 1) 
     in walk_ancestors 0;
+    Printf.printf "has uncovered leaf... executing main loop. iteration %d\n" !it;
     begin if not exists then 
       Printf.printf "program is safe\n" 
     else 
       match ls with 
       | [] -> raise (Mexception "should not happen")
-      | a :: t -> a ; art := dfs a !art ts
+      | a :: t -> Printf.printf "unwind: uncovered leaf %d\n" a ; art := dfs a !art ts
     end
   done 
 
@@ -929,12 +980,12 @@ let make_transition_system rg =
         in
 
         let entry = (RG.block_entry rg block).did in
-        let exit = (RG.block_exit rg block).did in
+        (*let exit = (RG.block_exit rg block).did in
         let point_of_interest v =
           v = entry || v = exit || SrkUtil.Int.Map.mem v (!assertions)
         in
         let tg = TS.simplify point_of_interest tg in
-        let tg = TS.remove_temporaries tg in
+        let tg = TS.remove_temporaries tg in*)
         let tg =
           if !forward_inv_gen then let _ = Printf.printf "forward inv gen...\n" in
             Log.phase "Forward invariant generation"
@@ -965,8 +1016,62 @@ let analyze2 file =
       let entry = (RG.block_entry rg main).did in
       let (ts, assertions) = make_transition_system rg in
       TSDisplay.display ts;
+      (* let query = mk_query ts entry in*)
+    (* let query = mk_query ts entry in *)
       assertions |> SrkUtil.Int.Map.iter (fun v (phi, loc, msg) ->
-          unwind ts entry v phi; Printf.printf " [done]\n" );
+          (* for each assertion, compute path summary and see if reachable. *)
+            Printf.printf "Iterating over an assertion...\n"; 
+          Printf.printf " > entry node : %d ; target node: %d\n" entry v ;
+          Printf.printf " > assertion: %s\n" msg;
+          mypp_formula " >>> assertion formula: " [ phi ] ; 
+          mypp_formula " >>> negated  formula: " [ Ctx.mk_not phi ] ;
+         (* let path = TS.path_weight query v in
+          let sigma sym =
+            logf ~level:`always " ->>>>++++--- substituting %a \n" (Syntax.pp_symbol Ctx.context) sym ;
+            match V.of_symbol sym with
+            | Some v when K.mem_transform v path ->
+              K.get_transform v path
+            | _ -> Ctx.mk_const sym
+          in
+          let phi = Syntax.substitute_const Ctx.context sigma phi in
+          let path_condition =
+            Ctx.mk_and [K.guard path; Ctx.mk_not phi]
+            |> SrkSimplify.simplify_terms srk
+          in *)
+        (*  logf ~level:`always "Path condition:@\n%a"
+            (Syntax.pp_smtlib2 Ctx.context) @@ K.guard path;
+          dump_goal loc path_condition; *)
+          mypp_formula " ------------- simplified formula phi: ---: " [ phi ] ; 
+          unwind ts entry v phi; 
+          Printf.printf "Done!!!\n"
+          
+
+        (* let path = TS.path_weight query v in (* ruijie: this is the overapproximation! *)
+          let sigma sym =
+            match V.of_symbol sym with
+            | Some v when K.mem_transform v path ->
+              K.get_transform v path
+            | _ -> Ctx.mk_const sym
+          in
+          let phi = Syntax.substitute_const Ctx.context sigma phi in
+          let path_condition =
+            Ctx.mk_and [K.guard path; Ctx.mk_not phi]
+            |> SrkSimplify.simplify_terms srk
+          in
+          logf "Path condition:@\n%a"
+            (Syntax.pp_smtlib2 Ctx.context) path_condition;
+          dump_goal loc path_condition;
+          (* A path_condition over-approximates the reachability info of the actual path.
+             Hence if SAT, then nothing can be concluded.  --- We need to refine about this info.
+              But if it is UNSAT or UNKNOWN, we can terminate. *)
+          match Wedge.is_sat Ctx.context path_condition with
+          | `Sat -> Report.log_error loc msg
+          | `Unsat -> Report.log_safe ()
+          | `Unknown ->
+            logf ~level:`warn "Z3 inconclusive";
+            Report.log_error loc msg
+            *)
+            );
 
       Report.print_errors ();
       Report.print_safe ();
@@ -1456,4 +1561,3 @@ let _ =
     ("-rba", resource_bound_analysis, " Resource bound analysis");
   CmdLine.register_pass 
     ("-mcl", analyze2, " McMillan's algorith for lazy abstraction with refinement")
-

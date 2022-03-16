@@ -2450,4 +2450,3 @@ let abstract_equalities ?exists:(p=fun _ -> true) ?subterm:(subterm=(fun _ -> tr
       to_formula = to_formula }
   in
   abstract_subwedge_weak wedge_eq srk phi
-

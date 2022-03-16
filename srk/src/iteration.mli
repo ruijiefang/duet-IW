@@ -45,12 +45,7 @@ module LinearGuard : PreDomainIter
 (** Abstract a transition formula F(x,x') by a system of recurrences of the form
     a(x') >= a(x) + c
     where a is a linear map and c is a scalar. *)
-module LossyTranslation : PreDomain
-
-(** Abstract a transition formula F(x,x') a translation 
-      a(x') = a(x) + c
-    guarded by a LIA formula *)
-module GuardedTranslation : PreDomain
+module LinearRecurrenceInequation : PreDomain
 
 (** Abstract a transition formula F(x,x',y) (where y denotes a set of
    symbolic constants) by a system of recurrences of the form

@@ -403,7 +403,7 @@ struct
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
     match Smt.Solver.get_unsat_core solver indicators with
-    | `Sat -> `Invalid
+    | `Sat -> Printf.printf "transition::interpolate : formula is satisfiable\n" ; `Invalid
     | `Unknown -> `Unknown
     | `Unsat core ->
        let core_symbols =

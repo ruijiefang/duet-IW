@@ -380,6 +380,10 @@ let fold_vertex f wg = U.fold_vertex f wg.graph
 let iter_vertex f wg = U.iter_vertex f wg.graph
 let mem_edge wg u v = M.mem (u, v) wg.labels
 
+(* ruijief: added in_degree function. *)
+let in_degree f wg = U.in_degree wg.graph f 
+
+
 (* Cut graph reduces a weighted graph to only those vertices in c, while preserving all weighted paths between pairs of vertices in c *)
 let cut_graph wg c =
   let module Set = SrkUtil.Int.Set in

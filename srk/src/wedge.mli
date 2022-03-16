@@ -157,4 +157,3 @@ val cover : ?subterm:(symbol -> bool) ->
   (symbol -> bool) ->
   'a formula ->
   'a formula
-

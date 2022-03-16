@@ -18,7 +18,7 @@ let suite = "Main" >::: [
     Test_simplify.suite;
     Test_quantifier.suite;
     Test_wedge.suite;
-    Test_abstract.suite;
+    (*Test_abstract.suite;*)
     Test_lts.suite;
     Test_iteration.suite;
     Test_termination.suite;

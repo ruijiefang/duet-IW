@@ -763,4 +763,3 @@ module CHC = struct
 
   let to_string solver = Z3.Fixedpoint.to_string solver.fp
 end
-

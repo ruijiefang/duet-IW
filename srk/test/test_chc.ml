@@ -5,7 +5,7 @@ open Test_pervasives
 open Chc
 open Iteration
 
-let pd = (module Product(LossyTranslation)(PolyhedronGuard) :
+let pd = (module Product(LinearRecurrenceInequation)(PolyhedronGuard) :
   PreDomain)
 
 let mk_rel_atom_fresh srk fp ?(name="R") syms =
