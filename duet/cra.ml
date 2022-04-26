@@ -652,18 +652,26 @@ let s_memo : (bool IntFormulaMap.t) ref = ref (IntFormulaMap.empty)
 
 (* reachability. *)
 let is_approx_reachable (art : art_context) (cfg : cfg_t) (u : int) (v : int)
- =  let entry = u in
-    let query = mk_query cfg entry in 
-    let path = TS.path_weight query v in
-    let sigma sym =
+ =  let entry = ARR.get art.maps_to art.root in
+    let query1 = mk_query cfg entry in 
+    let path1 = TS.path_weight query1 u in
+    let query2 = mk_query cfg u in 
+    let path2 = TS.path_weight query2 v in 
+    let sigma1 sym =
       match V.of_symbol sym with
-      | Some v when K.mem_transform v path ->
-        K.get_transform v path
+      | Some v when K.mem_transform v path1 ->
+        K.get_transform v path1
       | _ -> Ctx.mk_const sym
     in
-    let phi = Syntax.substitute_const Ctx.context sigma art.assertion_phi in
+(*    let sigma2 sym = 
+      match V.of_symbol sym with
+      | Some v when K.mem_transform v path2 ->
+        K.get_transform v path1
+      | _ -> Ctx.mk_const sym
+    in*)
+    let phi = Syntax.substitute_const Ctx.context sigma1 art.assertion_phi in
     let path_condition =
-      Ctx.mk_and [K.guard path; Ctx.mk_not phi]
+      Ctx.mk_and [K.guard path1; K.guard path2 ; Ctx.mk_not phi]
       |> SrkSimplify.simplify_terms srk
     in
     logf "over-approximated path condition: %a \n"
@@ -859,13 +867,6 @@ let rec dfs (v : int) (art : art_context) (g : cfg_t) : art_context =
   else art'
 
 
-(**
- unwind ():
-  while there exists an uncovered leaf v in V:
-    for all w in V such that w ancestor of v: close(w) 
-    dfs(v)
-  *)
-
 let unwind ts (entry : int) (v : int) (phi : Ctx.formula) = 
   let it = ref 0 in 
   let art = ref (new_art ts entry v phi) in 
@@ -899,6 +900,7 @@ let unwind ts (entry : int) (v : int) (phi : Ctx.formula) =
   done 
 
 
+  (* find loop headers and insert assume for loop invariant . *)
 let decorate_transition_system predicates ts entry =
   let module AbsDom =
     TS.ProductIncr
@@ -980,12 +982,12 @@ let make_transition_system rg =
         in
 
         let entry = (RG.block_entry rg block).did in
-        (*let exit = (RG.block_exit rg block).did in
+        let exit = (RG.block_exit rg block).did in
         let point_of_interest v =
           v = entry || v = exit || SrkUtil.Int.Map.mem v (!assertions)
         in
         let tg = TS.simplify point_of_interest tg in
-        let tg = TS.remove_temporaries tg in*)
+        let tg = TS.remove_temporaries tg in
         let tg =
           if !forward_inv_gen then let _ = Printf.printf "forward inv gen...\n" in
             Log.phase "Forward invariant generation"
@@ -1008,17 +1010,247 @@ let make_transition_system rg =
   (ts, !assertions)
 
 
+let make_ts_assertions_unreachable (ts : cfg_t) assertions = 
+  let largest = ref (WG.fold_vertex (fun v max -> if v > max then v else max) ts 0) in 
+  let pts = ref ts in 
+  let new_vertices = ref [] in 
+  assertions |> SrkUtil.Int.Map.iter (
+    fun v (phi, _, _) -> 
+      (* For each assertion, create new vertex after the assertion state 
+       * with edge into the vertex being the negated condition. *)
+      let u = !largest + 1 in 
+      largest := (!largest) + 1; 
+      pts := WG.add_vertex !pts u ;
+      pts := WG.add_edge !pts v (Weight (K.assume (Ctx.mk_not phi))) u ;
+      let s = Printf.sprintf " Adding assertion node %d -> %d for label " v u in 
+      mypp_formula s [ Ctx.mk_not phi ] ; 
+      new_vertices := u :: !new_vertices 
+  ); !pts, !new_vertices
+
+  (**
+  let largest_vertex (g : cfg_t) = 
+    let m = WG.fold_vertex (fun v max -> if v > max then v else max) g 0 in 
+    let g = WG.add_vertex g (m + 1) in 
+    let g = WG.add_vertex g (m + 2) in 
+        let g = WG.add_edge g (m + 1) (Weight (K.assume (mk_false ()))) (m + 2) in 
+    g *)
+  
+
+module IntMap = BatMap.Make(Int)
+
+type mtree = {
+  graph : cfg_t;
+  entry : int;
+  cfg_vertex : int ARR.t ;
+  parents : int ARR.t ; 
+  model : Ctx.t Interpretation.interpretation IntMap.t ;
+}
+
+(*
+
+  graph : TS.t; (* Underlying control-flow graph. *)
+  root: int; (* Root of the underlying CFG. *)
+  children : (int ARR.t) ARR.t;  (* Adjacency list representation of ART. *)
+  parents : (int ARR.t) ;
+  maps_to: (int ARR.t) ; (* F(v): decide which CFG vertex a tree vertex maps to. *)
+  vertex_labels : ((Ctx.t Syntax.formula) ARR.t);
+  assertion_phi : Ctx.formula ; 
+  neg_assertion_phi : Ctx.formula ; 
+  is_leaf : (bool ARR.t) ;  (** NEW! *)
+  is_covered : (bool ARR.t) ;  (** NEW! *)
+  counter : int ref;
+  covers: (int * int) list; (* TODO: make this data structure more efficient. :-) *) 
+  error_loc : int ; 
+  model : Ctx.t Interpretation.interpretation option 
+*)
+
+type ltree = {
+  graph : cfg_t;
+  entry : int;
+  cfg_vertex : int ARR.t;
+  parents : int ARR.t;
+  labels : (Ctx.t Syntax.formula) ARR.t;
+  is_covered : bool ARR.t;
+  covers : (int * int) ARR.t
+}
+
+module DQ = BatDeque
+type idq_t = int BatDeque.t 
+
+    
+
+let sexec (ts : cfg_t) (entry : int) (err_loc : int) = 
+  let (%>>) (i : int)  (q : idq_t) = DQ.cons i q in 
+  (*let (%<<) (q : idq_t) (i : int) = DQ.snoc q i in *)
+  let get_out_neighbors (g : cfg_t) (u : int) = 
+    WG.fold_succ_e (fun (x, weight, y) l -> 
+      if x <> u then failwith "will not happen" 
+      else (weight, y) :: l) g u [] in 
+  let get_abstract_model (src : int) (sink : int) = 
+    let query = mk_query ts src in 
+    let path = TS.path_weight query sink in 
+    let path_condition = K.guard path in 
+    (*Wedge.is_sat_model Ctx.context path_condition *)
+    let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
+      Smt.get_concrete_model Ctx.context path_condition_symbols path_condition 
+  in 
+  let get_abstract_model_pre_weight (w : MonotoneDom.weight) (src : int) (sink : int) = 
+    let query = mk_query ts src in 
+    let path = TS.path_weight query sink in 
+    let path_condition =  K.guard @@ K.mul w path in 
+    (*Wedge.is_sat_model Ctx.context path_condition *)
+    let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
+      Smt.get_concrete_model Ctx.context path_condition_symbols path_condition 
+  in 
+  Printf.printf "sexec: starting symbolic execution entry=%d err_loc=%d\n" entry err_loc;
+  begin match get_abstract_model entry err_loc with 
+  | `Sat initial_model ->
+      let worklist = ref (0 %>> DQ.empty) in 
+      let vtxcnt = ref 1 in 
+      let ptt = ref { 
+        graph = ts; 
+        entry = entry; 
+        cfg_vertex = ARR.singleton entry ; 
+        parents = ARR.singleton (-1) ;
+        model  = IntMap.singleton 0 initial_model } in
+      let unsafe = ref false in 
+      Printf.printf "sexec: %d -> %d |- Sat - Assertion might be unsafe, starting symbexec using abstract model. \n" entry err_loc;
+      while (DQ.size !worklist > 0) && (not !unsafe) do 
+        if !unsafe then begin
+          Printf.printf "     *** ASSERTION UNSAFE *** \n" end
+        else begin 
+          begin match DQ.front !worklist with 
+          | Some (tx, w') -> 
+            let x = ARR.get !(ptt).cfg_vertex tx in 
+            worklist := w'; (* Pop x off front of list. *)
+            if x == err_loc then begin 
+              unsafe := true;
+              Printf.printf " sexec: err loc reached! Assertion unsafe\n" 
+            end else 
+              let x_model = IntMap.find tx !(ptt).model in 
+              let x_out_neighbors = get_out_neighbors !(ptt).graph x in 
+                List.iter (fun (weight, y) -> 
+                  (*Printf.printf " sexec: -- out edge (%d,%d) \n" x y ; *)
+                  let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
+                  begin match K.get_post_model x_model weight with 
+                  | Some y_model ->   
+                        (*Printf.printf " sexec: -- adding node %d (cfg node %d) to tree\n" !vtxcnt y; *)
+                       (* Interpretation.pp Format.str_formatter y_model;
+                        Printf.printf "post-state model of dest: %s\n" @@ Format.flush_str_formatter ();*)
+                        ARR.add !(ptt).cfg_vertex y;
+                        ARR.add !(ptt).parents tx;
+                        ptt := {!ptt with model = IntMap.add !vtxcnt y_model !(ptt).model};
+                        worklist := !vtxcnt %>> !worklist;
+                        vtxcnt := !vtxcnt + 1 
+                  | None ->
+                    Printf.printf " sexec: -- cannot reach cfg node %d from cfg node %d\n" y x ;
+                    (* New path summary *)
+                    begin match get_abstract_model_pre_weight weight y err_loc with 
+                    | `Sat y_model ->
+                      ARR.add !(ptt).cfg_vertex y;
+                      ARR.add !(ptt).parents tx;
+                      ptt := {!ptt with model = IntMap.add !vtxcnt y_model !(ptt).model};
+                      worklist := !vtxcnt %>> !worklist;
+                      vtxcnt := !vtxcnt + 1
+                    | `Unknown | `Unsat -> 
+                      Printf.printf " sexec: -- cannot reach cfg node %d from cfg node %d\n" y x ; ()
+                    end 
+                  end
+                  ) x_out_neighbors;
+                  (* Can safely remove current node from the tree. *) 
+                  ptt := {!ptt with model = IntMap.remove tx !ptt.model }
+          | None -> failwith "cannot happen" 
+        end
+      end
+      done;
+        Printf.printf "sexec: %d -> %d |- Greedy exploration ended. No greedy paths to errloc (close to being safe, assertion likely true). \n" entry err_loc
+  | `Unsat -> 
+    Printf.printf "sexec: %d -> %d |- Unsat - Proven unreachable (safe, assertion is definitely true)\n" entry err_loc 
+  | `Unknown -> Printf.printf "sexec: %d -> %d |- State unknown\n" entry err_loc end
+
+
+
+module BM = BatMap.Make(Int)
+
+let test_interpolate_path (g : cfg_t) (entry : int) (err_loc : int) = 
+  let parents = ref BM.empty in 
+  let weights = ref BM.empty in 
+  let rec gatherDFS v err_loc p = 
+    Printf.printf "gatherDFS: visiting node %d\n" v ; 
+    parents := BM.add v p !parents;
+    if v == err_loc then ()
+    else
+      WG.iter_succ_e (fun (_, weight, y) -> 
+        (* If y is unvisited, then visit it. *)
+        match BM.find_opt y !parents with 
+        | None -> 
+          let weight = match weight with | Call _ -> failwith "" | Weight w -> w in 
+          weights := BM.add y weight !weights;
+          gatherDFS y err_loc v
+        | Some _ -> ()
+        ) g v
+  in 
+  let rec getPathCond u = 
+    Printf.printf "Path node %d, parent %d\n" u (BM.find u !parents);
+    if u = entry then begin Printf.printf "returning...\n" ; [] end
+    else begin
+      let u_weight = BM.find u !weights in 
+      u_weight :: (getPathCond @@ BM.find u !parents) end
+    in 
+      parents := BM.add entry (-1) !parents;
+      gatherDFS entry err_loc (-1);
+      let path_cond = getPathCond err_loc in 
+      let path_cond = List.rev path_cond in 
+      Printf.printf "...Got path condition\n";
+      mypp_weights "Path condition is: " path_cond;
+      let interpolants = K.interpolate [ K.zero ] (mk_false ()) in 
+      match interpolants with 
+      | `Invalid -> Printf.printf " --- invalid\n"
+      | `Unknown -> Printf.printf "  --- unknown\n"
+      | `Valid interpolants ->
+        mypp_formula " *** Interpolants: " interpolants 
+
+
 let analyze2 file = 
   populate_offset_table file;
   match file.entry_points with
   | [main] -> begin
+
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
       let (ts, assertions) = make_transition_system rg in
+      let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
+      Printf.printf "\nentry: %d\n" entry; 
+     (* List.iter (fun err_loc -> 
+        Printf.printf "Processing erro %d-----------------------------\n" err_loc;
+        test_interpolate_path ts entry err_loc 
+        ) new_vertices*)
+      List.iter (fun err_loc ->
+        Printf.printf "testing overapproximate reachability of location %d\n" err_loc ; 
+        Printf.printf "------------------------------\n";
+        sexec  ts entry err_loc;
+        Printf.printf "------------------------------\n"
+        ) new_vertices 
+      end
+  | _ -> assert false
+
+          (*let query = mk_query ts entry in 
+        let path = TS.path_weight query err_loc in 
+        let path_condition = K.guard path in 
+        mypp_formula "Path condition: " [ path_condition ] ;
+        match Wedge.is_sat Ctx.context path_condition with
+        | `Sat -> Printf.printf " |- Satisfiable - abstractly reachable (unsafe, assertion may be false)\n"
+        | `Unsat -> Printf.printf " |- Unsat - Proven unreachable (safe, assertion is definitely true)\n" 
+        | _ -> Printf.printf "|- State unknown\n" 
+        ) new_vertices ; exit 1;*)
+        (*
+      (*Printf.printf "\nlargest vertex: %d\n" @@ largest_vertex ts; 
+      exit 1;
+*)
       (* let query = mk_query ts entry in*)
     (* let query = mk_query ts entry in *)
-      assertions |> SrkUtil.Int.Map.iter (fun v (phi, loc, msg) ->
+     (* assertions |> SrkUtil.Int.Map.iter (fun v (phi, loc, msg) ->
           (* for each assertion, compute path summary and see if reachable. *)
             Printf.printf "Iterating over an assertion...\n"; 
           Printf.printf " > entry node : %d ; target node: %d\n" entry v ;
@@ -1044,7 +1276,7 @@ let analyze2 file =
           mypp_formula " ------------- simplified formula phi: ---: " [ phi ] ; 
           unwind ts entry v phi; 
           Printf.printf "Done!!!\n"
-          
+          *)
 
         (* let path = TS.path_weight query v in (* ruijie: this is the overapproximation! *)
           let sigma sym =
@@ -1070,13 +1302,13 @@ let analyze2 file =
           | `Unknown ->
             logf ~level:`warn "Z3 inconclusive";
             Report.log_error loc msg
-            *)
+            *)(*
             );
 
       Report.print_errors ();
       Report.print_safe ();
-    end
-  | _ -> assert false
+    end*)
+  | _ -> assert false*)
 
 
 let analyze file =
@@ -1110,7 +1342,7 @@ let analyze file =
              Hence if SAT, then nothing can be concluded.  --- We need to refine about this info.
               But if it is UNSAT or UNKNOWN, we can terminate. *)
           match Wedge.is_sat_model Ctx.context path_condition with
-          | `Sat model -> Report.log_error loc msg
+          | `Sat _ -> Report.log_error loc msg
           | `Unsat -> Report.log_safe ()
           | `Unknown ->
             logf ~level:`warn "Z3 inconclusive";

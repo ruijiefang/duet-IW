@@ -186,7 +186,12 @@ struct
       | None -> Symbol.Set.mem x post_symbols
     in
     TransitionFormula.make ~exists body tr_symbols
-
+(*
+  let make_transition_formula_without_post tr = 
+    let body = mk_and tr.guard in 
+    let tr_symbols = M.fold (fun var _ l -> var :: l) tr.transform [] in 
+    let exists x = match Var.of_symbol x with | Some _ -> true | None -> Symbol.Set.mem x tr.transform 
+*)
   let domain =
     let open Iteration in
     let open SolvablePolynomial in
@@ -335,6 +340,34 @@ struct
   let transform tr = M.enum tr.transform
   let guard tr = tr.guard
 
+  let get_post_model m f = 
+    let f_guard = guard f in 
+    let replacer (sym : Syntax.symbol) = 
+      if Var.of_symbol sym == None then Syntax.mk_const C.context sym 
+      else mk_real C.context @@ Interpretation.real m sym 
+      in 
+    let f_guard' = Syntax.substitute_const C.context replacer f_guard in 
+    let f_transform = transform f in 
+    let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in 
+    match Smt.get_concrete_model C.context (symbols) f_guard'  with 
+    | `Sat skolem_model -> 
+      let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
+        let replacer (sym : Syntax.symbol) = 
+          if List.mem sym symbols then mk_real C.context @@ Interpretation.real skolem_model sym  
+          else
+            mk_const C.context sym
+        in 
+        let sub_expr = Syntax.substitute_const C.context replacer rhs in 
+        let lhs_symbol =  Var.symbol_of lhs in
+      (* Printf.printf "  interpretation substituting symbol: %s\n" @@ Syntax.show_symbol C.context lhs_symbol ;
+       logf "      original expression: %a \n" (Syntax.pp_expr_unnumbered C.context) rhs;
+       logf "      substituted expression: %a \n" (Syntax.pp_expr_unnumbered C.context) sub_expr;*)
+        let sub_val = Interpretation.evaluate_term m sub_expr in 
+     (* Printf.printf "          value of substitution: %s\n" @@ Mpq.to_string sub_val ;*)
+        Interpretation.add lhs_symbol (`Real sub_val) m' 
+      ) m f_transform in Some post_model 
+    | _ -> None 
+
   let rec destruct_and srk phi =
     match Formula.destruct srk phi with
     | `And xs -> List.concat_map (destruct_and srk) xs
@@ -403,7 +436,7 @@ struct
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
     match Smt.Solver.get_unsat_core solver indicators with
-    | `Sat -> Printf.printf "transition::interpolate : formula is satisfiable\n" ; `Invalid
+    | `Sat ->  Printf.printf "transition::interpolate : formula is satisfiable\n" ;`Invalid
     | `Unknown -> `Unknown
     | `Unsat core ->
        let core_symbols =

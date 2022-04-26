@@ -37,6 +37,16 @@ module Make
       also appears in the transform. *)
   val equal : t -> t -> bool
 
+
+
+  (**  
+    transtion : guard, transform
+    interpretation: M
+    find a model of the guard where we use M to replace all the pre-state value.
+    check interpretation.substitute 
+  *)
+  val get_post_model : C.t Interpretation.interpretation -> t -> (C.t Interpretation.interpretation) option 
+
   (** Compare is a purely syntactic comparison.  Two transitions [tr] and
       [tr'] can be equivalent ([equal tr tr' = true]) but have [compare tr tr'
       != 0]. *)

@@ -45,6 +45,7 @@ let add k v interp =
 let value interp k =
   try SM.find k interp.map
   with Not_found ->
+    (*Printf.printf "err: value not found: %s\n" @@ Syntax.show_symbol interp.srk k;*)
     let v = interp.default k in
     interp.map <- SM.add k v interp.map;
     v
@@ -174,10 +175,13 @@ and evaluate_formula interp ?(env=Env.empty) phi =
       begin try
           let s = evaluate_term interp ~env s in
           let t = evaluate_term interp ~env t in
+        (*  Printf.printf "s = %f\n" @@ Mpqf.to_float s;*)
+        (*  Printf.printf "t = %f\n" @@ Mpqf.to_float t;*)
           begin match op with
-            | `Leq -> QQ.leq s t
-            | `Eq -> QQ.equal s t
-            | `Lt -> QQ.lt s t
+            | `Leq -> (*Printf.printf "leq\n";*) QQ.leq s t
+            | `Eq -> (*Printf.printf "eq\n"; let res = QQ.equal s t in Printf.printf " - result = %b\n" res; res*)
+                  QQ.equal s t
+            | `Lt -> (*Printf.printf "lt\n"; *)QQ.lt s t
           end
         with Divide_by_zero -> false
       end
