@@ -340,7 +340,7 @@ struct
   let transform tr = M.enum tr.transform
   let guard tr = tr.guard
 
-  let get_post_model m f = 
+  let get_post_model ?(solver=Smt.mk_solver C.context) m f = 
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
       if Var.of_symbol sym == None then Syntax.mk_const C.context sym 
@@ -349,7 +349,7 @@ struct
     let f_guard' = Syntax.substitute_const C.context replacer f_guard in 
     let f_transform = transform f in 
     let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in 
-    match Smt.get_concrete_model C.context (symbols) f_guard'  with 
+    match Smt.get_concrete_model C.context ~solver:(solver) (symbols) f_guard' with 
     | `Sat skolem_model -> 
       let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
         let replacer (sym : Syntax.symbol) = 
@@ -359,11 +359,11 @@ struct
         in 
         let sub_expr = Syntax.substitute_const C.context replacer rhs in 
         let lhs_symbol =  Var.symbol_of lhs in
-      (* Printf.printf "  interpretation substituting symbol: %s\n" @@ Syntax.show_symbol C.context lhs_symbol ;
+       Printf.printf "  interpretation substituting symbol: %s\n" @@ Syntax.show_symbol C.context lhs_symbol ;
        logf "      original expression: %a \n" (Syntax.pp_expr_unnumbered C.context) rhs;
-       logf "      substituted expression: %a \n" (Syntax.pp_expr_unnumbered C.context) sub_expr;*)
+       logf "      substituted expression: %a \n" (Syntax.pp_expr_unnumbered C.context) sub_expr;
         let sub_val = Interpretation.evaluate_term m sub_expr in 
-     (* Printf.printf "          value of substitution: %s\n" @@ Mpq.to_string sub_val ;*)
+      Printf.printf "          value of substitution: %s\n" @@ Mpq.to_string sub_val ;
         Interpretation.add lhs_symbol (`Real sub_val) m' 
       ) m f_transform in Some post_model 
     | _ -> None 
@@ -436,7 +436,7 @@ struct
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
     match Smt.Solver.get_unsat_core solver indicators with
-    | `Sat ->  Printf.printf "transition::interpolate : formula is satisfiable\n" ;`Invalid
+    | `Sat -> Printf.printf "transition::interpolate : formula is satisfiable\n" ; `Invalid
     | `Unknown -> `Unknown
     | `Unsat core ->
        let core_symbols =

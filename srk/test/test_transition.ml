@@ -273,23 +273,41 @@ let check_interpolant path itp =
   go path (Ctx.mk_true::itp)
 
 let interpolate1 () =
+  (* 
+program:
+    x = 0;
+    y = 0;
+     x = x + 1;
+     y = y + 1;
+     assert(10<=x); <-------- false assertion
+     assert(10<x||x<10);
+   * *)
   let path =
     let open Infix in
     [T.assign "x" (int 0);
      T.assign "y" (int 0);
-     T.assume (x < (int 10));
+     T.assume (x < (int 10)); 
      T.assign "x" (x + (int 1));
      T.assign "y" (y + (int 1));
      T.assume ((int 10) <= x);
-     T.assume ((int 10) < x || x < (int 10))]
+     T.assume ((x < (int 0)) && ((int 0) < (x)));
+     T.assume ((int 10) < x || x < (int 10)) ]
   in
   let post = Ctx.mk_false in
   match T.interpolate path post with
   | `Valid itp ->
-    check_interpolant path itp
-  | _ -> assert_failure "Invalid post-condition"
+   (* let _ = failwith "valid" in *)check_interpolant path itp
+  | _ ->  (*let _ = failwith "wtf" in *)assert_failure "Invalid post-condition"
 
 let interpolate2 () =
+(*
+program:
+   asume (x < 10); ---> good
+   x := x + 1; --> x + 1 <= 10
+   y := y + 1; ---> y := havoc() + 1
+   assert (10 <= x); ---> good
+   assert (10 < x || x < 10);
+ * *)
   let path =
     let open Infix in
     [T.assume (x < (int 10));
@@ -302,7 +320,33 @@ let interpolate2 () =
   match T.interpolate path post with
   | `Valid itp ->
     check_interpolant path itp
-  | _ -> assert_failure "Invalid post-condition"
+  | _ -> 
+    assert_failure "Invalid post-condition"
+
+let interpolate3 () = 
+(*
+program:
+   x := 0;
+   y := 0;
+   z := havoc();
+   assert (z < x);
+   assert (z < y);
+ * *)
+  let path = 
+    let open Infix in
+    [T.assign "x" (int 0);
+     T.assign "y" (int 0);
+     T.assume (z < x);
+     T.assume (z < y)
+    ]
+  in
+  let post = Ctx.mk_true in 
+  match T.interpolate path post with 
+  | `Valid itp -> 
+    check_interpolant path itp
+  | _ -> 
+    assert_failure "Invalid post-condition"
+
 
 let interpolate_havoc () =
   let path =
@@ -348,6 +392,7 @@ let suite = "Transition" >::: [
     "equal1" >:: equal1;
     "interpolate1" >:: interpolate1;
     "interpolate2" >:: interpolate2;
+    "interpolate3" >:: interpolate3;
     "interpolate_havoc" >:: interpolate_havoc;
     "negative_eigenvalue" >:: negative_eigenvalue;
   ]

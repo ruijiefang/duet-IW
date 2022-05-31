@@ -45,7 +45,7 @@ module Make
     find a model of the guard where we use M to replace all the pre-state value.
     check interpretation.substitute 
   *)
-  val get_post_model : C.t Interpretation.interpretation -> t -> (C.t Interpretation.interpretation) option 
+  val get_post_model :  ?solver: (C.t Smt.Solver.t) -> C.t Interpretation.interpretation -> t -> (C.t Interpretation.interpretation) option 
 
   (** Compare is a purely syntactic comparison.  Two transitions [tr] and
       [tr'] can be equivalent ([equal tr tr' = true]) but have [compare tr tr'

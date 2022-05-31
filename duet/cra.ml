@@ -101,6 +101,8 @@ module V = struct
   end
   include I
 
+
+
   let sym_to_var = Hashtbl.create 991
   let var_to_sym = ValueHT.create 991
 
@@ -123,6 +125,8 @@ module V = struct
       None
 
   let is_global = Var.is_global % var_of_value
+
+
 end
 
 module K = struct
@@ -581,7 +585,6 @@ let enable_symb_exec = false
 exception Mexception of string 
 module ARR = Batteries.DynArray 
 
-
 (* Defines an Abstract Reachability Tree context. *)
 type art_context = {
   graph : TS.t; (* Underlying control-flow graph. *)
@@ -604,169 +607,20 @@ type art_path = int list
 
 type cfg_t = K.t label WG.t
 
-(* Retrieves the source vertex in the control-flow graph. *)
-(* let get_source (cfg : cfg_t) =
-  let ans = WG.fold_vertex (fun (v:int) (acc:int) ->
-      let in_deg = WG.in_degree v cfg in 
-      if in_deg == 0 then v else acc) cfg  0 in 
-  Printf.printf "get_source : ans = %d\n" ans ; ans *)
 
 let mk_true () = Syntax.mk_true Ctx.context
 let mk_false () = Syntax.mk_false Ctx.context 
 
 (* Creates a new ART node. *)
-let new_art (cfg : TS.t) (entry : int) (err_loc : int) (phi : Ctx.formula) : art_context =
-  let src = entry (* get_source cfg *) in 
-  { graph = cfg;
-    root = 0; 
-    (* children: an adjacency list. initially containing the neighbors of root. TODO: add in the neighbors of root. *)
-    children = ARR.singleton (ARR.create ()) ;
-    (* parents: parents[i] stores the parent of i. *)
-    parents = ARR.singleton ( -1 ) ;
-    (* maps_to[i] returns the CFG vertex id that the tree vertex i maps to. *)
-    maps_to = ARR.singleton src;
-    (* Assignment of vertex labels. TODO: do we need a mk_true here??? *)
-    vertex_labels = ARR.singleton @@ mk_true (); 
-    (* assertion *)
-    assertion_phi = phi ; 
-    (* negation of assertion *)
-    neg_assertion_phi =  Ctx.mk_not phi ;
-    (* counter is a counter of tree vertices. After every new 
-     * tree vertex addition we increment it. *)
-    counter = ref 0; 
-    (* list of coverings (u,v) such that u --> v. *)
-    covers = []; 
-    (* error location. *)
-    error_loc = err_loc  ; 
-    is_leaf = ARR.singleton true ; 
-    is_covered = ARR.singleton false ; 
-    model = None } 
-
-
-
 let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module MonotoneDom) else (module TransitionDom))
-
-module IntFormulaMap = BatMap.Make(Int)
-
-let s_memo : (bool IntFormulaMap.t) ref = ref (IntFormulaMap.empty)
-
-(* reachability. *)
-let is_approx_reachable (art : art_context) (cfg : cfg_t) (u : int) (v : int)
- =  let entry = ARR.get art.maps_to art.root in
-    let query1 = mk_query cfg entry in 
-    let path1 = TS.path_weight query1 u in
-    let query2 = mk_query cfg u in 
-    let path2 = TS.path_weight query2 v in 
-    let sigma1 sym =
-      match V.of_symbol sym with
-      | Some v when K.mem_transform v path1 ->
-        K.get_transform v path1
-      | _ -> Ctx.mk_const sym
-    in
-(*    let sigma2 sym = 
-      match V.of_symbol sym with
-      | Some v when K.mem_transform v path2 ->
-        K.get_transform v path1
-      | _ -> Ctx.mk_const sym
-    in*)
-    let phi = Syntax.substitute_const Ctx.context sigma1 art.assertion_phi in
-    let path_condition =
-      Ctx.mk_and [K.guard path1; K.guard path2 ; Ctx.mk_not phi]
-      |> SrkSimplify.simplify_terms srk
-    in
-    logf "over-approximated path condition: %a \n"
-      (Syntax.pp_expr_unnumbered Ctx.context) path_condition;
-    match Wedge.is_sat Ctx.context path_condition with
-    | `Sat -> s_memo := IntFormulaMap.add entry true (!s_memo) ; true
-    | `Unsat -> s_memo := IntFormulaMap.add entry false (!s_memo) ; false
-    | `Unknown -> (* failwith "We: unknown" *) s_memo := IntFormulaMap.add entry false (!s_memo) ; false
-
-
-(* add_art_node t p v lbl returns a new art with augmented vertex pointing to cfg vertex v with label lbl. *)
-let add_art_node (art : art_context) (parent: int) (cfg_vertex : int) (lbl : Ctx.t Syntax.formula) = 
-  let child = !(art.counter) + 1 in 
-  ARR.set art.is_leaf parent false ;
-  ARR.add art.children (ARR.create ());
-  ARR.add (ARR.get art.children parent) child; 
-  ARR.add art.parents parent;
-  ARR.add art.maps_to cfg_vertex;
-  ARR.add art.vertex_labels lbl;
-  ARR.add art.is_leaf true;
-  ARR.add art.is_covered false;
-  art.counter := !(art.counter) + 1
-
-(* Expand the ART.*)
-let expand_from ?(pre_path:K.t option) (v : int) (cfg : TS.t) (art : art_context) = 
-  if v < 0 || v > !(art.counter) then raise (Mexception "error: vertex not in ART.")
-  else 
-    if not (ARR.get art.is_leaf v) then raise (Mexception "error: vertex is not leaf") 
-    else
-    let v_children = ARR.get art.children v in 
-      if ARR.length v_children > 0 then raise (Mexception "error: expanding a non-leaf veretx") else
-      let cfg_vertex = ARR.get art.maps_to v in 
-      let out_edges = WG.fold_succ_e (fun (_, weight, u) acc -> (u, weight) :: acc) cfg cfg_vertex [] in 
-      if enable_pruning then 
-        List.iter (fun (u, w) -> 
-          let wt = match w with | Call _ -> failwith "" | Weight w' -> w' in 
-          let wt_formula = begin match pre_path with None -> wt | Some f-> K.mul f wt end |> K.guard in
-          match art.model with 
-          | None -> 
-          begin match is_approx_reachable art art.graph u art.error_loc with 
-          | true -> add_art_node art v u (mk_true ())
-          | false -> () (* pruned off *) end
-          | Some m -> 
-            let result = Interpretation.evaluate_formula m wt_formula in 
-            begin match result && (is_approx_reachable art art.graph u art.error_loc) with 
-            | true -> add_art_node art v u (mk_true ())
-            | false -> () (* pruned off *) end
-          ) out_edges
-      else List.iter (fun (u, w) ->  (* _ -> weight **)
-      let wt = match w with | Call _ -> failwith "" | Weight w' -> w' in 
-      let wt_formula = begin match pre_path with None -> wt | Some f-> K.mul f wt end |> K.guard in
-      match art.model with 
-      | None -> add_art_node art v u (mk_true ())
-      | Some m -> 
-        begin match Interpretation.evaluate_formula m wt_formula with 
-        | true -> add_art_node art v u (mk_true ()) | false -> () end) out_edges 
-
-let cfg_edge_from_tree_edge (t : art_context) (u : int) (v : int) =
-  let cfg_vertex_u = ARR.get t.maps_to u in 
-  let cfg_vertex_v = ARR.get t.maps_to v in 
-  match WG.edge_weight t.graph cfg_vertex_u cfg_vertex_v with 
-  | Call _ -> failwith "Call not implemented"
-  | Weight w ->
-    List.iteri (fun i f -> logf ~level:`always "edge weight %d->%d: %a\n" cfg_vertex_u cfg_vertex_v (Syntax.pp_smtlib2 Ctx.context) @@ (K.guard f)) [w]
-    ; w
-let rec path_condition (a : art_path) (t : art_context) : K.t list = 
-  match a with 
-  | [] | [ _ ] -> raise @@ Mexception "error : cannot return path condition for path vertices < 2."
-  | u :: [ v ] -> 
-    [ cfg_edge_from_tree_edge t u v ]
-  | u :: v :: a' -> cfg_edge_from_tree_edge t u v :: path_condition (v :: a') t
-
-let rec compose_path_condition (l : K.t list) = 
-  match l with 
-  | [] -> failwith "cannot compose list of empty conditions"
-  | [ c ] -> c
-  | a :: t -> K.mul a (compose_path_condition t)
-  
-
-(* Test if v is in subtree of u. *)
-let rec sub_tree_of (v : int) (u : int) (art : art_context) = 
-  ARR.fold_right (fun a acc ->
-     acc || v == a || (sub_tree_of v a art)) (ARR.get art.children u) false
-
-let vertex_implication (u : int) (v : int) (t : art_context) = 
-  let u_lbl = ARR.get t.vertex_labels u in 
-  let v_lbl = ARR.get t.vertex_labels v in 
-    Smt.entails Ctx.context u_lbl v_lbl  
 
 let get_path v art =
    let rec aux v art = if v == -1 then [] else v :: (aux (ARR.get art.parents v) art) in 
    List.rev (aux v art)
 
 let mypp_weights s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i K.pp f) l
-let mypp_formula s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i (Syntax.pp_expr_unnumbered Ctx.context) @@ f) l
+let mypp_formula s l = 
+  List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i (Syntax.pp_expr_unnumbered Ctx.context) @@ f) l
 
 let print_path (t:art_context) p = 
   let l = List.length p in 
@@ -776,128 +630,6 @@ let print_path (t:art_context) p =
   Printf.printf "    CFG path: ";
   List.iteri (fun i x ->
     if i < l - 1 then Printf.printf "%d -> " @@ ARR.get t.maps_to x else Printf.printf "%d\n" @@ ARR.get t.maps_to x) p  
-
-
-(* Refinining the ART. *)
-let refine (u : int) (art : art_context) (cfg : cfg_t) : bool = 
-  let _ = Printf.printf "Refining cfg vertex %d \n" @@ ARR.get art.maps_to u in
-  let rec relabel u path_interpolants =
-    let one u interpolant =
-      let prev_lbl = ARR.get art.vertex_labels u in 
-      ARR.set art.vertex_labels u (Syntax.mk_and Ctx.context [prev_lbl; interpolant])
-    in  
-    match path_interpolants with 
-    | [] -> ()
-    | [ (x, i) ] -> one x i 
-    | (y, i') :: tail -> one y i' ; relabel u tail in 
-  let u_path = get_path u art in 
-  let u_path_cond = path_condition u_path art in 
-  let u_lbl = art.neg_assertion_phi (*ARR.get art.vertex_labels u*) in 
-  let _ = print_path art u_path in 
-  let _ = mypp_weights "path condition" u_path_cond in 
-  let _ = mypp_formula "vertex label" [ art.neg_assertion_phi ] in  (* this used to be u_lbl :-) *)
-  let vertex_interpolants = K.interpolate u_path_cond u_lbl in 
-  match vertex_interpolants with 
-  | `Invalid -> 
-    failwith "bad: Invalid interpolation result"
-  | `Unknown -> failwith "bad: Unknown interpolation result"
-  | `Valid formulae -> 
-    Printf.printf "interpolant formula length: %d\n" @@ List.length formulae ; 
-    List.iter (fun f -> logf ~level:`always "interpolant formula: \n%a"
-    (Syntax.pp_expr_unnumbered Ctx.context) @@ f) formulae ; 
-
-    Printf.printf "path length: %d\n" @@ List.length u_path ; 
-    relabel u @@ List.combine u_path (formulae @ [ mk_false () ] ); true
-    (*
-    match vertex_interpolants with 
-    | `Unsat formulae -> 
-      relabel u @@ List.combine u_path formulae; true
-    | `Sat _ | `Unknown -> false *)
-
-(* Decide if a vertex v is covered. *)
-(* A vertex v \in V is said to be covered
- <=> Exists (w,x) \in Covering relation such that w is ancestor of v. *)
-let is_covered (v : int) (art : art_context) = 
-  let parents = List.rev @@ get_path v art in 
-  List.fold_right (fun w acc -> 
-    if acc (* parent already covered *) then acc 
-    else List.mem_assoc w art.covers) parents false
-
-(* Attempt to add (v,w) into the covering relation. *)
-let cover (v : int) (w : int) (art : art_context) = 
-  let entailment = vertex_implication v w art in 
-  let cfg_v, cfg_w = ARR.get art.maps_to v, ARR.get art.maps_to w in 
-  if (cfg_v <> cfg_w) || (not force_covering) then raise @@ Mexception "error: cfg_v != cfg_w" ;
-  match entailment with 
-  | `Yes -> 
-    (* Before returning with the new covering, one more thing to check: *)
-    (* add (v,w) to ART but delete all edges of form (x,y) such that v <= y. *)
-    let covers' = List.filter (fun (x,y) -> sub_tree_of v y art) art.covers in 
-    { art with covers = (v, w) :: covers' } 
-  | _ -> art 
-
-(* Close. *)
-let close (v : int) (art : art_context) =  
-  Printf.printf "   closing vertex %d\n" v ;
-  let rec aux w = 
-    if w == v then art
-    else 
-      let cfg_vertex_w,
-       cfg_vertex_v = ARR.get art.maps_to w,
-        ARR.get art.maps_to v in 
-      if cfg_vertex_w == cfg_vertex_v then 
-        cover v w art else aux (w + 1) in aux 0
-
-let rec dfs (v : int) (art : art_context) (g : cfg_t) : art_context = 
-  Printf.printf " > dfs %d \n" v ;
-  let art' = close v art in
-  if not (is_covered v art') then 
-    let cfg_v = ARR.get art.maps_to v in
-   if cfg_v == art.error_loc then 
-    begin if not @@ refine v art g then 
-      raise @@ Mexception "error assertion is reachable!"
-    end
-   else 
-    Printf.printf " > dfs: expanding vertex %d\n" v ; 
-    if enable_symb_exec then 
-      expand_from ~pre_path:(path_condition (get_path v art') art' |> compose_path_condition) v g art' 
-    else expand_from v g art';
-     (* For all children w of v, dfs(w) *)
-     ARR.fold_left (fun art w -> dfs w art g) art' (ARR.get art.children v) 
-  else art'
-
-
-let unwind ts (entry : int) (v : int) (phi : Ctx.formula) = 
-  let it = ref 0 in 
-  let art = ref (new_art ts entry v phi) in 
-  (* Returns a pair (b, l) indicating whether `art` has uncovered leaf, and if so, a list of leaves. *)
-  let has_uncovered_leaf art = 
-    let rec aux (n:int) = 
-      Printf.printf " aux %d\n" n ; 
-      let cond = (ARR.get art.is_leaf n) && (not (ARR.get art.is_covered n)) in 
-      Printf.printf " is %d leaf ? %b is covered ? %b \n" n (ARR.get art.is_leaf n) (ARR.get art.is_covered n) ;
-      match n with
-      | 0 -> Printf.printf "boundary case 0 reached\n" ; if cond then (true, [ 0 ]) else (false, [])
-      | x -> let (cond', ls) = aux (n - 1) in if cond then (true, x :: ls) else (cond', ls)
-    in let res = aux !(art.counter) in Printf.printf " aux done\n" ; res 
-  in while true do 
-    Printf.printf "deciding if ART has uncovered leaf...\n" ;
-    let exists, ls = has_uncovered_leaf !art  in 
-    Printf.printf "decided. list of uncovered_leaves has size %d\n" @@ List.length ls ; 
-    let rec walk_ancestors u =  
-      match u with 
-      | -1 -> ()
-      | v -> art := close u !art; walk_ancestors (u - 1) 
-    in walk_ancestors 0;
-    Printf.printf "has uncovered leaf... executing main loop. iteration %d\n" !it;
-    begin if not exists then 
-      Printf.printf "program is safe\n" 
-    else 
-      match ls with 
-      | [] -> raise (Mexception "should not happen")
-      | a :: t -> Printf.printf "unwind: uncovered leaf %d\n" a ; art := dfs a !art ts
-    end
-  done 
 
 
   (* find loop headers and insert assume for loop invariant . *)
@@ -940,6 +672,7 @@ let make_transition_system rg =
                   call_edge func
                 | Assert (phi, msg) ->
                   let condition = tr_bexpr phi in
+                  mypp_formula "found assert condition: " [condition];
                   add_assert def.did (condition, Def.get_location def, msg);
                   Weight (K.assume condition)
                 | AssertMemSafe (expr, msg) ->
@@ -983,11 +716,11 @@ let make_transition_system rg =
 
         let entry = (RG.block_entry rg block).did in
         let exit = (RG.block_exit rg block).did in
-        let point_of_interest v =
+        (*let point_of_interest v =
           v = entry || v = exit || SrkUtil.Int.Map.mem v (!assertions)
         in
         let tg = TS.simplify point_of_interest tg in
-        let tg = TS.remove_temporaries tg in
+        let tg = TS.remove_temporaries tg in*)
         let tg =
           if !forward_inv_gen then let _ = Printf.printf "forward inv gen...\n" in
             Log.phase "Forward invariant generation"
@@ -1026,14 +759,6 @@ let make_ts_assertions_unreachable (ts : cfg_t) assertions =
       mypp_formula s [ Ctx.mk_not phi ] ; 
       new_vertices := u :: !new_vertices 
   ); !pts, !new_vertices
-
-  (**
-  let largest_vertex (g : cfg_t) = 
-    let m = WG.fold_vertex (fun v max -> if v > max then v else max) g 0 in 
-    let g = WG.add_vertex g (m + 1) in 
-    let g = WG.add_vertex g (m + 2) in 
-        let g = WG.add_edge g (m + 1) (Weight (K.assume (mk_false ()))) (m + 2) in 
-    g *)
   
 
 module IntMap = BatMap.Make(Int)
@@ -1046,23 +771,9 @@ type mtree = {
   model : Ctx.t Interpretation.interpretation IntMap.t ;
 }
 
-(*
+module DQ = BatDeque
+type idq_t = int BatDeque.t 
 
-  graph : TS.t; (* Underlying control-flow graph. *)
-  root: int; (* Root of the underlying CFG. *)
-  children : (int ARR.t) ARR.t;  (* Adjacency list representation of ART. *)
-  parents : (int ARR.t) ;
-  maps_to: (int ARR.t) ; (* F(v): decide which CFG vertex a tree vertex maps to. *)
-  vertex_labels : ((Ctx.t Syntax.formula) ARR.t);
-  assertion_phi : Ctx.formula ; 
-  neg_assertion_phi : Ctx.formula ; 
-  is_leaf : (bool ARR.t) ;  (** NEW! *)
-  is_covered : (bool ARR.t) ;  (** NEW! *)
-  counter : int ref;
-  covers: (int * int) list; (* TODO: make this data structure more efficient. :-) *) 
-  error_loc : int ; 
-  model : Ctx.t Interpretation.interpretation option 
-*)
 
 type ltree = {
   graph : cfg_t;
@@ -1070,40 +781,446 @@ type ltree = {
   cfg_vertex : int ARR.t;
   parents : int ARR.t;
   labels : (Ctx.t Syntax.formula) ARR.t;
-  is_covered : bool ARR.t;
-  covers : (int * int) ARR.t
+  covers : int IntMap.t ref;       
+  (* also maintain reverse map for each y, storing (x, y) that are in cover. *)
+  reverse_covers : (int list) IntMap.t ref;
+  children : int list ARR.t;
+  precedent_nodes : (int list) IntMap.t ref;
+  models : (Ctx.t Interpretation.interpretation) IntMap.t
 }
 
-module DQ = BatDeque
-type idq_t = int BatDeque.t 
 
-    
+(* worklist (breadth-first) version of McMillan's algorithm. *)
+let mc_exec (mode: int) (ts : cfg_t) (entry : int) (err_loc : int) = 
+  (*  [i %>> q]: add i to front of worklist q  *)
+  let (%>>)  (i : int) (q : idq_t) = DQ.cons i q in 
+  (*  [t %^ i]: get parent of node i in tree t.  *)
+  let (%^) (t : ltree) (i : int) = ARR.get t.parents i in
+  (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
+  let (%->) (t : ltree) (i : int) = ARR.get t.cfg_vertex i in
+  (* [ew t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
+  let ew (t : ltree) u v = match WG.edge_weight t.graph u v with  Weight w -> w  | Call _ -> failwith "call unimplemented" in   
+  (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
+  let rec (%-*>) (t: ltree) (u : int) = 
+    if u == 0 then [ ]
+    else let rec (%<*-) (t : ltree) (u : int) =
+     match t %^ u with 
+      | 0 -> [ ew t (t %-> 0) (t %-> u) ]  
+      | v -> ew t (t %-> v) (t %-> u) :: (t %<*- v) in 
+      let ews = List.rev (t %<*- u) in
+      mypp_weights "edge weights list: " ews; ews in
+  (* [tree_path t u] returns list of tree nodes that form the corrsp. tree path from root of t to tree node u *)
+  let tree_path t u = 
+    let rec tree_path_rev t u = 
+      match u with 
+      | 0 -> [ 0 ]
+      | x -> x :: (tree_path_rev t (t %^ u)) 
+    in List.rev @@ tree_path_rev t u
+  in 
+  (* [children t v] returns children of tree node v in tree t. *)
+  let children (t : ltree) v = ARR.get t.children v in 
+  (* [descendants t v] returns descendants of tree node v in tree t in DFS order. *)
+  let rec descendants (t : ltree) v = 
+    let v_children = children t v in 
+    Printf.printf " descendants v : %d (" v;
+    List.iter (fun x -> Printf.printf " %d " x) v_children;
+    Printf.printf "\n";
+    v :: (List.fold_left (fun l ch -> (descendants t ch) @ l) [] v_children)
+  in
+  (* [label t v] returns the node label of tree node v in tree t. *)
+  let label (t : ltree) v = ARR.get t.labels v in
+  (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
+  let get_precedent_nodes t v = 
+    (* The list is stored in tree structure in reverse, so we reverse it to get preorder. *)
+    let cfg_vertex = t %-> v in 
+    let postordered_precedents = IntMap.find_default [] cfg_vertex !(t.precedent_nodes) in 
+    Printf.printf "    postordered_precedents of %d: " v;List.iter (fun x -> Printf.printf " %d " x) postordered_precedents; Printf.printf "\n";
+    List.rev postordered_precedents 
+  in
+  let get_abstract_model ?(solver=Smt.mk_solver Ctx.context) 
+        pre_formula post_pre_symbols 
+        (src : int) (sink : int) (graph : cfg_t) = 
+    Printf.printf "   get_abstract_model between src = %d and sink = %d\n" src sink ;
+    let query = mk_query graph src in 
+    let path = TS.path_weight query sink in 
+    let pre_formula_symbols = Syntax.symbols pre_formula |> MonotoneDom.SymbolSet.elements in 
+    match Smt.get_concrete_model Ctx.context ~solver:(solver) pre_formula_symbols pre_formula with 
+      | `Sat itp ->
+        logf ~level:`always "Interpretation: %a\n" Interpretation.pp itp ;
+        let m = Interpretation.enum itp in 
+        let itp' = BatEnum.fold (fun itp' (symb, v) -> 
+          let pre_symb = List.assoc symb post_pre_symbols in 
+          Interpretation.add pre_symb v itp' ) (Interpretation.empty Ctx.context) m in 
+          logf ~level:`always "Interpretation': %a\n" Interpretation.pp itp' ;
 
-let sexec (ts : cfg_t) (entry : int) (err_loc : int) = 
-  let (%>>) (i : int)  (q : idq_t) = DQ.cons i q in 
-  (*let (%<<) (q : idq_t) (i : int) = DQ.snoc q i in *)
-  let get_out_neighbors (g : cfg_t) (u : int) = 
-    WG.fold_succ_e (fun (x, weight, y) l -> 
-      if x <> u then failwith "will not happen" 
-      else (weight, y) :: l) g u [] in 
-  let get_abstract_model (src : int) (sink : int) = 
-    let query = mk_query ts src in 
+          K.get_post_model itp' path               
+      | `Unknown -> None 
+      | `Unsat -> None
+  in 
+  (**
+   * Set up data structures used by the algorithm: worklist, 
+   * vtxcnt (keeps track of largest unused vertex number in tree), 
+   * ptt is a pointer to the reachability tree.
+   *)
+ (* mode: 1 -> concolic McMillan; 0 -> plain McMillan *)
+  let get_initial_abstract_model ?(solver=Smt.mk_solver Ctx.context) (src : int) (sink : int) (graph : cfg_t) = 
+    Printf.printf "   get_abstract_model between src = %d and sink = %d\n" src sink ;
+    let query = mk_query graph src in 
     let path = TS.path_weight query sink in 
     let path_condition = K.guard path in 
     (*Wedge.is_sat_model Ctx.context path_condition *)
     let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
-      Smt.get_concrete_model Ctx.context path_condition_symbols path_condition 
+      Smt.get_concrete_model Ctx.context ~solver:(solver) path_condition_symbols path_condition 
   in 
-  let get_abstract_model_pre_weight (w : MonotoneDom.weight) (src : int) (sink : int) = 
-    let query = mk_query ts src in 
+  let worklist = (* worklist for McMillan phase *)
+    match mode with 
+    | 0 -> ref (0 %>> DQ.empty) 
+    | 1 -> ref DQ.empty 
+    | _ -> failwith "" in 
+  let execlist = (* worklist for concolic phase *)
+    match mode with 
+    | 0 -> ref DQ.empty 
+    | 1 -> ref (0 %>> DQ.empty)
+    | _ -> failwith "" in 
+  let vtxcnt = ref 1 in 
+  let ptt = ref { 
+    graph = ts; 
+    entry = entry; 
+    cfg_vertex = ARR.singleton entry ; 
+    parents = ARR.singleton (-1) ;
+    labels = ARR.singleton (mk_true ());
+    covers = ref IntMap.empty;
+    reverse_covers = ref IntMap.empty; (* reverse_covers[y] returns all x such that (x,y) is in the cover. *)
+    children = ARR.singleton [] ;
+    precedent_nodes = ref IntMap.empty; (* precedent_nodes[v] stores all tree nodes mapping to CFG vertex v. Used in mc_close. *)
+    models = IntMap.empty
+    } in
+  let add_tree_vertex ?model v p worklist = (* Add new tree leaf mapping to CFG vertex v and with parent tree node p. *)
+    Printf.printf "   add_tree_vertex (CFG vertex = %d, parent = %d, node=%d)\n" v p !vtxcnt;
+    ARR.add !ptt.cfg_vertex v;
+    ARR.add !ptt.parents p;
+    ARR.add !ptt.labels (mk_true ());
+    ARR.add !ptt.children [];
+    ARR.set !ptt.children p (!vtxcnt :: (children !(ptt) p)); (* set children of parent to be !vtxcnt :: children. *)
+    (* Add v to precedent_nodes. *)
+    let precedent_nodes = IntMap.find_default [] v !(!ptt.precedent_nodes) in 
+    !ptt.precedent_nodes := IntMap.add v (!vtxcnt :: precedent_nodes) !(!ptt.precedent_nodes);
+    (* Push it onto the worklist and increment vertex counter. *)
+    match model with 
+    | Some model -> execlist := !vtxcnt %>> !execlist 
+    | None -> worklist := !vtxcnt %>> !worklist; 
+    vtxcnt := !vtxcnt + 1
+  in let rec leaves v = (* return leaves of subtree rooted at v. *)
+    let chs = children !ptt v in 
+    if List.length chs == 0 then [ v ]
+    else 
+      List.fold_left (fun child_leaves ch -> leaves ch @ child_leaves) [] chs
+  in let mc_expand v = (* expand leaf node v. *)
+    let vg = !(ptt) %-> v in 
+    if mode = 0 then 
+      WG.iter_succ_e (fun (_, _, y) ->  
+        add_tree_vertex y v worklist;
+        ) !ptt.graph vg  
+    else 
+      begin match IntMap.find_opt v !ptt.models with 
+      | Some m -> 
+        WG.iter_succ_e (fun (_, weight, y) -> 
+          let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
+          begin match K.get_post_model m weight with 
+          | Some y_model ->   
+                add_tree_vertex ~model:y_model y v execlist 
+          | None ->
+            try begin 
+              let pre_condition = !(ptt) %-*> v in
+              let pre_formula, post_pre_symbols =
+                  let trf = List.fold_right (fun x y -> K.mul y x) pre_condition weight  
+                  |> K.to_transition_formula in 
+                    TransitionFormula.formula trf, 
+                    List.fold_left (fun post_pre_symbols (x, y) -> (y, x) :: post_pre_symbols) [] @@ TransitionFormula.symbols trf 
+              in 
+              match get_abstract_model pre_formula post_pre_symbols y err_loc (!ptt).graph with 
+                | Some y_model ->
+                  add_tree_vertex ~model:y_model y v worklist 
+                | _ -> () (* 0 --*> v --> y  *)
+                end with _ -> ()
+          end
+        ) !ptt.graph vg
+      | None -> 
+        WG.iter_succ_e (fun (_, _, y) ->  
+          add_tree_vertex y v worklist;
+          ) !ptt.graph vg 
+      end
+  in let mc_refine v = (* refine path to node v. Returns false if unable to refine. *)
+    let path_condition = !ptt %-*> v in 
+    let path = tree_path !(ptt) v in 
+      Printf.printf "  refine: path condition: ------------------------------\n";
+      mypp_weights "" path_condition;
+
+    match K.interpolate path_condition (Ctx.mk_false) (* (label !(ptt) v) *) with 
+     | `Invalid | `Unknown -> 
+      Printf.printf " *********************** REFINEMENT FAILED *************************\n"; false 
+     | `Valid interpolants ->
+      Printf.printf "  refine: interpolant sequence: ------------------------------\n";
+      mypp_formula "" interpolants;
+      Printf.printf "--------------------------------------------------------------\n";
+      (* refine the label of each tree node u along path from tree root to v. *)
+      (*Printf.printf "length of interpolants: %d\n" (List.length interpolants);
+      Printf.printf "length of path condition: %d\n" (List.length path_condition);*)
+      List.iter2 (fun u interpolant -> 
+        let u_label = ARR.get !ptt.labels u in 
+        let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
+        ARR.set !ptt.labels u u_label';
+        (* remove ( * -> u) in covering relation. *)
+        begin match IntMap.find_opt u !(!ptt.reverse_covers) with 
+        | None -> () 
+        | Some l ->
+          (*printf "    refine: removing covers: "; List.iter (fun x -> Printf.printf " (%d->%d)" x u) l; Printf.printf "\n";*)
+          let u_coverers  = List.fold_left (fun coverers x -> 
+            (* test if label(x) --> new label(u)*)
+            let x_label = ARR.get !ptt.labels x in 
+            let u_label = ARR.get !ptt.labels u in
+            begin match Smt.entails Ctx.context (x_label) (u_label) with
+            | `No | `Unknown -> 
+              (* remove (x, u) from covering. *)
+              Printf.printf "   refine: removing cover (%d->%d)\n" x u;
+              !ptt.covers := IntMap.remove x !(!ptt.covers);
+              (* add x's subtree leaves back to the worklist. *)
+              let x_leaves = leaves x in 
+                List.iter (fun x_leaf -> 
+                  Printf.printf "         refine: adding %d back to worklist \n" x_leaf;
+                  worklist := x_leaf %>> !worklist) x_leaves;
+              l
+            | `Yes ->
+              Printf.printf "    refine: cover (x %d-> u %d) still holds\n" x u;
+              mypp_formula " x label: " [x_label];
+              mypp_formula " u label: " [u_label];
+             x :: coverers (* unchanged. *) 
+            end
+            ) [] l in 
+              !ptt.reverse_covers := IntMap.add u u_coverers !(!ptt.reverse_covers)
+        end
+       ) path (interpolants @ [Syntax.mk_false Ctx.context]);
+       true
+  in let mc_cover v w = (* Adds (v -> w) to covering relation if possible and returns true, false otherwise. *)
+    let v_label = ARR.get !ptt.labels v in 
+    let w_label = ARR.get !ptt.labels w in
+    match Smt.entails Ctx.context v_label w_label with 
+    | `Yes -> 
+      Printf.printf "   cover success (v=%d, w=%d). \n" v w;
+      mypp_formula "        v label " [v_label];
+      mypp_formula "        w label "  [w_label];
+      let reverse_covers_w = IntMap.find_default [] w !(!ptt.reverse_covers) in 
+        !ptt.covers := IntMap.add v w !(!ptt.covers);
+        !ptt.reverse_covers := IntMap.add w (v :: reverse_covers_w) !(!ptt.reverse_covers);
+        true
+    | `No | `Unknown -> false    
+  in let mc_close (v : int) = (* Visits precedents of v in tree and attempts to derive covering relations[]. *)
+    let precedents = get_precedent_nodes !ptt v in
+   (* Printf.printf "precedents of node %d : " v; List.iter (fun x -> Printf.printf " %d " x) precedents ; Printf.printf "\n";*)
+    (* Fold from first node in preorder to the right. If covering succeeds, do not continue covering. *) 
+    let result = List.fold_right (fun w status ->
+      if status || w == v || w > v (* preorder constraint *) then status
+      else begin 
+        let cover_success = mc_cover v w in 
+        if cover_success then begin
+          (* remove, for each descendant of v, nodes that are sinks of covers. *)
+          let v_descendants = descendants !ptt v in 
+            List.iter (fun y -> 
+              (* Find relations (x,y) in covering relation. *)
+              if y <> v then 
+              begin 
+                let xs = IntMap.find_default [] y !(!ptt.reverse_covers) in 
+                (* Iterate through and remove pairs (x, y) from covering relation. *)
+                (* Step 1: Remove (x |-> y) from !ptt.covers. *)
+                List.iter (fun x -> !ptt.covers := IntMap.remove x !(!ptt.covers)) xs;
+                (* Step 2: Remove (y |-> xs) from !pthit.reverse_covers. *)
+                !ptt.reverse_covers := IntMap.remove y !(!ptt.reverse_covers)
+              end) v_descendants
+        end; cover_success
+      end) precedents false in result 
+  in let rec mc_is_covered v = (* Checks if tree node v is covered. It is covered if its ancestors or it is in covering relation. *)
+    match IntMap.find_opt v !(!ptt.covers) with 
+    | None -> 
+      if v == 0 then false
+      else mc_is_covered ((!ptt) %^ v)
+    | Some u -> 
+      Printf.printf "  | covered by %d\n" u;
+      true 
+  in let tree_printer_get_name i = 
+    match IntMap.find_opt i !(!ptt.covers) with 
+    | None ->  Printf.sprintf "%d(%d)" i (!ptt %-> i)
+    | Some j -> Printf.sprintf "[%d(%d)]->%d" i (!ptt%->i) j
+  in 
+  let mode = 1 in 
+  let plain () = 
+    let continue = ref true in begin
+      while DQ.size !worklist > 0 && !continue do 
+        begin match DQ.front !worklist with (* use DQ.rear if want BFS *) 
+        | Some (u, w) (* (w, u) if use DQ.front *) ->
+          Printf.printf " +----------------- ART ----------------+\n";
+          let string_of_art = Tree_printer.to_string ~line_prefix:"* " ~get_name:tree_printer_get_name ~get_children:(children !ptt) 0
+            in Printf.printf "%s" string_of_art; 
+          Printf.printf " +----------------- ART ----------------+\n";
+          Printf.printf " visit %d\n" u;
+          worklist := w;
+          (* Fetched tree node u from work list. First attempt to close it. *)
+          if not (mc_is_covered u) then begin
+            Printf.printf " uncovered. try close\n";
+            begin match mc_close u with 
+              | true -> (* Close succeeded. No need to further explore it. *)
+                Printf.printf "Close succeeded.\n"; ()
+              | false -> (* u is uncovered. *)
+                if ((!ptt) %-> u) == err_loc then 
+                  begin 
+                    continue := mc_refine u;
+                    if !continue == false then 
+                      failwith " UNSAFE. EXIT\n";
+                    Printf.printf " refinement result: %b\n" (!continue);
+                  (* for every node along path of refinement try close *)
+                  let path = tree_path !ptt u in 
+                    List.iter (fun x -> let _ = mc_close x in ()) path 
+                  end 
+                else begin 
+                  Printf.printf " expanding...\n";
+                  mc_expand u
+                end
+            end end
+          else Printf.printf "  | covered \n"
+          | None -> failwith ""
+          end
+      done;
+      Printf.printf " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
+      let string_of_art = Tree_printer.to_string ~line_prefix:"* " ~get_name:tree_printer_get_name ~get_children:(children !ptt) 0
+        in Printf.printf "%s" string_of_art
+    end
+    in let symb_test () = 
+        let pre_formula = [ew !ptt 2 3; ew !ptt 3 4; ew !ptt 4 5; ew !ptt 5 6; ew !ptt 6 7] in
+        let _ = mypp_weights "pre_weights: " pre_formula in 
+        let pre_formula = List.fold_right (fun weight prod -> K.mul weight prod) pre_formula K.one in 
+        let _ = mypp_weights "pre_weight mul: " [pre_formula] in 
+        let pre_formula_tf = K.to_transition_formula pre_formula in 
+        let pre_formula = pre_formula_tf |> TransitionFormula.formula in 
+        let pre_post_symbols = pre_formula_tf |> TransitionFormula.symbols in 
+        let post_pre_symbols = List.fold_left (fun post_pre_symbols (x, y) -> 
+          Printf.printf "post symb: %s --> pre symb: %s\n" (Syntax.show_symbol Ctx.context y) (Syntax.show_symbol Ctx.context x);
+        (y, x) :: post_pre_symbols) [] pre_post_symbols in
+        mypp_formula "pre_formula: " [pre_formula];
+        match get_abstract_model pre_formula post_pre_symbols 8 err_loc ts with 
+        | Some itp ->
+          logf ~level:`always "Interpretation: %a\n" Interpretation.pp itp ;
+          
+        | _ -> failwith "no model found"
+    in let symb () = 
+      let continue = ref true in 
+      while !continue && (DQ.size !worklist > 0 || DQ.size !execlist > 0) do
+        if DQ.size !execlist > 0 then begin 
+          match DQ.front !execlist with 
+          | Some (u, w) -> 
+          Printf.printf " +----------------- ART ----------------+\n";
+          let string_of_art = Tree_printer.to_string ~line_prefix:"* " ~get_name:tree_printer_get_name ~get_children:(children !ptt) 0
+            in Printf.printf "%s" string_of_art; 
+          Printf.printf " +----------------- ART ----------------+\n";
+          Printf.printf " visit %d\n" u;
+            if (!ptt %-> u) = err_loc then 
+              failwith "Concolic execution error loc reached"; 
+            execlist := w;
+            mc_expand u 
+          | None -> failwith "" (* cannot happen *)
+        end else begin 
+          match DQ.front !worklist with 
+          | Some (u, w) -> 
+          Printf.printf " +----------------- ART ----------------+\n";
+          let string_of_art = Tree_printer.to_string ~line_prefix:"* " ~get_name:tree_printer_get_name ~get_children:(children !ptt) 0
+            in Printf.printf "%s" string_of_art; 
+          Printf.printf " +----------------- ART ----------------+\n";
+          Printf.printf " visit %d\n" u;
+          worklist := w;
+          (* Fetched tree node u from work list. First attempt to close it. *)
+          if not (mc_is_covered u) then begin
+            Printf.printf " uncovered. try close\n";
+            begin match mc_close u with 
+              | true -> (* Close succeeded. No need to further explore it. *)
+                Printf.printf "Close succeeded.\n"; ()
+              | false -> (* u is uncovered. *)
+                if ((!ptt) %-> u) == err_loc then 
+                  begin 
+                    continue := mc_refine u;
+                    if !continue == false then 
+                      failwith " UNSAFE. EXIT\n";
+                    Printf.printf " refinement result: %b\n" (!continue);
+                  (* for every node along path of refinement try close *)
+                  let path = tree_path !ptt u in 
+                    List.iter (fun x -> let _ = mc_close x in ()) path 
+                  end 
+                else begin 
+                  Printf.printf " expanding...\n";
+                  mc_expand u
+                end
+            end end
+          | None -> failwith "" (* cannot happen *)
+        end 
+      done
+    in 
+      match mode with 
+      | 0 -> plain ()
+      | 1 -> 
+        begin match get_initial_abstract_model entry err_loc ts with 
+        | `Sat m -> 
+          ptt := {!ptt with models = IntMap.add 0 m !ptt.models}; symb ()
+        | _ -> Printf.printf "Proven safe by path summary.\n"
+        end
+      | _ -> failwith ""
+
+
+
+open Smt 
+(* concolic execution procedure *)
+let sexec (ts : cfg_t) (entry : int) (err_loc : int) = 
+  let (%>>) (i : int)  (q : idq_t) = DQ.cons i q in 
+  let (%^) (t : mtree) (i : int) = ARR.get t.parents i in
+  let (%->) (t : mtree) (i : int) = ARR.get t.cfg_vertex i in 
+  let ew (t : mtree) u v = match WG.edge_weight t.graph u v with  Weight w -> w  | Call _ -> failwith "call unimplemented" in   
+  (*let (%<<) (q : idq_t) (i : int) = DQ.snoc q i in *)
+  let rec (%-*>) (t: mtree) (u : int) = 
+    if u == 0 then [ ]
+    else let rec (%<*-) (t : mtree) (u : int) =
+     match t %^ u with 
+      | 0 -> [ ew t (t %-> 0) (t %-> u) ] 
+      | v -> ew t (t %-> v) (t %-> u) :: (t %<*- v) in 
+      List.rev (t %<*- u) in
+  let get_out_neighbors (g : cfg_t) (u : int) = 
+    WG.fold_succ_e (fun (x, weight, y) l -> 
+      if x <> u then failwith "will not happen" 
+      else (weight, y) :: l) g u [] in 
+  let get_initial_abstract_model ?(solver=Smt.mk_solver Ctx.context) (src : int) (sink : int) (graph : cfg_t) = 
+    Printf.printf "   get_abstract_model between src = %d and sink = %d\n" src sink ;
+    let query = mk_query graph src in 
     let path = TS.path_weight query sink in 
-    let path_condition =  K.guard @@ K.mul w path in 
+    let path_condition = K.guard path in 
     (*Wedge.is_sat_model Ctx.context path_condition *)
     let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
-      Smt.get_concrete_model Ctx.context path_condition_symbols path_condition 
+      Smt.get_concrete_model Ctx.context ~solver:(solver) path_condition_symbols path_condition 
   in 
+  let get_abstract_model ?(solver=Smt.mk_solver Ctx.context) pre_formula post_pre_symbols (src : int) (sink : int) (graph : cfg_t) = 
+  Printf.printf "   get_abstract_model between src = %d and sink = %d\n" src sink ;
+  let query = mk_query graph src in 
+  let path = TS.path_weight query sink in 
+  let pre_formula_symbols = Syntax.symbols pre_formula |> MonotoneDom.SymbolSet.elements in 
+  match Smt.get_concrete_model Ctx.context ~solver:(solver) pre_formula_symbols pre_formula with 
+    | `Sat itp ->
+      logf ~level:`always "Interpretation: %a\n" Interpretation.pp itp ;
+      let m = Interpretation.enum itp in 
+      let itp' = BatEnum.fold (fun itp' (symb, v) -> 
+        let pre_symb = List.assoc symb post_pre_symbols in 
+        Interpretation.add pre_symb v itp' ) (Interpretation.empty Ctx.context) m in 
+        logf ~level:`always "Interpretation': %a\n" Interpretation.pp itp' ;
+        K.get_post_model itp' path               
+    | `Unknown -> None 
+    | `Unsat -> None
+  in
   Printf.printf "sexec: starting symbolic execution entry=%d err_loc=%d\n" entry err_loc;
-  begin match get_abstract_model entry err_loc with 
+  let solver = Smt.mk_solver Ctx.context in 
+  begin match get_initial_abstract_model ~solver:(solver) entry  err_loc ts with 
   | `Sat initial_model ->
       let worklist = ref (0 %>> DQ.empty) in 
       let vtxcnt = ref 1 in 
@@ -1115,14 +1232,16 @@ let sexec (ts : cfg_t) (entry : int) (err_loc : int) =
         model  = IntMap.singleton 0 initial_model } in
       let unsafe = ref false in 
       Printf.printf "sexec: %d -> %d |- Sat - Assertion might be unsafe, starting symbexec using abstract model. \n" entry err_loc;
-      while (DQ.size !worklist > 0) && (not !unsafe) do 
+      while (DQ.size !worklist > 0) (*&& not !unsafe*) do 
         if !unsafe then begin
-          Printf.printf "     *** ASSERTION UNSAFE *** \n" end
+          Printf.printf "     *** ASSERTION UNSAFE *** \n"; 
+          exit 1 end
         else begin 
           begin match DQ.front !worklist with 
           | Some (tx, w') -> 
             let x = ARR.get !(ptt).cfg_vertex tx in 
             worklist := w'; (* Pop x off front of list. *)
+           (* Printf.printf "sexec: exploring tree node %d (cfg node %d) to err_loc %d\n" tx x err_loc;*)
             if x == err_loc then begin 
               unsafe := true;
               Printf.printf " sexec: err loc reached! Assertion unsafe\n" 
@@ -1132,7 +1251,8 @@ let sexec (ts : cfg_t) (entry : int) (err_loc : int) =
                 List.iter (fun (weight, y) -> 
                   (*Printf.printf " sexec: -- out edge (%d,%d) \n" x y ; *)
                   let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
-                  begin match K.get_post_model x_model weight with 
+                  Smt.Solver.reset solver;
+                  begin match K.get_post_model ~solver:(solver) x_model weight with 
                   | Some y_model ->   
                         (*Printf.printf " sexec: -- adding node %d (cfg node %d) to tree\n" !vtxcnt y; *)
                        (* Interpretation.pp Format.str_formatter y_model;
@@ -1143,18 +1263,28 @@ let sexec (ts : cfg_t) (entry : int) (err_loc : int) =
                         worklist := !vtxcnt %>> !worklist;
                         vtxcnt := !vtxcnt + 1 
                   | None ->
-                    Printf.printf " sexec: -- cannot reach cfg node %d from cfg node %d\n" y x ;
-                    (* New path summary *)
-                    begin match get_abstract_model_pre_weight weight y err_loc with 
-                    | `Sat y_model ->
-                      ARR.add !(ptt).cfg_vertex y;
-                      ARR.add !(ptt).parents tx;
-                      ptt := {!ptt with model = IntMap.add !vtxcnt y_model !(ptt).model};
-                      worklist := !vtxcnt %>> !worklist;
-                      vtxcnt := !vtxcnt + 1
-                    | `Unknown | `Unsat -> 
-                      Printf.printf " sexec: -- cannot reach cfg node %d from cfg node %d\n" y x ; ()
-                    end 
+                 let _ = get_out_neighbors !(ptt).graph y in 
+                    try begin 
+                      let pre_condition = !(ptt) %-*> y in 
+                      let pre_formula, post_pre_symbols = match pre_condition with
+                        | a :: t -> 
+                          let trf = List.fold_right (fun x y -> K.mul y x) t a 
+                          |> K.to_transition_formula in 
+                            TransitionFormula.formula trf, 
+                            List.fold_left (fun post_pre_symbols (x, y) -> (y, x) :: post_pre_symbols) [] @@ TransitionFormula.symbols trf 
+                        | [] -> mk_true (), [] 
+                      in 
+                      Smt.Solver.reset solver;
+                      match get_abstract_model ~solver:(solver) pre_formula post_pre_symbols y err_loc (!ptt).graph with 
+                        | Some y_model ->
+                          ARR.add !(ptt).cfg_vertex y; 
+                          ARR.add !(ptt).parents tx;
+                          ptt := {!ptt with model = IntMap.add !vtxcnt y_model !(ptt).model};
+                          worklist := !vtxcnt %>> !worklist;
+                          vtxcnt := !vtxcnt + 1; () ;
+                          Printf.printf "   *** Found abstract model for vertex y *** \n"
+                        | _ -> () 
+                        end with _ -> ()
                   end
                   ) x_out_neighbors;
                   (* Can safely remove current node from the tree. *) 
@@ -1235,80 +1365,55 @@ let analyze2 file =
       end
   | _ -> assert false
 
-          (*let query = mk_query ts entry in 
-        let path = TS.path_weight query err_loc in 
-        let path_condition = K.guard path in 
-        mypp_formula "Path condition: " [ path_condition ] ;
-        match Wedge.is_sat Ctx.context path_condition with
-        | `Sat -> Printf.printf " |- Satisfiable - abstractly reachable (unsafe, assertion may be false)\n"
-        | `Unsat -> Printf.printf " |- Unsat - Proven unreachable (safe, assertion is definitely true)\n" 
-        | _ -> Printf.printf "|- State unknown\n" 
-        ) new_vertices ; exit 1;*)
-        (*
-      (*Printf.printf "\nlargest vertex: %d\n" @@ largest_vertex ts; 
-      exit 1;
-*)
-      (* let query = mk_query ts entry in*)
-    (* let query = mk_query ts entry in *)
-     (* assertions |> SrkUtil.Int.Map.iter (fun v (phi, loc, msg) ->
-          (* for each assertion, compute path summary and see if reachable. *)
-            Printf.printf "Iterating over an assertion...\n"; 
-          Printf.printf " > entry node : %d ; target node: %d\n" entry v ;
-          Printf.printf " > assertion: %s\n" msg;
-          mypp_formula " >>> assertion formula: " [ phi ] ; 
-          mypp_formula " >>> negated  formula: " [ Ctx.mk_not phi ] ;
-         (* let path = TS.path_weight query v in
-          let sigma sym =
-            logf ~level:`always " ->>>>++++--- substituting %a \n" (Syntax.pp_symbol Ctx.context) sym ;
-            match V.of_symbol sym with
-            | Some v when K.mem_transform v path ->
-              K.get_transform v path
-            | _ -> Ctx.mk_const sym
-          in
-          let phi = Syntax.substitute_const Ctx.context sigma phi in
-          let path_condition =
-            Ctx.mk_and [K.guard path; Ctx.mk_not phi]
-            |> SrkSimplify.simplify_terms srk
-          in *)
-        (*  logf ~level:`always "Path condition:@\n%a"
-            (Syntax.pp_smtlib2 Ctx.context) @@ K.guard path;
-          dump_goal loc path_condition; *)
-          mypp_formula " ------------- simplified formula phi: ---: " [ phi ] ; 
-          unwind ts entry v phi; 
-          Printf.printf "Done!!!\n"
-          *)
+(* driver for plain mcmillan *)
+let analyze3 file = 
+  populate_offset_table file;
+  match file.entry_points with
+  | [main] -> begin
 
-        (* let path = TS.path_weight query v in (* ruijie: this is the overapproximation! *)
-          let sigma sym =
-            match V.of_symbol sym with
-            | Some v when K.mem_transform v path ->
-              K.get_transform v path
-            | _ -> Ctx.mk_const sym
-          in
-          let phi = Syntax.substitute_const Ctx.context sigma phi in
-          let path_condition =
-            Ctx.mk_and [K.guard path; Ctx.mk_not phi]
-            |> SrkSimplify.simplify_terms srk
-          in
-          logf "Path condition:@\n%a"
-            (Syntax.pp_smtlib2 Ctx.context) path_condition;
-          dump_goal loc path_condition;
-          (* A path_condition over-approximates the reachability info of the actual path.
-             Hence if SAT, then nothing can be concluded.  --- We need to refine about this info.
-              But if it is UNSAT or UNKNOWN, we can terminate. *)
-          match Wedge.is_sat Ctx.context path_condition with
-          | `Sat -> Report.log_error loc msg
-          | `Unsat -> Report.log_safe ()
-          | `Unknown ->
-            logf ~level:`warn "Z3 inconclusive";
-            Report.log_error loc msg
-            *)(*
-            );
+      let rg = Interproc.make_recgraph file in
+      let entry = (RG.block_entry rg main).did in
+      let (ts, assertions) = make_transition_system rg in
+      let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
+      TSDisplay.display ts;
+      Printf.printf "\nentry: %d\n" entry; 
+     (* List.iter (fun err_loc -> 
+        Printf.printf "Processing erro %d-----------------------------\n" err_loc;
+        test_interpolate_path ts entry err_loc 
+        ) new_vertices*)
+      List.iter (fun err_loc ->
+        Printf.printf "testing reachability of location %d\n" err_loc ; 
+        Printf.printf "------------------------------\n";
+        mc_exec 0 ts entry err_loc;
+        Printf.printf "------------------------------\n"
+        ) new_vertices 
+      end
+  | _ -> assert false
 
-      Report.print_errors ();
-      Report.print_safe ();
-    end*)
-  | _ -> assert false*)
+(* driver for concolic mcmillan *)
+let analyze4 file = 
+  populate_offset_table file;
+  match file.entry_points with
+  | [main] -> begin
+
+      let rg = Interproc.make_recgraph file in
+      let entry = (RG.block_entry rg main).did in
+      let (ts, assertions) = make_transition_system rg in
+      let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
+      TSDisplay.display ts;
+      Printf.printf "\nentry: %d\n" entry; 
+     (* List.iter (fun err_loc -> 
+        Printf.printf "Processing erro %d-----------------------------\n" err_loc;
+        test_interpolate_path ts entry err_loc 
+        ) new_vertices*)
+      List.iter (fun err_loc ->
+        Printf.printf "testing reachability of location %d\n" err_loc ; 
+        Printf.printf "------------------------------\n";
+        mc_exec 1 ts entry err_loc;
+        Printf.printf "------------------------------\n"
+        ) new_vertices 
+      end
+  | _ -> assert false
 
 
 let analyze file =
@@ -1792,4 +1897,8 @@ let _ =
   CmdLine.register_pass
     ("-rba", resource_bound_analysis, " Resource bound analysis");
   CmdLine.register_pass 
-    ("-mcl", analyze2, " McMillan's algorith for lazy abstraction with refinement")
+    ("-concolic", analyze2, " Concolic executor");
+  CmdLine.register_pass 
+    ("-mcl-plain", analyze3, " Plain McMillan");
+  CmdLine.register_pass 
+    ("-mcl-concolic", analyze4, " Combined McMillan+Concolic execution algorithm")

@@ -686,6 +686,7 @@ module RecGraph = struct
        entries of an interprocedural path from src to entry * an
        intraprocedural path from entry to tgt *)
     let context = query.recgraph.context in
+    
     U.fold_pred (fun entry w ->
         if U.mem_edge query.interproc_paths.graph query.src entry then
           let src_entry_tgt =

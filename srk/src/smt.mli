@@ -40,9 +40,7 @@ val get_model : ?symbols:(symbol list) ->
 (** Compute a model of a formula, and return an intepretation that binds the
     specified subset of symbols.  If the symbol list contains all symbols of
     the formula, then the interpretation is a model of the formula. *)
-val get_concrete_model : 'a context ->
-  symbol list ->
-  'a formula ->
+val get_concrete_model : 'a context -> ?solver:'a Solver.t -> symbol list -> 'a formula -> 
   [ `Sat of 'a interpretation
   | `Unsat
   | `Unknown ]
