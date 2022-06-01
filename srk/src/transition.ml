@@ -373,7 +373,7 @@ struct
     | `And xs -> List.concat_map (destruct_and srk) xs
     | _ -> [phi]
 
-  let interpolate trs post =
+  let get_interpolate_solver trs post = 
     let trs =
       trs |> List.map (fun tr ->
                  let fresh_skolem =
@@ -435,11 +435,10 @@ struct
       trs
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
-    match Smt.Solver.get_unsat_core solver indicators with
-    | `Sat -> Printf.printf "transition::interpolate : formula is satisfiable\n" ; `Invalid
-    | `Unknown -> `Unknown
-    | `Unsat core ->
-       let core_symbols =
+    solver, indicators, guards
+
+  let interpolate_unsat_core trs post guards core = 
+         let core_symbols =
          List.fold_left (fun core phi ->
              match Formula.destruct srk phi with
              | (`Proposition (`App (s, []))) -> Symbol.Set.add s core
@@ -476,8 +475,27 @@ struct
            trs
            guards
            ([post], post)
-       in
+      in itp
+
+
+  let interpolate trs post =
+    let solver, indicators, guards = get_interpolate_solver trs post in 
+    match Smt.Solver.get_unsat_core solver indicators with
+    | `Sat -> 
+      Printf.printf "transition::interpolate : formula is satisfiable\n" ; 
+      `Invalid
+    | `Unknown -> `Unknown
+    | `Unsat core ->
+    let itp = interpolate_unsat_core trs post guards core in 
        `Valid (List.tl itp)
+
+  let interpolate_or_concrete_model trs post symbols = 
+    let solver, indicators, guards = get_interpolate_solver trs post in 
+    match Smt.Solver.get_unsat_core_or_concrete_model solver indicators symbols with 
+    | `Sat model -> `Invalid model 
+    | `Unknown -> `Unknown 
+    | `Unsat core -> let itp = interpolate_unsat_core trs post guards core in 
+        `Valid (List.tl itp)
 
   let valid_triple phi path post =
     let path_not_post = List.fold_right mul path (assume (mk_not srk post)) in

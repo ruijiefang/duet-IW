@@ -124,6 +124,11 @@ module Make
                                              | `Invalid
                                              | `Unknown ]
 
+  (** Same as interpolate, but returns a concrete model if interpllation fails. *)
+  val interpolate_or_concrete_model : t list -> C.t formula -> Syntax.symbol list 
+        -> [`Valid of C.t formula list | `Invalid of C.t Interpretation.interpretation | `Unknown ]
+
+
   (** Given a pre-condition [P], a path [path], and a post-condition [Q],
       determine whether the Hoare triple [{P}path{Q}] is valid. *)
   val valid_triple : C.t formula -> t list -> C.t formula -> [ `Valid
