@@ -352,7 +352,7 @@ let print_model m =
 
 let verify_model m =
   let m = Interpretation.enum m in 
-  if BatEnum.count m <> 4 then assert_failure "incorrect number of atoms in interpretation"
+  if BatEnum.count m <> 2 then assert_failure "incorrect number of atoms in interpretation"
 
 let interpolate_fail () = 
 

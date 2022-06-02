@@ -422,6 +422,7 @@ struct
           tr.transform
           ([], ss_guards, [])
       in
+      List.iter (fun (k, v) -> Hashtbl.add subscript_tbl k v) ss;
       mk_and srk phis, ss_inv 
     in
     let solver = Smt.mk_solver srk in
@@ -498,11 +499,14 @@ struct
     | `Sat model -> 
       let e = Interpretation.enum model in 
       let model = BatEnum.fold (fun m (s, v) -> 
-        let pre_symbol = match Var.of_symbol s with 
-          | Some _ -> s 
-          | None -> List.assoc s ss_inv 
-        in 
-        Interpretation.add pre_symbol v m) (Interpretation.empty C.context) e in
+        match Var.of_symbol s with 
+          | Some _ -> Interpretation.add s v m  
+          | None ->
+           Printf.printf "trying to find symbol named %s\n" (Syntax.show_symbol C.context s);
+           begin match List.assoc_opt s ss_inv with 
+           | Some pre_symbol -> Interpretation.add pre_symbol v m 
+           | None -> m
+           end) (Interpretation.empty C.context) e in
       `Invalid model 
     | `Unknown -> `Unknown 
     | `Unsat core -> 
