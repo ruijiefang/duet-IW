@@ -286,7 +286,7 @@ let pp_symbol srk formatter symbol =
     (fst (DynArray.get srk.symbols symbol))
     symbol
 
-let show_symbol srk symbol = fst (DynArray.get srk.symbols symbol)
+let show_symbol srk symbol = String.concat ":" [(fst (DynArray.get srk.symbols symbol)); string_of_int symbol]
 let symbol_of_int x = x
 let int_of_symbol x = x
 let dup_symbol srk sym = 

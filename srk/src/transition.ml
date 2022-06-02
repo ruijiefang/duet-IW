@@ -359,11 +359,7 @@ struct
         in 
         let sub_expr = Syntax.substitute_const C.context replacer rhs in 
         let lhs_symbol =  Var.symbol_of lhs in
-       Printf.printf "  interpretation substituting symbol: %s\n" @@ Syntax.show_symbol C.context lhs_symbol ;
-       logf "      original expression: %a \n" (Syntax.pp_expr_unnumbered C.context) rhs;
-       logf "      substituted expression: %a \n" (Syntax.pp_expr_unnumbered C.context) sub_expr;
         let sub_val = Interpretation.evaluate_term m sub_expr in 
-      Printf.printf "          value of substitution: %s\n" @@ Mpq.to_string sub_val ;
         Interpretation.add lhs_symbol (`Real sub_val) m' 
       ) m f_transform in Some post_model 
     | _ -> None 
@@ -415,34 +411,35 @@ struct
               (substitute_const srk subscript guard))
           guards
       in
-      let (ss, phis) =
-        M.fold (fun var term (ss, phis) ->
+      let (ss, phis, ss_inv) =
+        M.fold (fun var term (ss, phis, ss_inv) ->
             let var_sym = Var.symbol_of var in
             let var_ss_sym = mk_symbol srk (Var.typ var :> typ) in
             let var_ss_term = mk_const srk var_ss_sym in
             let term_ss = substitute_const srk subscript term in
             ((var_sym, var_ss_term)::ss,
-             mk_eq srk var_ss_term term_ss::phis))
+             mk_eq srk var_ss_term term_ss::phis, (var_ss_sym, var_sym) :: ss_inv))
           tr.transform
-          ([], ss_guards)
+          ([], ss_guards, [])
       in
-      List.iter (fun (k, v) -> Hashtbl.add subscript_tbl k v) ss;
-      mk_and srk phis
+      mk_and srk phis, ss_inv 
     in
     let solver = Smt.mk_solver srk in
-    let symbols = BatDynArray.create () in 
+    let symbols = BatDynArray.create () in
+    let ss_inv = BatDynArray.create () in  
     Syntax.symbols post 
     |> Symbol.Set.to_list 
     |> List.iter (fun post_symbol -> BatDynArray.add symbols post_symbol); 
     List.iter2 (fun tr guard ->
-        let ss_formula = to_ss_formula tr guard in 
+        let ss_formula, ss_inv' = to_ss_formula tr guard in 
         Smt.Solver.add solver [ss_formula];
+        List.iter (fun x -> BatDynArray.add ss_inv x) ss_inv';
         let ss_formula_symbols = Syntax.symbols ss_formula |> Symbol.Set.to_list in 
           List.iter (fun s -> BatDynArray.add symbols s) ss_formula_symbols)
       trs
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
-    BatDynArray.to_list symbols, solver, indicators, guards
+    BatDynArray.to_list symbols, BatDynArray.to_list ss_inv, solver, indicators, guards
 
   let interpolate_unsat_core trs post guards core = 
          let core_symbols =
@@ -486,10 +483,9 @@ struct
 
 
   let interpolate trs post =
-    let _, solver, indicators, guards = get_interpolate_solver trs post in 
+    let _, _, solver, indicators, guards = get_interpolate_solver trs post in 
     match Smt.Solver.get_unsat_core solver indicators with
     | `Sat -> 
-      Printf.printf "transition::interpolate : formula is satisfiable\n" ; 
       `Invalid
     | `Unknown -> `Unknown
     | `Unsat core ->
@@ -497,14 +493,20 @@ struct
        `Valid (List.tl itp)
 
   let interpolate_or_concrete_model trs post = 
-    let symbols, solver, indicators, guards = get_interpolate_solver trs post in 
-    Printf.printf "symbols: ";
-    List.iter (fun x -> Printf.printf " %s " @@ Syntax.show_symbol C.context x) symbols;
-    Printf.printf "\n";
+    let symbols, ss_inv, solver, indicators, guards = get_interpolate_solver trs post in 
     match Smt.Solver.get_unsat_core_or_concrete_model solver indicators symbols with 
-    | `Sat model -> `Invalid model 
+    | `Sat model -> 
+      let e = Interpretation.enum model in 
+      let model = BatEnum.fold (fun m (s, v) -> 
+        let pre_symbol = match Var.of_symbol s with 
+          | Some _ -> s 
+          | None -> List.assoc s ss_inv 
+        in 
+        Interpretation.add pre_symbol v m) (Interpretation.empty C.context) e in
+      `Invalid model 
     | `Unknown -> `Unknown 
-    | `Unsat core -> let itp = interpolate_unsat_core trs post guards core in 
+    | `Unsat core -> 
+        let itp = interpolate_unsat_core trs post guards core in
         `Valid (List.tl itp)
 
   let valid_triple phi path post =
