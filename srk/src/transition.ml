@@ -430,12 +430,19 @@ struct
       mk_and srk phis
     in
     let solver = Smt.mk_solver srk in
+    let symbols = BatDynArray.create () in 
+    Syntax.symbols post 
+    |> Symbol.Set.to_list 
+    |> List.iter (fun post_symbol -> BatDynArray.add symbols post_symbol); 
     List.iter2 (fun tr guard ->
-        Smt.Solver.add solver [to_ss_formula tr guard])
+        let ss_formula = to_ss_formula tr guard in 
+        Smt.Solver.add solver [ss_formula];
+        let ss_formula_symbols = Syntax.symbols ss_formula |> Symbol.Set.to_list in 
+          List.iter (fun s -> BatDynArray.add symbols s) ss_formula_symbols)
       trs
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
-    solver, indicators, guards
+    BatDynArray.to_list symbols, solver, indicators, guards
 
   let interpolate_unsat_core trs post guards core = 
          let core_symbols =
@@ -479,7 +486,7 @@ struct
 
 
   let interpolate trs post =
-    let solver, indicators, guards = get_interpolate_solver trs post in 
+    let _, solver, indicators, guards = get_interpolate_solver trs post in 
     match Smt.Solver.get_unsat_core solver indicators with
     | `Sat -> 
       Printf.printf "transition::interpolate : formula is satisfiable\n" ; 
@@ -489,8 +496,11 @@ struct
     let itp = interpolate_unsat_core trs post guards core in 
        `Valid (List.tl itp)
 
-  let interpolate_or_concrete_model trs post symbols = 
-    let solver, indicators, guards = get_interpolate_solver trs post in 
+  let interpolate_or_concrete_model trs post = 
+    let symbols, solver, indicators, guards = get_interpolate_solver trs post in 
+    Printf.printf "symbols: ";
+    List.iter (fun x -> Printf.printf " %s " @@ Syntax.show_symbol C.context x) symbols;
+    Printf.printf "\n";
     match Smt.Solver.get_unsat_core_or_concrete_model solver indicators symbols with 
     | `Sat model -> `Invalid model 
     | `Unknown -> `Unknown 

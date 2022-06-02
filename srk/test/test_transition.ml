@@ -347,7 +347,35 @@ program:
   | _ -> 
     assert_failure "Invalid post-condition"
 
+let print_model m = 
+  Interpretation.pp Format.std_formatter m 
 
+let verify_model m =
+  let m = Interpretation.enum m in 
+  if BatEnum.count m <> 4 then assert_failure "incorrect number of atoms in interpretation"
+
+let interpolate_fail () = 
+
+  let path = 
+    let open Infix in
+    [T.assign "x" (int 0);
+     T.assign "y" (int 0);
+     T.assume ((int 0) <= x);
+     T.assume ((int 0) <= y)
+    ]
+  in
+  let post = Ctx.mk_false in 
+  begin match T.interpolate_or_concrete_model path post with 
+  | `Invalid m -> 
+    (* [K:1013 => true,
+        K:1014 => true,
+        K:1015 => 0,
+        K:1016 => 0]
+    *)
+    print_model m ; verify_model m
+  | _ ->  
+    assert_failure "Invalid post-condition; got interpolant when should be sat"
+  end 
 let interpolate_havoc () =
   let path =
     let open Infix in
@@ -394,5 +422,6 @@ let suite = "Transition" >::: [
     "interpolate2" >:: interpolate2;
     "interpolate3" >:: interpolate3;
     "interpolate_havoc" >:: interpolate_havoc;
+    "interpolate_fail" >:: interpolate_fail;
     "negative_eigenvalue" >:: negative_eigenvalue;
   ]

@@ -125,7 +125,7 @@ module Make
                                              | `Unknown ]
 
   (** Same as interpolate, but returns a concrete model if interpllation fails. *)
-  val interpolate_or_concrete_model : t list -> C.t formula -> Syntax.symbol list 
+  val interpolate_or_concrete_model : t list -> C.t formula 
         -> [`Valid of C.t formula list | `Invalid of C.t Interpretation.interpretation | `Unknown ]
 
 
