@@ -1,0 +1,4 @@
+*.exe
+_build/
+_build/*
+./*.c

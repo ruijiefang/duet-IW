@@ -354,11 +354,13 @@ struct
       let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
         let replacer (sym : Syntax.symbol) = 
           if List.mem sym symbols then mk_real C.context @@ Interpretation.real skolem_model sym  
-          else
-            mk_const C.context sym
-        in 
+          else  mk_const C.context sym  
+        in
         let sub_expr = Syntax.substitute_const C.context replacer rhs in 
         let lhs_symbol =  Var.symbol_of lhs in
+        let _ = Printf.printf "substituting lhs = %s\nrhs=" @@ Syntax.show_symbol C.context lhs_symbol in 
+        let _ = Syntax.pp_expr_unnumbered C.context Format.std_formatter rhs in
+        Printf.printf "\n";
         let sub_val = Interpretation.evaluate_term m sub_expr in 
         Interpretation.add lhs_symbol (`Real sub_val) m' 
       ) m f_transform in Some post_model 
@@ -502,7 +504,6 @@ struct
         match Var.of_symbol s with 
           | Some _ -> Interpretation.add s v m  
           | None ->
-           Printf.printf "trying to find symbol named %s\n" (Syntax.show_symbol C.context s);
            begin match List.assoc_opt s ss_inv with 
            | Some pre_symbol -> Interpretation.add pre_symbol v m 
            | None -> m

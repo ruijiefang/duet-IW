@@ -367,11 +367,6 @@ let interpolate_fail () =
   let post = Ctx.mk_false in 
   begin match T.interpolate_or_concrete_model path post with 
   | `Invalid m -> 
-    (* [K:1013 => true,
-        K:1014 => true,
-        K:1015 => 0,
-        K:1016 => 0]
-    *)
     print_model m ; verify_model m
   | _ ->  
     assert_failure "Invalid post-condition; got interpolant when should be sat"

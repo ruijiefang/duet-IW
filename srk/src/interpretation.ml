@@ -12,7 +12,7 @@ type 'a interpretation =
 
 let empty srk =
   { srk = srk;
-    default = (fun _ -> raise Not_found);
+    default = (fun s -> `Real (Mpqf.of_int 0));(*(fun _ -> raise Not_found);*)
     map = SM.empty }
 
 let wrap ?(symbols=[]) srk f =
@@ -45,8 +45,12 @@ let add k v interp =
 let value interp k =
   try SM.find k interp.map
   with Not_found ->
-    (*Printf.printf "err: value not found: %s\n" @@ Syntax.show_symbol interp.srk k;*)
+    Printf.printf "err: value not found: %s\n" @@ Syntax.show_symbol interp.srk k;
     let v = interp.default k in
+    Printf.printf "default value: %s\n" (match v with 
+      | `Fun _ -> "Function"
+      | `Bool _ -> "Boolean"
+      | `Real v -> Printf.sprintf "Real %s\n" (Mpqf.to_string v));
     interp.map <- SM.add k v interp.map;
     v
 
@@ -139,9 +143,13 @@ let rec evaluate_term interp ?(env=Env.empty) term =
           invalid_arg "evaluate_term: ill-typed function application"
       end
     | `Var (i, _) ->
+      begin try 
       begin match Env.find env i with
         | `Real qq -> qq
         | `Bool _ -> invalid_arg "evaluate_term: ill-typed variable"
+      end
+      with Not_found -> 
+          Printf.printf "here in Var, term = %d\n" i ; failwith "bla"
       end
     | `Add xs -> List.fold_left QQ.add QQ.zero xs
     | `Mul xs -> List.fold_left QQ.mul QQ.one xs
@@ -160,11 +168,12 @@ let rec evaluate_term interp ?(env=Env.empty) term =
       else
         belse
   in
-  try
-    ArithTerm.eval interp.srk f term
-  with Not_found ->
+ (*try
+*)    ArithTerm.eval interp.srk f term
+  (*with Not_found -> 
+    Syntax.pp_expr_unnumbered interp.srk Format.std_formatter term;
     invalid_arg "evaluate_term: no interpretation for constant symbol"
-
+*)
 and evaluate_formula interp ?(env=Env.empty) phi =
   let f = function
     | `And xs -> List.for_all (fun x -> x) xs
@@ -204,11 +213,11 @@ and evaluate_formula interp ?(env=Env.empty) phi =
     | `Quantify (_, _, _, _) -> invalid_arg "evalutate_formula: quantifier"
   in
   try
-    Formula.eval interp.srk f phi
-  with Not_found ->
-    invalid_arg "evaluate_formula: no interpretation for constant symbol"
+      Formula.eval interp.srk f phi
+    with Not_found ->
+      invalid_arg "evaluate_formula: no interpretation for constant symbol"
 
-let get_context interp = interp.srk
+ let get_context interp = interp.srk
 
 let select_implicant interp ?(env=Env.empty) phi =
   let srk = interp.srk in
