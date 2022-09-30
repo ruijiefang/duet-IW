@@ -358,9 +358,9 @@ struct
         in
         let sub_expr = Syntax.substitute_const C.context replacer rhs in 
         let lhs_symbol =  Var.symbol_of lhs in
-        let _ = Printf.printf "substituting lhs = %s\nrhs=" @@ Syntax.show_symbol C.context lhs_symbol in 
+        (* let _ = Printf.printf "substituting lhs = %s\nrhs=" @@ Syntax.show_symbol C.context lhs_symbol in 
         let _ = Syntax.pp_expr_unnumbered C.context Format.std_formatter rhs in
-        Printf.printf "\n";
+        Printf.printf "\n"; *)
         let sub_val = Interpretation.evaluate_term m sub_expr in 
         Interpretation.add lhs_symbol (`Real sub_val) m' 
       ) m f_transform in Some post_model 

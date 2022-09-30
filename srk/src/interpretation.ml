@@ -45,12 +45,12 @@ let add k v interp =
 let value interp k =
   try SM.find k interp.map
   with Not_found ->
-    Printf.printf "err: value not found: %s\n" @@ Syntax.show_symbol interp.srk k;
+    (*Printf.printf "err: value not found: %s\n" @@ Syntax.show_symbol interp.srk k;*)
     let v = interp.default k in
-    Printf.printf "default value: %s\n" (match v with 
+    (*Printf.printf "default value: %s\n" (match v with 
       | `Fun _ -> "Function"
       | `Bool _ -> "Boolean"
-      | `Real v -> Printf.sprintf "Real %s\n" (Mpqf.to_string v));
+      | `Real v -> Printf.sprintf "Real %s\n" (Mpqf.to_string v));*)
     interp.map <- SM.add k v interp.map;
     v
 
