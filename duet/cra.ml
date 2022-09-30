@@ -938,6 +938,9 @@ module McMillanChecker = struct
   let mc_refine_with_interpolants (ctx: mc_context) v path interpolants = 
     (*Printf.printf "length of interpolants: %d\n" (List.length interpolants);
     Printf.printf "length of path condition: %d\n" (List.length path_condition);*)
+      Printf.printf "  refine: interpolant sequence for tree vertex %d: ------------------------------\n" v;
+      mypp_formula "" interpolants;
+      Printf.printf "--------------------------------------------------------------\n";
     List.iter2 (fun u interpolant -> 
       let u_label = ARR.get !(ctx.ptt).labels u in 
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
