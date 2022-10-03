@@ -594,7 +594,7 @@ let decorate_transition_system predicates ts entry =
       WG.split_vertex ts v (Weight (K.assume invariant)) fresh_id)
     ts
 
-let make_transition_system rg =
+let make_transition_system (simplify:bool) rg =
   let call_edge block =
     Call ((RG.block_entry rg block).did, (RG.block_exit rg block).did)
   in
@@ -656,11 +656,11 @@ let make_transition_system rg =
 
         let entry = (RG.block_entry rg block).did in
         let exit = (RG.block_exit rg block).did in
-        (*let point_of_interest v =
+        let point_of_interest v =
           v = entry || v = exit || SrkUtil.Int.Map.mem v (!assertions)
         in
-        let tg = TS.simplify point_of_interest tg in
-        let tg = TS.remove_temporaries tg in*)
+        let tg = if simplify then TS.simplify point_of_interest tg else tg in
+        let tg = if simplify then TS.remove_temporaries tg else tg in
         let tg =
           if !forward_inv_gen then let _ = Printf.printf "forward inv gen...\n" in
             Log.phase "Forward invariant generation"
@@ -1522,7 +1522,7 @@ let analyze_concolic file =
   | [main] -> begin
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system rg in
+      let (ts, assertions) = make_transition_system true rg in
       let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
       Printf.printf "\nentry: %d\n" entry; 
@@ -1547,7 +1547,7 @@ let analyze_plain_mcl file =
 
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system rg in
+      let (ts, assertions) = make_transition_system false rg in
       let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
       Printf.printf "\nentry: %d\n" entry; 
@@ -1575,7 +1575,7 @@ let analyze_concolic_mcl file =
 
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system rg in
+      let (ts, assertions) = make_transition_system false rg in
       let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
       Printf.printf "\nentry: %d\n" entry; 
@@ -1595,14 +1595,29 @@ let analyze_concolic_mcl file =
       end
   | _ -> assert false
 
+(** dump simplified CFG before doing model checking / CRA / concolic execution *)
+let dump_cfg simplify file = 
+  populate_offset_table file;
+  match file.entry_points with 
+  | [main] ->
+    begin 
+      let rg = Interproc.make_recgraph file in 
+      let entry = (RG.block_entry rg main).did in 
+      let (ts, assertions) = make_transition_system simplify rg in 
+      let ts, _ = make_ts_assertions_unreachable ts assertions in 
+      TSDisplay.display ts
+    end
+  | _ -> assert false
 
+
+(** main entry to CRA *)
 let analyze file =
   populate_offset_table file;
   match file.entry_points with
   | [main] -> begin
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system rg in
+      let (ts, assertions) = make_transition_system true rg in
 
       (*TSDisplay.display ts;*)
       let query = mk_query ts entry in
@@ -1864,7 +1879,7 @@ let prove_termination_main file =
   | [main] -> begin
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, _) = make_transition_system rg in
+      let (ts, _) = make_transition_system true rg in
       if !CmdLine.display_graphs then
         TSDisplay.display ts;
       let query = mk_query ts entry in
@@ -1917,7 +1932,7 @@ let resource_bound_analysis file =
   match file.entry_points with
   | [main] -> begin
       let rg = Interproc.make_recgraph file in
-      let (ts, _) = make_transition_system rg in
+      let (ts, _) = make_transition_system true rg in
       let entry = (RG.block_entry rg main).did in
       let query = mk_query ts entry in
       let cost =
@@ -2081,4 +2096,8 @@ let _ =
   CmdLine.register_pass 
     ("-mcl-plain", analyze_plain_mcl, " Plain McMillan");
   CmdLine.register_pass 
-    ("-mcl-concolic", analyze_concolic_mcl, " Combined McMillan+Concolic execution algorithm")
+    ("-mcl-concolic", analyze_concolic_mcl, " Combined McMillan+Concolic execution algorithm");
+  CmdLine.register_pass
+    ("-dump-simplified-cfg", dump_cfg true, " Dump simplified control-flow-graph before analysis");
+  CmdLine.register_pass
+    ("-dump-unsimplified-cfg", dump_cfg false, " Dump unsimplified control-flow-graph of the input program")
