@@ -656,11 +656,11 @@ let make_transition_system rg =
 
         let entry = (RG.block_entry rg block).did in
         let exit = (RG.block_exit rg block).did in
-        let point_of_interest v =
+        (*let point_of_interest v =
           v = entry || v = exit || SrkUtil.Int.Map.mem v (!assertions)
         in
         let tg = TS.simplify point_of_interest tg in
-        let tg = TS.remove_temporaries tg in
+        let tg = TS.remove_temporaries tg in*)
         let tg =
           if !forward_inv_gen then let _ = Printf.printf "forward inv gen...\n" in
             Log.phase "Forward invariant generation"
@@ -935,15 +935,14 @@ module McMillanChecker = struct
       end 
   
   (* refine the label of each tree node u along path from tree root to v. *)
-  let mc_refine_with_interpolants (ctx: mc_context) v path interpolants = 
+  let mc_refine_with_interpolants (ctx: mc_context) path interpolants = 
     (*Printf.printf "length of interpolants: %d\n" (List.length interpolants);
     Printf.printf "length of path condition: %d\n" (List.length path_condition);*)
-      Printf.printf "  refine: interpolant sequence for tree vertex %d: ------------------------------\n" v;
-      mypp_formula "" interpolants;
-      Printf.printf "--------------------------------------------------------------\n";
     List.iter2 (fun u interpolant -> 
       let u_label = ARR.get !(ctx.ptt).labels u in 
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
+      Printf.printf "[relabelling %d] to label: \n" u;
+      mypp_formula "" [ u_label' ];
       ARR.set !(ctx.ptt).labels u u_label';
       (* remove ( * -> u) in covering relation. *)
       begin match IntMap.find_opt u !(!(ctx.ptt).reverse_covers) with 
@@ -964,6 +963,7 @@ module McMillanChecker = struct
               List.iter (fun x_leaf -> 
                 Printf.printf "         refine: adding %d back to worklist \n" x_leaf;
                 ctx.worklist := x_leaf %>> !(ctx.worklist)) x_leaves;
+            ctx.ptt := {!(ctx.ptt) with models = IntMap.remove x !(ctx.ptt).models };
             l
           | `Yes ->
             Printf.printf "    refine: cover (x %d-> u %d) still holds\n" x u;
@@ -987,7 +987,15 @@ module McMillanChecker = struct
         | `Invalid | `Unknown -> 
           Printf.printf " *********************** REFINEMENT FAILED *************************\n"; false 
         | `Valid interpolants ->
-          mc_refine_with_interpolants ctx v path interpolants;
+          
+          Printf.printf "  refine: interpolant sequence for tree vertex %d: -----------\n" v;
+          Printf.printf " original formula: ";
+          mypp_weights "" path_condition;
+          Printf.printf "--------------------------------------------------------------\n";
+          mypp_formula "" interpolants;
+          Printf.printf "--------------------------------------------------------------\n";
+          
+          mc_refine_with_interpolants ctx path interpolants;
           true  
         end 
         | ConcolicMcMillan -> 
@@ -999,7 +1007,7 @@ module McMillanChecker = struct
             false 
           | `Unknown -> failwith ""
           | `Valid interpolants -> 
-            mc_refine_with_interpolants ctx v path interpolants; 
+            mc_refine_with_interpolants ctx path interpolants; 
             true 
         end
 
@@ -1050,7 +1058,11 @@ module McMillanChecker = struct
                 !(ctx.ptt).reverse_covers := IntMap.remove y !(!(ctx.ptt).reverse_covers);
                 (* Step 3: add xs to worklist. *)
                 List.iter (fun x ->
-                  ctx.worklist := x %>> !(ctx.worklist);
+                  (* add x's subtree leaves back to the worklist. *)
+                  let x_leaves = leaves !(ctx.ptt) x in 
+                    List.iter (fun x_leaf -> 
+                      Printf.printf "         close: adding %d back to worklist \n" x_leaf;
+                      ctx.worklist := x_leaf %>> !(ctx.worklist)) x_leaves;
                   ctx.ptt := {!(ctx.ptt) with models = IntMap.remove x !(ctx.ptt).models } ) xs
               end) v_descendants
         end; cover_success
@@ -1087,6 +1099,7 @@ module McMillanChecker = struct
         Printf.printf " +----------------- ART ----------------+\n";
         print_worklist ctx;
         Printf.printf " visit %d\n" u;
+        mypp_formula "label: " [ARR.get !(ctx.ptt).labels u]; 
         ctx.worklist := w;
         (* Fetched tree node u from work list. First attempt to close it. *)
         if not (mc_is_covered ctx u) then begin
