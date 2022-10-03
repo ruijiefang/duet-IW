@@ -974,7 +974,7 @@ module McMillanChecker = struct
           ) [] l in 
             !(ctx.ptt).reverse_covers := IntMap.add u u_coverers !(!(ctx.ptt).reverse_covers)
       end
-    ) path (interpolants @ [Syntax.mk_false Ctx.context]) 
+    ) path ( (mk_true ()) :: interpolants) 
 
   (* refine path to node v. Returns false if unable to refine. *)
   let mc_refine (ctx: mc_context) (v: int) = 
@@ -1547,7 +1547,7 @@ let analyze_plain_mcl file =
 
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system false rg in
+      let (ts, assertions) = make_transition_system true rg in
       let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
       Printf.printf "\nentry: %d\n" entry; 
@@ -1575,7 +1575,7 @@ let analyze_concolic_mcl file =
 
       let rg = Interproc.make_recgraph file in
       let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system false rg in
+      let (ts, assertions) = make_transition_system true rg in
       let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
       Printf.printf "\nentry: %d\n" entry; 
