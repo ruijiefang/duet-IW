@@ -697,6 +697,8 @@ let mypp_weights s l = List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a"
 let mypp_formula s l = 
   List.iteri (fun i f -> logf ~level:`always "%s(%i): \n%a" s i (Syntax.pp_expr_unnumbered Ctx.context) @@ f) l
 
+
+
 (* Convert assertion checking problem to vertex reachability problem. *)
 let make_ts_assertions_unreachable (ts : cfg_t) assertions = 
   let largest = ref (WG.fold_vertex (fun v max -> if v > max then v else max) ts 0) in 
@@ -719,6 +721,7 @@ let make_ts_assertions_unreachable (ts : cfg_t) assertions =
 module McMillanChecker = struct 
 
   (** type definitions fo McMillan checker. *)
+  let logging = false (* enable for logging *)
 
   (* context of McMillan-Checker. *)
   type mc_context = {
@@ -747,7 +750,8 @@ module McMillanChecker = struct
     reverse_covers : (int list) IntMap.t ref;
     children : int list ARR.t;
     precedent_nodes : (int list) IntMap.t ref;
-    models : (Ctx.t Interpretation.interpretation) IntMap.t
+    models : (Ctx.t Interpretation.interpretation) IntMap.t;
+    solver: Ctx.t Srk.Smt.Solver.t; (** persistent solver state object, prevents Z3 from allocating per SMT call *)
   }
   (* result of McMillan's algorithm *)
   and mc_result = 
@@ -773,6 +777,7 @@ module McMillanChecker = struct
       children = ARR.create ();
       precedent_nodes = ref IntMap.empty;
       models = IntMap.empty;
+      solver = Smt.mk_solver Ctx.context
     }
 
   let mk_mc_context (mode: mc_mode) (ts: cfg_t) (entry: int) (err_loc: int) = 
@@ -941,8 +946,8 @@ module McMillanChecker = struct
     List.iter2 (fun u interpolant -> 
       let u_label = ARR.get !(ctx.ptt).labels u in 
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
-      Printf.printf "[relabelling %d] to label: \n" u;
-      mypp_formula "" [ u_label' ];
+      if logging then Printf.printf "[relabelling %d] to label: \n" u;
+      if logging then mypp_formula "" [ u_label' ];
       ARR.set !(ctx.ptt).labels u u_label';
       (* remove ( * -> u) in covering relation. *)
       begin match IntMap.find_opt u !(!(ctx.ptt).reverse_covers) with 
@@ -956,19 +961,21 @@ module McMillanChecker = struct
           begin match Smt.entails Ctx.context (x_label) (u_label) with
           | `No | `Unknown -> 
             (* remove (x, u) from covering. *)
-            Printf.printf "   refine: removing cover (%d->%d)\n" x u;
+            if logging then Printf.printf "   refine: removing cover (%d->%d)\n" x u;
             !(ctx.ptt).covers := IntMap.remove x !(!(ctx.ptt).covers);
             (* add x's subtree leaves back to the worklist. *)
             let x_leaves = leaves !(ctx.ptt) x in 
               List.iter (fun x_leaf -> 
-                Printf.printf "         refine: adding %d back to worklist \n" x_leaf;
+                if logging then Printf.printf "         refine: adding %d back to worklist \n" x_leaf;
                 ctx.worklist := x_leaf %>> !(ctx.worklist)) x_leaves;
             ctx.ptt := {!(ctx.ptt) with models = IntMap.remove x !(ctx.ptt).models };
             l
           | `Yes ->
-            Printf.printf "    refine: cover (x %d-> u %d) still holds\n" x u;
-            mypp_formula " x label: " [x_label];
-            mypp_formula " u label: " [u_label];
+            if logging then begin 
+              Printf.printf "    refine: cover (x %d-> u %d) still holds\n" x u;
+              mypp_formula " x label: " [x_label];
+              mypp_formula " u label: " [u_label]
+            end;
           x :: coverers (* unchanged. *) 
           end
           ) [] l in 
@@ -985,16 +992,16 @@ module McMillanChecker = struct
         begin 
         match K.interpolate path_condition (Ctx.mk_false) with 
         | `Invalid | `Unknown -> 
-          Printf.printf " *********************** REFINEMENT FAILED *************************\n"; false 
+          if logging then Printf.printf " *********************** REFINEMENT FAILED *************************\n"; false 
         | `Valid interpolants ->
-          
-          Printf.printf "  refine: interpolant sequence for tree vertex %d: -----------\n" v;
-          Printf.printf " original formula: ";
-          mypp_weights "" path_condition;
-          Printf.printf "--------------------------------------------------------------\n";
-          mypp_formula "" interpolants;
-          Printf.printf "--------------------------------------------------------------\n";
-          
+          if logging then begin 
+            Printf.printf "  refine: interpolant sequence for tree vertex %d: -----------\n" v;
+            Printf.printf " original formula: ";
+            mypp_weights "" path_condition;
+            Printf.printf "--------------------------------------------------------------\n";
+            mypp_formula "" interpolants;
+            Printf.printf "--------------------------------------------------------------\n";
+          end;
           mc_refine_with_interpolants ctx path interpolants;
           true  
         end 
@@ -1002,7 +1009,7 @@ module McMillanChecker = struct
         begin 
           match interpolate_or_get_model !(ctx.ptt) v ctx.err_loc with 
           `Invalid v_model -> 
-            Printf.printf "Unable to refine but got model\n";
+            if logging then Printf.printf "Unable to refine but got model\n";
             ctx.ptt := {!(ctx.ptt) with models = IntMap.add v v_model !(ctx.ptt).models };
             false 
           | `Unknown -> failwith ""
@@ -1019,12 +1026,14 @@ module McMillanChecker = struct
     if (!(ctx.ptt) %-> v) <> (!(ctx.ptt) %-> w) then 
       failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (!(ctx.ptt) %-> v) w (!(ctx.ptt) %-> w)
     else 
-      Printf.printf "cover: %d->%d and %d->%d\n" v (!(ctx.ptt) %-> v) w (!(ctx.ptt) %-> w);
+      if logging then Printf.printf "cover: %d->%d and %d->%d\n" v (!(ctx.ptt) %-> v) w (!(ctx.ptt) %-> w);
     match Smt.entails Ctx.context v_label w_label with 
     | `Yes -> 
-      Printf.printf "   cover success (v=%d, w=%d). \n" v w;
-      mypp_formula "        v label " [v_label];
-      mypp_formula "        w label "  [w_label];
+      if logging then begin 
+        Printf.printf "   cover success (v=%d, w=%d). \n" v w;
+        mypp_formula "        v label " [v_label];
+        mypp_formula "        w label "  [w_label]
+      end;
       let reverse_covers_w = IntMap.find_default [] w !(!(ctx.ptt).reverse_covers) in 
         !(ctx.ptt).covers := IntMap.add v w !(!(ctx.ptt).covers);
         !(ctx.ptt).reverse_covers := IntMap.add w (v :: reverse_covers_w) !(!(ctx.ptt).reverse_covers);
@@ -1061,7 +1070,7 @@ module McMillanChecker = struct
                   (* add x's subtree leaves back to the worklist. *)
                   let x_leaves = leaves !(ctx.ptt) x in 
                     List.iter (fun x_leaf -> 
-                      Printf.printf "         close: adding %d back to worklist \n" x_leaf;
+                      if logging then Printf.printf "         close: adding %d back to worklist \n" x_leaf;
                       ctx.worklist := x_leaf %>> !(ctx.worklist)) x_leaves;
                   ctx.ptt := {!(ctx.ptt) with models = IntMap.remove x !(ctx.ptt).models } ) xs
               end) v_descendants
@@ -1075,7 +1084,7 @@ module McMillanChecker = struct
       if v == 0 then false
       else mc_is_covered ctx ((!(ctx.ptt)) %^ v)
     | Some u -> 
-      Printf.printf "  | covered by %d\n" u;
+      if logging then Printf.printf "  | covered by %d\n" u;
       true 
   
   let tree_printer_get_name (ctx: mc_context) i = 
@@ -1089,47 +1098,49 @@ module McMillanChecker = struct
   let single_plain_mcmillan_round (ctx: mc_context) : mc_state = 
     match DQ.front !(ctx.worklist) with (* use DQ.rear if want BFS *) 
       | Some (u, w) (* (w, u) if use DQ.front *) ->          
-        Printf.printf " +----------------- ART ----------------+\n";
-        let string_of_art = 
-          Tree_printer.to_string 
-            ~line_prefix:"* " 
-            ~get_name:(tree_printer_get_name ctx) 
-            ~get_children:(children !(ctx.ptt)) 0
-          in Printf.printf "%s" string_of_art; 
-        Printf.printf " +----------------- ART ----------------+\n";
-        print_worklist ctx;
-        Printf.printf " visit %d\n" u;
-        mypp_formula "label: " [ARR.get !(ctx.ptt).labels u]; 
+        if logging then begin 
+          Printf.printf " +----------------- ART ----------------+\n";
+          let string_of_art = 
+            Tree_printer.to_string 
+              ~line_prefix:"* " 
+              ~get_name:(tree_printer_get_name ctx) 
+              ~get_children:(children !(ctx.ptt)) 0
+            in Printf.printf "%s" string_of_art; 
+          Printf.printf " +----------------- ART ----------------+\n";
+          print_worklist ctx;
+          Printf.printf " visit %d\n" u;
+          mypp_formula "label: " [ARR.get !(ctx.ptt).labels u]; 
+        end;
         ctx.worklist := w;
         (* Fetched tree node u from work list. First attempt to close it. *)
         if not (mc_is_covered ctx u) then begin
-          Printf.printf " uncovered. try close\n";
+          if logging then Printf.printf " uncovered. try close\n";
           begin match mc_close ctx u with 
             | true -> (* Close succeeded. No need to further explore it. *)
-              Printf.printf "Close succeeded.\n"; 
+              if logging then Printf.printf "Close succeeded.\n"; 
               (* ctx.worklist := u %>> !(ctx.worklist); *)
               McContinue 
             | false -> (* u is uncovered. *)
               if ((!(ctx.ptt)) %-> u) == ctx.err_loc then 
                 begin match mc_refine ctx u with 
                   | true -> 
-                    Printf.printf " refinement result: SUCCESS\n";
+                    if logging then Printf.printf " refinement result: SUCCESS\n";
                     (* for every node along path of refinement try close *)
                     let path = tree_path !(ctx.ptt) u in 
                       List.iter (fun x -> let _ = mc_close ctx x in ()) path;
                       (* ctx.worklist := u %>> !(ctx.worklist); *)
                       McContinue
                   | false -> 
-                    Printf.printf " refinement result: FAILURE\n";
+                    if logging then Printf.printf " refinement result: FAILURE\n";
                     McErrorReached
                 end 
               else begin 
-                Printf.printf " expanding...\n";
+                if logging then Printf.printf " expanding...\n";
                 mc_expand ctx u;
                 McContinue
               end
           end end
-        else begin Printf.printf "  | covered \n"; McContinue end
+        else begin if logging then Printf.printf "  | covered \n"; McContinue end
         | None -> failwith ""
 
   let plain_mcmillan_execute (ctx: mc_context) : mc_result = 
@@ -1140,18 +1151,21 @@ module McMillanChecker = struct
           match single_plain_mcmillan_round ctx with 
           | McContinue -> continue := true; state := McContinue
           | McErrorReached -> 
-            Printf.printf "  not continueing any further --- error reached\n";
+            if logging then Printf.printf "  not continueing any further --- error reached\n";
             continue := false; state := McErrorReached
           | McWellLabeled -> continue := false; state := McWellLabeled
         end
       done;
-      Printf.printf " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
-      let string_of_art = 
-          Tree_printer.to_string 
-            ~line_prefix:"* " 
-            ~get_name:(tree_printer_get_name ctx) 
-            ~get_children:(children !(ctx.ptt)) 0
-        in Printf.printf "%s" string_of_art;
+      if logging then 
+        begin 
+        Printf.printf " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
+        let string_of_art = 
+            Tree_printer.to_string 
+              ~line_prefix:"* " 
+              ~get_name:(tree_printer_get_name ctx) 
+              ~get_children:(children !(ctx.ptt)) 0
+          in Printf.printf "%s" string_of_art
+      end;
       match !state with 
       | McErrorReached -> McProvenUnsafe
       | McContinue -> Printf.printf "execution saturated\n"; McProvenSafe
@@ -1240,11 +1254,12 @@ module McMillanChecker = struct
       end;
       !ctx.execlist := begin
         match mode with 
-        | PlainMcMillan -> 0 %>> DQ.empty
-        | ConcolicMcMillan -> DQ.empty
+        | PlainMcMillan -> DQ.empty 
+        | ConcolicMcMillan -> 0 %>> DQ.empty
       end;
       !ctx.vtxcnt := 1;
       !ctx.ptt := { 
+          !(!ctx.ptt) with 
           graph = ts; 
           entry = entry; 
           cfg_vertex = ARR.singleton entry ; 
@@ -1262,7 +1277,7 @@ module McMillanChecker = struct
           plain_mcmillan_execute (!ctx)
         | ConcolicMcMillan -> 
           Printf.printf "getting initial abstract model...\n";
-          begin match get_initial_abstract_model entry err_loc ts with 
+          begin match get_initial_abstract_model ~solver:!(!ctx.ptt).solver entry err_loc ts with 
           | `Sat m -> 
             Printf.printf "good. continuing...\n";
             !ctx.ptt := {!(!ctx.ptt) with models = IntMap.add 0 m !(!ctx.ptt).models}; 
