@@ -721,7 +721,7 @@ let make_ts_assertions_unreachable (ts : cfg_t) assertions =
 module McMillanChecker = struct 
 
   (** type definitions fo McMillan checker. *)
-  let logging = false (* enable for logging *)
+  let logging = true (* enable for logging *)
 
   (* context of McMillan-Checker. *)
   type mc_context = {
@@ -1143,6 +1143,53 @@ module McMillanChecker = struct
         else begin if logging then Printf.printf "  | covered \n"; McContinue end
         | None -> failwith ""
 
+  let verify_well_labelled_tree (t: ltree) = 
+    let rec aux v =
+      let children = ARR.get t.children v in 
+      (*mypp_formula (Printf.sprintf "visiting %d, label: " v) [ ARR.get t.labels v ];*)
+      match children with 
+      | [] (* leaf node *) -> 
+        begin match IntMap.find_opt v !(t.covers) with 
+          | None -> 
+            Printf.printf "!!! found uncovered leaf: %d\n" v;
+            WG.fold_succ_e (fun (x, _, y) acc ->
+              Printf.printf "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" x y; 
+              false 
+            ) t.graph (ARR.get t.cfg_vertex v) true
+          | Some _ -> true 
+        end 
+      | _ -> 
+        begin match IntMap.find_opt v !(t.covers) with 
+        | None -> 
+          Printf.printf "node %d uncovered\n" v;
+          List.fold_left (fun acc u -> (aux u) && acc) true children 
+        | Some u -> 
+          Printf.printf "node %d covered by %d\n" v u;
+          true 
+        end 
+    in  aux 0
+
+  let check_covering_welformedness (t: ltree) = 
+    Printf.printf "checking welformedness of covering relations\n";
+    IntMap.iter (fun dst covered_from -> 
+      List.iter (fun src -> 
+        Printf.printf "checking if (%d, %d) in covering\n" src dst;
+        match IntMap.find_opt src !(t.covers) with 
+        | Some dst' -> if dst' <> dst then failwith @@ Printf.sprintf "ERROR: (%d, %d) in covering\n" src dst'
+        | None -> failwith "ERROR: not in covering"
+      ) covered_from
+    ) !(t.reverse_covers);
+    Printf.printf "performing a reverse check\n";
+    IntMap.iter (fun src dst -> 
+      match IntMap.find_opt dst !(t.reverse_covers) with 
+      | Some reverse_covers ->
+        begin match List.mem src reverse_covers with 
+        | false -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but %d not in %d's reverse_covers\n" src dst src dst
+        | true -> ()
+        end
+      | None -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but no list found in reverse_covers\n" src dst
+    ) !(t.covers)
+
   let plain_mcmillan_execute (ctx: mc_context) : mc_result = 
     let continue = ref true in
     let state = ref McContinue in begin
@@ -1168,7 +1215,13 @@ module McMillanChecker = struct
       end;
       match !state with 
       | McErrorReached -> McProvenUnsafe
-      | McContinue -> Printf.printf "execution saturated\n"; McProvenSafe
+      | McContinue -> 
+      
+        Printf.printf "execution saturated\n"; 
+        begin match verify_well_labelled_tree !(ctx.ptt) with 
+        | false -> failwith "ERROR: well-labelled check failed"
+        | true -> check_covering_welformedness !(ctx.ptt) end;
+        McProvenSafe
       | _ -> McProvenSafe
     end
 
