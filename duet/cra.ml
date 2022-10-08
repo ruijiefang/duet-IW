@@ -983,6 +983,43 @@ module McMillanChecker = struct
       end
     ) path ( (mk_true ()) :: interpolants) 
 
+  (* verify interpolant sequence is ok *)
+  let verify_consecution_condition (interpolants: Ctx.t Srk.Syntax.formula list) (transitions: K.t list) = 
+    let interpolants = (mk_true ()) :: interpolants in 
+      let rec oneRest (i: Ctx.t Srk.Syntax.formula) (tr: K.t) i_rest tr_rest = 
+        Printf.printf "verify_consecution_condition: verifying: \n";
+        mypp_formula "interpolant: " [ i ];
+        mypp_weights "transition: " [ tr ];
+        begin match i_rest with 
+        | [] -> failwith "ERROR in verify_consecution_condition: interpolants length does not match path condition length"
+        | i' :: i_rest' -> 
+            (* consecution: i /\ tr |= i' *)
+            begin match K.check_consecution i tr i' with 
+              | `No | `Unknown -> 
+                mypp_formula "bad interpolant: " [i; i'];
+                failwith "ERROR in verify_consecution_condition: found non-consecutive interpolant, shown above"
+              | `Yes -> 
+                begin match tr_rest with 
+                | [] -> 
+                  if i_rest' <> [] then failwith "ERROR: interpolant length does not match transitions length\n";
+                  begin match Smt.entails Ctx.context i' (mk_false()) with 
+                  | `No | `Unknown -> failwith "ERROR: last interpolant does not imply false"
+                  | `Yes -> ()
+                  end
+                | tr' :: tr_rest' -> 
+                  oneRest i' tr' i_rest' tr_rest'
+                end
+            end
+        end
+      in 
+        match interpolants with 
+        | [] -> ()
+        | i :: i_rest -> 
+          begin match transitions with 
+          | [] -> if i_rest <> [] then failwith "ERROR: transitions length and interpolants length do not match"
+          | tr :: tr_rest -> oneRest i tr i_rest tr_rest 
+          end
+
   (* refine path to node v. Returns false if unable to refine. *)
   let mc_refine (ctx: mc_context) (v: int) = 
     let path_condition = !(ctx.ptt) %-*> v in 
@@ -1002,6 +1039,7 @@ module McMillanChecker = struct
             mypp_formula "" interpolants;
             Printf.printf "--------------------------------------------------------------\n";
           end;
+          verify_consecution_condition interpolants path_condition;
           mc_refine_with_interpolants ctx path interpolants;
           true  
         end 

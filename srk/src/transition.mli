@@ -135,6 +135,10 @@ module Make
                                                              | `Invalid
                                                              | `Unknown ]
 
+  (** check if given pre-state s, transition tr, and post-state t, s /\ tr |= t. *)
+  val check_consecution : C.t formula -> t -> C.t formula -> [`No | `Unknown | `Yes] 
+
+
   val defines : t -> var list
   val uses : t -> var list
 

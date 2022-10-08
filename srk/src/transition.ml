@@ -521,6 +521,11 @@ struct
     | `Unknown -> `Unknown
     | `Unsat -> `Valid
 
+  let check_consecution phi tr (post: C.t formula) = 
+    let pre = mul (assume phi) tr in 
+      let pre_formula = to_transition_formula pre |> TransitionFormula.formula in 
+      Smt.entails C.context pre_formula post     
+
   let defines tr =
     M.fold
       (fun var _ defs -> var::defs)

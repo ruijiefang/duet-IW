@@ -12,7 +12,7 @@ type 'a interpretation =
 
 let empty srk =
   { srk = srk;
-    default = (fun _ -> `Real (Mpqf.of_int 0));(*(fun _ -> raise Not_found);*)
+    default = (fun s -> `Real (Mpqf.of_int 0));(*(fun _ -> raise Not_found);*)
     map = SM.empty }
 
 let wrap ?(symbols=[]) srk f =
