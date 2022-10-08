@@ -708,7 +708,6 @@ let tr_file filename f =
          List.filter (function
              | GFun ({svar = v}, _) 
              | GVarDecl (v, _) | GVar (v, _, _) ->
-              Printf.printf "translateCil: visiting gdecl %s; include? %b\n" v.Cil.vname (not @@ List.mem v.Cil.vname verifier_builtins); 
                not (List.mem v.Cil.vname verifier_builtins)
              | _ -> true))
   in

@@ -981,7 +981,7 @@ module McMillanChecker = struct
           ) [] l in 
             !(ctx.ptt).reverse_covers := IntMap.add u u_coverers !(!(ctx.ptt).reverse_covers)
       end
-    ) path ( (mk_true ()) :: interpolants) 
+    ) path ( (K.one |> K.to_transition_formula |> TransitionFormula.formula) :: interpolants) 
 
   (* verify interpolant sequence is ok *)
   let verify_consecution_condition (interpolants: Ctx.t Srk.Syntax.formula list) (transitions: K.t list) = 
@@ -1039,7 +1039,7 @@ module McMillanChecker = struct
             mypp_formula "" interpolants;
             Printf.printf "--------------------------------------------------------------\n";
           end;
-          verify_consecution_condition interpolants path_condition;
+           (* verify_consecution_condition interpolants path_condition; *)
           mc_refine_with_interpolants ctx path interpolants;
           true  
         end 
