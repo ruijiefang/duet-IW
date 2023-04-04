@@ -627,7 +627,15 @@ struct
                 mk_const srk sym 
             with Not_found -> 
                 Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
-          in `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
+          in 
+          Printf.printf "\npre extrapolant after renaming: ";
+          Syntax.pp_expr_unnumbered srk Format.std_formatter pre_;
+          Format.print_flush();
+          Printf.printf "\npost extrapolant after renaming: ";
+          Syntax.pp_expr_unnumbered srk Format.std_formatter post_;
+          Format.print_flush();
+          Printf.printf "\n--------------------------\n";  
+          `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
       | _ -> `Unsat 
 
   let valid_triple phi path post =
