@@ -442,7 +442,7 @@ struct
       trs
       guards;
     Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
-    BatDynArray.to_list symbols, BatDynArray.to_list ss_inv, solver, indicators, guards
+    trs, BatDynArray.to_list symbols, BatDynArray.to_list ss_inv, solver, indicators, guards
 
   let interpolate_unsat_core trs post guards core = 
          let core_symbols =
@@ -486,7 +486,7 @@ struct
 
 
   let interpolate trs post =
-    let _, _, solver, indicators, guards = get_interpolate_solver trs post in 
+    let trs, _, _, solver, indicators, guards = get_interpolate_solver trs post in 
     match Smt.Solver.get_unsat_core solver indicators with
     | `Sat -> 
       `Invalid
@@ -496,7 +496,7 @@ struct
        `Valid (List.tl itp)
 
   let interpolate_or_concrete_model trs post = 
-    let symbols, ss_inv, solver, indicators, guards = get_interpolate_solver trs post in 
+    let trs, symbols, ss_inv, solver, indicators, guards = get_interpolate_solver trs post in 
     match Smt.Solver.get_unsat_core_or_concrete_model solver indicators symbols with 
     | `Sat model -> 
       let e = Interpretation.enum model in 
@@ -513,6 +513,134 @@ struct
     | `Unsat core -> 
         let itp = interpolate_unsat_core trs post guards core in
         `Valid (List.tl itp)
+
+  let extrapolate t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
+    Printf.printf "at extrapolate\n";
+    let t1, t2, t3 =
+      let refresh = (fun tr ->
+                 let fresh_skolem =
+                   Memo.memo (fun sym ->
+                       match Var.of_symbol sym with
+                       | Some _ -> mk_const srk sym
+                       | None ->
+                          let name = show_symbol srk sym in
+                          let typ = typ_symbol srk sym in
+                          mk_const srk (mk_symbol srk ~name typ))
+                 in
+                 { transform = M.map (substitute_const srk fresh_skolem) tr.transform;
+                   guard = substitute_const srk fresh_skolem tr.guard }) 
+    in refresh t1, refresh t2, refresh t3 
+    in let subscript_tbl = Hashtbl.create 991 in
+    let reverse_subscript_tbl = Hashtbl.create 991 in 
+    let subscript sym =
+      try
+        Hashtbl.find subscript_tbl sym
+      with Not_found -> mk_const srk sym
+    in
+    (* Convert tr into a formula, and simultaneously update the subscript
+       table *)
+    let to_ss_formula tr =
+      let ss_guard = substitute_const srk subscript (guard tr)
+      in let (ss, phis) =
+        M.fold (fun var term (ss, phis) ->
+            let var_sym = Var.symbol_of var in
+            let var_ss_sym = mk_symbol srk (Var.typ var :> typ) in
+            let var_ss_term = mk_const srk var_ss_sym in
+            let term_ss = substitute_const srk subscript term in
+            ((var_sym, var_ss_term, var_ss_sym)::ss,
+             (mk_eq srk var_ss_term term_ss)::phis))
+          tr.transform
+          ([], [ ss_guard ])
+      in
+      List.iter (fun (k, v, l) -> 
+        Printf.printf "associating variable %s with %s\n" (Syntax.show_symbol srk k) (Syntax.show_symbol srk l);
+        Hashtbl.add subscript_tbl k v; Hashtbl.add reverse_subscript_tbl l k) ss;
+      mk_and srk phis
+    in let ss_t1 = to_ss_formula t1 
+    in let ss_t2 = to_ss_formula t2 
+    in let ss_t3 = to_ss_formula t3 
+    in let conj = mk_and srk [ss_t1; ss_t2; ss_t3]
+    in let symbols_t1 = Syntax.symbols ss_t1 |> Symbol.Set.elements  
+    in let symbols_t1_t2 = 
+      let symbt1 = Syntax.symbols ss_t1 in 
+      let symbt2 = Syntax.symbols ss_t2 in 
+      let symbt1t2 = Symbol.Set.inter symbt1 symbt2 in 
+      symbt1t2 |> Symbol.Set.elements 
+    in let symbols_t3 = Syntax.symbols ss_t3 |> Symbol.Set.elements 
+    in let symbols_t3_t2 = 
+      let symbt3 = Syntax.symbols ss_t3 in 
+      let symbt2 = Syntax.symbols ss_t2 in 
+      let symbt3t2 = Symbol.Set.inter symbt3 symbt2 in 
+      symbt3t2 |> Symbol.Set.elements 
+    in let symbols_conj = Syntax.symbols conj |> Symbol.Set.elements 
+    in let symbols_printer symbs = 
+      List.iter (fun x -> 
+        Printf.printf " %s (= %s);" 
+        (Syntax.show_symbol srk x) (let s = try Hashtbl.find reverse_subscript_tbl x |> Syntax.show_symbol srk with Not_found -> "NONE" in s)) symbs 
+    in
+     Printf.printf "extrapolate: before SMT query \n";
+     Printf.printf "extrapolate: ss_t1: ";
+     Syntax.pp_expr_unnumbered srk Format.std_formatter ss_t1;
+     Format.print_flush ();
+     Printf.printf "\n\nextrapolate: ss_t2: ";
+     Syntax.pp_expr_unnumbered srk Format.std_formatter ss_t2;
+          Format.print_flush ();
+     Printf.printf "\n\nextrapolate: ss_t3: ";
+     Syntax.pp_expr_unnumbered srk Format.std_formatter ss_t3;
+          Format.print_flush ();
+     Printf.printf "\n\nextrapolate: ss_t1 symbols: ";
+     symbols_printer symbols_t1 ;
+          Format.print_flush ();
+         Printf.printf "\n\nextrapolate: ss_t2 symbols: ";
+      Syntax.symbols ss_t2 |> Symbol.Set.elements |> symbols_printer; 
+      Format.print_flush();
+     Printf.printf "\n\nextrapolate: ss_t3 symbols: ";
+     symbols_printer symbols_t3;
+          Format.print_flush ();
+     Printf.printf "\n\nextrapolate: ss_conj symbols: ";
+     symbols_printer symbols_conj;
+          Format.print_flush();
+     Printf.printf "\n\nextrapolate: symbol t1 t2: ";
+     symbols_printer symbols_t1_t2;
+          Format.print_flush();
+      Printf.printf "\n\nextrapolate: symbol t3 t2: ";
+      symbols_printer symbols_t3_t2;
+          Format.print_flush();
+     Printf.printf "\n------------ SMT query in extrapolate ------------\n";
+     match Smt.get_concrete_model srk symbols_conj conj with 
+      | `Sat m -> 
+        Printf.printf "extrapolate: result is SAT, got model\n";
+        Interpretation.pp Format.std_formatter m ;
+        Format.print_flush ();
+        let pre_, post_ = Polyhedron.extrapolate_project srk ss_t1 ss_t3 symbols_t1_t2 symbols_t3_t2 m in 
+        Printf.printf "\npre extrapolant: ";
+        Syntax.pp_expr_unnumbered srk Format.std_formatter pre_;
+        Format.print_flush();
+        Printf.printf "\npost extrapolant: ";
+        Syntax.pp_expr_unnumbered srk Format.std_formatter post_;
+        Format.print_flush();
+        Printf.printf "\n--------------------------\n";
+          (* reverse-rename *)
+          let reverse_substitute tr symb = 
+            try 
+              let sym = Hashtbl.find reverse_subscript_tbl symb in 
+                match Var.of_symbol sym with
+                | Some var ->
+                  if M.mem var tr.transform then
+                    M.find var tr.transform
+                  else
+                    mk_const srk sym
+                | None -> mk_const srk sym
+            with Not_found -> 
+              match Var.of_symbol symb with 
+                | Some var ->
+                  if M.mem var tr.transform then
+                    M.find var tr.transform
+                  else
+                    mk_const srk symb
+                | None -> Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
+          in `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
+      | _ -> `Unsat 
 
   let valid_triple phi path post =
     let path_not_post = List.fold_right mul path (assume (mk_not srk post)) in

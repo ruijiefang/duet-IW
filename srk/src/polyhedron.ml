@@ -100,6 +100,36 @@ let implicant_of cs polyhedron =
     polyhedron
     []
 
+let cube_of srk polyhedron =
+  let zero = mk_real srk QQ.zero in
+  let term = Linear.of_linterm srk in
+  P.fold (fun (p, t) constraints ->
+      let new_constraint =
+        match p with
+        | `Zero -> mk_eq srk (term t) zero
+        | `Nonneg -> mk_leq srk zero (term t)
+        | `Pos -> mk_lt srk zero (term t)
+      in
+      new_constraint::constraints)
+    polyhedron
+    []
+
+let of_cube srk cube =
+  let add polyhedron atom =
+    match Interpretation.destruct_atom srk atom with
+    | `ArithComparison (p, x, y) ->
+      let t =
+        V.sub (Linear.linterm_of srk x) (Linear.linterm_of srk y)
+      in
+      let p = match p with `Eq -> `Zero | `Leq -> `Nonneg | `Lt -> `Pos in
+      P.add (p, t) polyhedron
+    | _ ->
+      Log.logf ~level:`warn "Discarded constraint in Polyhedron.of_cube";
+      polyhedron
+  in
+  List.fold_left add top cube
+
+
 let to_formula cs polyhedron =
   implicant_of cs polyhedron
   |> mk_and (CS.get_context cs)
@@ -225,6 +255,30 @@ let local_project m xs polyhedron =
     substitute_lw_vt x vt polyhedron
   in
   List.fold_left project_one polyhedron xs
+
+let extrapolate_project srk (f1: 'a formula) (f3: 'a formula) symbols_f1 symbols_f3 model = 
+  (* first do NNF conversion on f1, f3 before computing their implicants *)
+  let nnf_rewriter = Syntax.nnf_rewriter srk in
+  let f1 = Syntax.rewrite srk ~down:(nnf_rewriter) f1 in 
+  let f3 = Syntax.rewrite srk ~down:(nnf_rewriter) f3 in 
+  let implicant_f1_o = Interpretation.select_implicant model f1 in 
+  let implicant_f3_o = Interpretation.select_implicant model f3 in 
+    match implicant_f1_o, implicant_f3_o with 
+    | Some if1, Some if3 ->
+      let cube_f1 = of_cube srk if1 in 
+      let cube_f3 = of_cube srk if3 in 
+      let value_of_coord = (* coord (int) -> x (symbol) -> m[x] (value in R) *)
+        fun coord ->
+          Syntax.symbol_of_int coord 
+          |> Interpretation.real model
+      in let xs_f1 = List.map Syntax.int_of_symbol symbols_f1 
+      in let xs_f3 = List.map Syntax.int_of_symbol symbols_f3
+      in let f1_projected = local_project value_of_coord xs_f1 cube_f1
+      in let f3_projected = local_project value_of_coord xs_f3 cube_f3
+      in
+        (cube_of srk f1_projected |> Syntax.mk_and srk, cube_of srk f3_projected |> Syntax.mk_and srk)
+    | _ -> failwith "error extrapolating: select_implicant returned None"
+
 
 (* Project a single variable, as long as the number of added constraints does
    not exceed max_add. If max_add is negative, the variable is projected no

@@ -124,6 +124,8 @@ module Make
                                              | `Invalid
                                              | `Unknown ]
 
+  val extrapolate : t -> t -> t -> [ `Sat of (C.t formula * C.t formula ) | `Unsat ]
+
   (** Same as interpolate, but returns a concrete model if interpllation fails. *)
   val interpolate_or_concrete_model : t list -> C.t formula 
         -> [`Valid of C.t formula list | `Invalid of C.t Interpretation.interpretation | `Unknown ]

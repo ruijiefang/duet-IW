@@ -40,7 +40,8 @@ let () =
   V.register_var "n" `TyInt;
   V.register_var "x" `TyInt;
   V.register_var "y" `TyInt;
-  V.register_var "z" `TyInt
+  V.register_var "z" `TyInt;
+  V.register_var "w" `TyInt
 
 let x = Ctx.mk_const (V.symbol_of "x")
 let y = Ctx.mk_const (V.symbol_of "y")
@@ -49,6 +50,7 @@ let i = Ctx.mk_const (V.symbol_of "i")
 let j = Ctx.mk_const (V.symbol_of "j")
 let k = Ctx.mk_const (V.symbol_of "k")
 let n = Ctx.mk_const (V.symbol_of "n")
+let w = Ctx.mk_const (V.symbol_of "w")
 
 let assert_post tr phi =
   let not_post =
@@ -239,12 +241,47 @@ let split2 () =
   in
   assert_post tr post
 
+let extrapolate1 () = 
+  let open Infix in 
+  let tr1 = 
+    mk_block [
+      T.assume ((int 0) < x);
+      T.havoc ["x"];
+      T.assign "y" x
+    ]
+  in let tr2 = 
+    mk_block [
+      T.assume ((int 0 ) < z);
+      T.assign "z" (x + (int 1));
+      T.assign "w" (z + (int 3))
+    ]
+  in let tr3 = 
+    mk_block [
+      T.assume ((int 0) < k);
+      T.assign "k" (w + (int 4));
+    ]
+  in match T.extrapolate tr1 tr2 tr3 with 
+    | `Sat (f1, f2) -> 
+      Printf.printf "extrapolate: SAT, formulas: \n";
+      Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
+      Syntax.pp_expr_unnumbered srk Format.std_formatter f2
+    | `Unsat -> 
+      Printf.printf "extrapolate: UNSAT\n"
+
 let equal1 () =
+  (*let open Infix in *)
   let tr1 =
     mk_block [
       T.havoc ["x"];
       T.assign "y" x;
+(*      T.assign "x" (x + (int 12));
+      T.assign "z" (int 13) *)
     ]
+  in
+  let _ = 
+    let tr1_formula = T.to_transition_formula tr1 |> TransitionFormula.formula in 
+    let tr1_symbols = Syntax.symbols tr1_formula |> Symbol.Set.elements in 
+      List.iter (fun symb -> Syntax.show_symbol srk symb |> Printf.printf "equal1: tr1 symbol: %s\n") tr1_symbols 
   in
   let tr2 =
     mk_block [
@@ -419,4 +456,5 @@ let suite = "Transition" >::: [
     "interpolate_havoc" >:: interpolate_havoc;
     "interpolate_fail" >:: interpolate_fail;
     "negative_eigenvalue" >:: negative_eigenvalue;
+    "extrapolate" >:: extrapolate1;
   ]
