@@ -564,13 +564,13 @@ struct
     in let symbols_t1_t2 = 
       let symbt1 = Syntax.symbols ss_t1 in 
       let symbt2 = Syntax.symbols ss_t2 in 
-      let symbt1t2 = Symbol.Set.inter symbt1 symbt2 in 
+      let symbt1t2 = Symbol.Set.diff symbt1 symbt2 in 
       symbt1t2 |> Symbol.Set.elements 
     in let symbols_t3 = Syntax.symbols ss_t3 |> Symbol.Set.elements 
     in let symbols_t3_t2 = 
       let symbt3 = Syntax.symbols ss_t3 in 
       let symbt2 = Syntax.symbols ss_t2 in 
-      let symbt3t2 = Symbol.Set.inter symbt3 symbt2 in 
+      let symbt3t2 = Symbol.Set.diff symbt3 symbt2 in 
       symbt3t2 |> Symbol.Set.elements 
     in let symbols_conj = Syntax.symbols conj |> Symbol.Set.elements 
     in let symbols_printer symbs = 
