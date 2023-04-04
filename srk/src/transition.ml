@@ -624,21 +624,9 @@ struct
           let reverse_substitute tr symb = 
             try 
               let sym = Hashtbl.find reverse_subscript_tbl symb in 
-                match Var.of_symbol sym with
-                | Some var ->
-                  if M.mem var tr.transform then
-                    M.find var tr.transform
-                  else
-                    mk_const srk sym
-                | None -> mk_const srk sym
+                mk_const srk symb 
             with Not_found -> 
-              match Var.of_symbol symb with 
-                | Some var ->
-                  if M.mem var tr.transform then
-                    M.find var tr.transform
-                  else
-                    mk_const srk symb
-                | None -> Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
+                Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
           in `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
       | _ -> `Unsat 
 
