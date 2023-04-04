@@ -621,10 +621,10 @@ struct
         Format.print_flush();
         Printf.printf "\n--------------------------\n";
           (* reverse-rename *)
-          let reverse_substitute tr symb = 
+          let reverse_substitute _ symb = 
             try 
               let sym = Hashtbl.find reverse_subscript_tbl symb in 
-                mk_const srk symb 
+                mk_const srk sym 
             with Not_found -> 
                 Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
           in `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
