@@ -629,10 +629,10 @@ struct
                 Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
           in 
           Printf.printf "\npre extrapolant after renaming: ";
-          Syntax.pp_expr_unnumbered srk Format.std_formatter pre_;
+          Syntax.pp_expr_unnumbered srk Format.std_formatter (substitute_const srk (reverse_substitute t2) pre_);
           Format.print_flush();
           Printf.printf "\npost extrapolant after renaming: ";
-          Syntax.pp_expr_unnumbered srk Format.std_formatter post_;
+          Syntax.pp_expr_unnumbered srk Format.std_formatter (substitute_const srk (reverse_substitute t2) post_);
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
           `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
