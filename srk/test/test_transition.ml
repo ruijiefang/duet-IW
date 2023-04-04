@@ -245,8 +245,8 @@ let extrapolate1 () =
   let open Infix in 
   let tr1 = 
     mk_block [
-      T.assume ((int 0) < x);
       T.havoc ["x"];
+      T.assume ((int 0) < x);
       T.assign "y" x
     ]
   in let tr2 = 
@@ -257,8 +257,38 @@ let extrapolate1 () =
     ]
   in let tr3 = 
     mk_block [
+      T.assume ((int 0) < x);
       T.assume ((int 0) < k);
       T.assign "k" (w + (int 4));
+    ]
+  in match T.extrapolate tr1 tr2 tr3 with 
+    | `Sat (f1, f2) -> 
+      Printf.printf "extrapolate: SAT, formulas: \n";
+      Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
+      Syntax.pp_expr_unnumbered srk Format.std_formatter f2
+    | `Unsat -> 
+      Printf.printf "extrapolate: UNSAT\n"
+
+let extrapolate2 () = 
+  let open Infix in 
+  let tr1 = 
+    mk_block [
+      T.havoc ["x"];
+      T.assume ((int 0) <= x);
+      T.assign "y" (int 0)
+    ]
+  in let tr2 = 
+    mk_block [
+      T.assign "y" (y + (int 1));
+      T.assign "z" (y + (int 3));
+      T.assign "x" (x + (int 1))
+    ]
+  in let tr3 = 
+    mk_block [
+      T.assume ((int 0) < x);
+      T.assume ((int 0) < y);
+      T.assume (y < z);
+      T.assign "k" (x + (int 10))
     ]
   in match T.extrapolate tr1 tr2 tr3 with 
     | `Sat (f1, f2) -> 
@@ -456,5 +486,5 @@ let suite = "Transition" >::: [
     "interpolate_havoc" >:: interpolate_havoc;
     "interpolate_fail" >:: interpolate_fail;
     "negative_eigenvalue" >:: negative_eigenvalue;
-    "extrapolate" >:: extrapolate1;
+    "extrapolate" >:: extrapolate2;
   ]
