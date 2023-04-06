@@ -621,21 +621,23 @@ struct
         Format.print_flush();
         Printf.printf "\n--------------------------\n";
           (* reverse-rename *)
-          let reverse_substitute _ symb = 
+          let reverse_substitute symb = 
             try 
               let sym = Hashtbl.find reverse_subscript_tbl symb in 
                 mk_const srk sym 
             with Not_found -> 
                 Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
           in 
+          let ex1 = (substitute_const srk (reverse_substitute) pre_) in 
+          let ex2 = (substitute_const srk (reverse_substitute) post_) in 
           Printf.printf "\npre extrapolant after renaming: ";
-          Syntax.pp_expr_unnumbered srk Format.std_formatter (substitute_const srk (reverse_substitute t2) pre_);
+          Syntax.pp_expr_unnumbered srk Format.std_formatter ex1;
           Format.print_flush();
           Printf.printf "\npost extrapolant after renaming: ";
-          Syntax.pp_expr_unnumbered srk Format.std_formatter (substitute_const srk (reverse_substitute t2) post_);
+          Syntax.pp_expr_unnumbered srk Format.std_formatter ex2;
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
-          `Sat (substitute_const srk (reverse_substitute t2) pre_, substitute_const srk (reverse_substitute t2) post_) 
+          `Sat (ex1, ex2) 
       | _ -> `Unsat 
 
   let valid_triple phi path post =
@@ -644,6 +646,18 @@ struct
     | `Sat -> `Invalid
     | `Unknown -> `Unknown
     | `Unsat -> `Valid
+
+  let feasible_triple phi path post = 
+    let path_post = List.fold_right mul path (assume (post)) in 
+    match Smt.is_sat srk (mk_and srk [phi; path_post.guard]) with
+    | `Sat -> `Feasible 
+    | `Unknown -> `Unknown 
+    | `Unsat -> `Infeasible
+
+  let check_reverse_consecution phi tr (post: C.t formula) = 
+    let pre = mul (assume phi) tr in 
+    let pre_formula = to_transition_formula pre |> TransitionFormula.formula in 
+      Smt.entails C.context post pre_formula 
 
   let check_consecution phi tr (post: C.t formula) = 
     let pre = mul (assume phi) tr in 

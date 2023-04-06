@@ -241,6 +241,35 @@ let split2 () =
   in
   assert_post tr post
 
+let check_extrapolate test_name tr1 tr2 tr3 = 
+  match T.extrapolate tr1 tr2 tr3 with 
+      | `Sat (f1, f2) -> 
+        Printf.printf "extrapolate: SAT, formulas: \n";
+        Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
+        Format.print_flush ();
+        Printf.printf " (E1)\n";
+        Syntax.pp_expr_unnumbered srk Format.std_formatter f2;
+        Format.print_flush ();
+        Printf.printf " (E2)\n";
+        Printf.printf "checking if {T}tr1{f1} is feasible...\n";
+        begin match T.check_reverse_consecution (mk_true srk) tr1 f1 with 
+        | `Yes -> 
+          Printf.printf " checking consecution property of {f1}tr2{f2}...\n";
+          begin match T.feasible_triple f1 [tr2 ] f2 with 
+          | `Feasible ->
+            Printf.printf "  checking if {f2}tr3{T} is feasible...\n";
+            begin match T.check_reverse_consecution f2 tr2  (mk_true srk) with
+            | `Yes -> 
+              Printf.printf "%s  ...all checks done. test passed [OK]\n" test_name
+            | _ -> assert_failure @@ test_name ^ "   error: check 3 failed\n"
+            end
+          | _ -> assert_failure @@ test_name ^ "  error: check 2 failed\n"
+          end
+        | _ -> assert_failure @@ test_name ^ " error: check 1 failed\n" 
+        end 
+      | `Unsat -> 
+        assert_failure @@ test_name ^ "extrapolate: UNSAT\n"
+
 let extrapolate1 () = 
   let open Infix in 
   let tr1 = 
@@ -261,13 +290,7 @@ let extrapolate1 () =
       T.assume ((int 0) < k);
       T.assign "k" (w + (int 4));
     ]
-  in match T.extrapolate tr1 tr2 tr3 with 
-    | `Sat (f1, f2) -> 
-      Printf.printf "extrapolate: SAT, formulas: \n";
-      Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
-      Syntax.pp_expr_unnumbered srk Format.std_formatter f2
-    | `Unsat -> 
-      Printf.printf "extrapolate: UNSAT\n"
+  in check_extrapolate "extrapolate1" tr1 tr2 tr3
 
 let extrapolate2 () = 
   let open Infix in 
@@ -290,13 +313,31 @@ let extrapolate2 () =
       T.assume (y < z);
       T.assign "k" (x + (int 10))
     ]
-  in match T.extrapolate tr1 tr2 tr3 with 
-    | `Sat (f1, f2) -> 
-      Printf.printf "extrapolate: SAT, formulas: \n";
-      Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
-      Syntax.pp_expr_unnumbered srk Format.std_formatter f2
-    | `Unsat -> 
-      Printf.printf "extrapolate: UNSAT\n"
+  in check_extrapolate "extrapolate2" tr1 tr2 tr3
+
+let extrapolate3 () = 
+  let open Infix in 
+  let tr1 = 
+    mk_block [
+      T.havoc ["x"];
+      T.assume ((int 0) < x);
+      T.assign "y" (int 0)
+    ]
+  in let tr2 = 
+    mk_block [
+      T.assign "z" ((int 0) + y);
+      T.assume ((int 0) <= y);
+      T.assume (((int 0) < x) || (x < (int 0)))
+    ]
+  in let tr3 = 
+    mk_block [
+      T.assume ((int 0) < x);
+      T.assign "z" ((int 1) + x);
+      T.assume ((int 0) < z);
+      T.assign "y" ((int 1) + y);
+      T.assume ((int 0) < y)
+    ]
+  in check_extrapolate "extrapolate3" tr1 tr2 tr3
 
 let equal1 () =
   (*let open Infix in *)
@@ -486,5 +527,7 @@ let suite = "Transition" >::: [
     "interpolate_havoc" >:: interpolate_havoc;
     "interpolate_fail" >:: interpolate_fail;
     "negative_eigenvalue" >:: negative_eigenvalue;
-    "extrapolate" >:: extrapolate2;
+    "extrapolate1" >:: extrapolate1;
+    "extrapolate2" >:: extrapolate2;
+    "extrapolate3" >:: extrapolate3;
   ]

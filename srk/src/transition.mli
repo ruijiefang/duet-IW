@@ -137,8 +137,14 @@ module Make
                                                              | `Invalid
                                                              | `Unknown ]
 
+  (** Given pre-condition [P], a path [path], post-condition [Q], determine whether hoare-triple {P}path{Q} is feasible *)
+  val feasible_triple : C.t formula -> t list -> C.t formula -> [ `Feasible | `Infeasible | `Unknown ]
+
   (** check if given pre-state s, transition tr, and post-state t, s /\ tr |= t. *)
   val check_consecution : C.t formula -> t -> C.t formula -> [`No | `Unknown | `Yes] 
+
+  (** check if given pre-state s, transition tr, and post-state t, t |= s /\ tr *)
+  val check_reverse_consecution: C.t formula -> t -> C.t formula -> [`No | `Unknown | `Yes]
 
 
   val defines : t -> var list
