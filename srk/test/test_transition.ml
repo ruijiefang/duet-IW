@@ -252,14 +252,14 @@ let check_extrapolate test_name tr1 tr2 tr3 =
         Format.print_flush ();
         Printf.printf " (E2)\n";
         Printf.printf "checking if {T}tr1{f1} is feasible...\n";
-        begin match T.check_reverse_consecution (mk_true srk) tr1 f1 with 
-        | `Yes -> 
+        begin match T.valid_triple (mk_true srk) [tr1] f1 with 
+        | `Valid -> 
           Printf.printf " checking consecution property of {f1}tr2{f2}...\n";
           begin match T.feasible_triple f1 [tr2 ] f2 with 
           | `Feasible ->
             Printf.printf "  checking if {f2}tr3{T} is feasible...\n";
-            begin match T.check_reverse_consecution f2 tr2  (mk_true srk) with
-            | `Yes -> 
+            begin match T.valid_triple f2 [tr2]  (mk_true srk) with
+            | `Valid -> 
               Printf.printf "%s  ...all checks done. test passed [OK]\n" test_name
             | _ -> assert_failure @@ test_name ^ "   error: check 3 failed\n"
             end
