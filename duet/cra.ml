@@ -890,18 +890,19 @@ module ReachTree = struct
     t.edge_weight_substitutes <- ProcMap.empty 
 
   (* returns a list of call-edges (from shallow to deep) along path from root-to-node v*)
+  (* call-edges are represented as 4-tuples: (node into call edge) -> callsite start -> callsite end -> (node out of call edge) *)
   let calls_in_path (t: t) v = 
     let rec f u = 
       let p = parent t u in 
         match p with 
         | 0 -> 
           begin match WG.edge_weight t.graph (maps_to t 0) (maps_to t u) with 
-          | Call (a, b) -> [ (a, b) ]
+          | Call (a, b) -> [ (0, (a, b), u) ]
           | _ -> []
           end 
         | n ->
           begin match WG.edge_weight t.graph (maps_to t n) (maps_to t u) with 
-          | Call (a, b) -> (a, b) :: (f p)
+          | Call (a, b) -> (n, (a, b), u) :: (f p)
           | _ -> f p 
           end
     in f v |> List.rev 
@@ -914,14 +915,18 @@ module ReachTree = struct
     List.rev postordered_precedents 
 
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
-  let rec path_condition (t: t) (u : int) = 
+  (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
+  let rec path_condition (t: t) ?(cutoff = 0) (u : int) = 
     if u == 0 then [ K.assume t.pre_state ]
     else 
       let rec (%<*-) (t: t) (u : int) =
-        match parent t u with 
-          | 0 -> [ edge_weight t (maps_to t 0) (maps_to t u) ]  
-          | v -> edge_weight t (maps_to t v) (maps_to t u) :: (t %<*- v) in 
-          let ews = List.rev (t %<*- u) 
+        let v = parent t u in 
+        begin if v = cutoff || v = 0 then 
+          [ edge_weight t (maps_to t cutoff) (maps_to t u) ]
+        else 
+         edge_weight t (maps_to t v) (maps_to t u) :: (t %<*- v) 
+        end 
+      in let ews = List.rev (t %<*- u) 
       in ews 
 
   (* Add new tree leaf mapping to CFG vertex v and with parent tree node p. *)
@@ -998,7 +1003,7 @@ module McMillanChecker = struct
   (* contextual information maintained by McMillan-Checker. *)
   (* intraprocedural context *)
   type intra_context = {
-    id : string;
+    id : ProcName.t;
     ts : cfg_t;
     mutable art : ReachTree.t;
     mutable worklist : int DQ.t;
@@ -1030,7 +1035,7 @@ module McMillanChecker = struct
 
   (** some helper functions that operate on the context *)
 
-  let mk_intra_context (gctx: global_context) (id: string) (ts: cfg_t) (pre_state: state_formula) (post_state: state_formula) (entry: int) (err_loc: int)  =
+  let mk_intra_context (gctx: global_context) (id: ProcName.t) (ts: cfg_t) (pre_state: state_formula) (post_state: state_formula) (entry: int) (err_loc: int)  =
     {
       id = id;
       ts = ts;
@@ -1382,11 +1387,8 @@ module McMillanChecker = struct
       logf ~level:`debug " visit %d (%d)\n" u (ReachTree.maps_to ctx.art u);
       if (ReachTree.maps_to ctx.art u) = ctx.art.err_loc then 
         begin 
-          (* continue := false; state := McErrorReached*)
           (**TODO: backsolving of recursive interproc calls *)
-          let path_condition = 
-            ReachTree.path_condition ctx.art u |> List.fold_left (fun x y -> K.mul y x) K.one in 
-            `ErrorReached path_condition
+          `ErrorReached u
         end
       else begin
         ctx.execlist <- w;
@@ -1437,9 +1439,58 @@ module McMillanChecker = struct
     | None -> failwith "" (* cannot happen *)
 
 
-  let concolic_mcmillan_execute (ctx: intra_context) : mc_result = 
+  (* handle procedure calls by lazily backsolving them along paths-to-error. *)
+  let rec handle_path_to_error (ctx: intra_context) (err_leaf : int) = 
+    let art = ctx.art in 
+    let _ = reset_solver ctx in 
+    let _ = ReachTree.reset_substitute_map art in 
+    let seq = fun l -> List.fold_left (fun x y -> K.mul y x) K.one l in
+    let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in 
+    let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in
+    let status = List.fold_left 
+      (fun result curr_call ->
+        if result <> `Failure _ then 
+          begin
+            let (w, (call_entry, call_exit), z) = curr_call in 
+            let prefix = ReachTree.path_condition art w |> seq in 
+            let suffix = ReachTree.path_condition art ~cutoff:z err_leaf |> seq in 
+            let summary = ReachTree.edge_weight art w z in 
+            (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
+            let refine_summary () = 
+              let pre_cond = 
+                K.mul (K.assume (art.pre_state)) prefix |> to_formula in 
+              let post_cond = 
+                K.mul suffix (K.assume (art.post_state)) |> to_formula in 
+                ProcedureRefinements.refine_precondition !(art.interproc) (call_entry, call_exit) pre_cond;
+                ProcedureRefinements.refine_postcondition !(art.interproc) (call_entry, call_exit) post_cond;
+            in begin match K.extrapolate prefix summary suffix with 
+              | `Sat (e1, e2) -> 
+                (* instantiate interprocedural reachability query *)
+                let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) art.graph e1 e2 call_entry call_exit in 
+                begin match concolic_mcmillan_execute ctx' with 
+                  | `Safe -> 
+                    (* concretization of error trace failed. do refine *)
+                      (* declare failure *)
+                      refine_summary ();
+                      `Failure w 
+                  | `Unsafe tr -> 
+                      ReachTree.substitute_edge_weight art (w, z) tr; 
+                      `Unconcretized
+                end
+              | `Unsat -> 
+                (* extrapolate failure; do refine *)
+                refine_summary (); 
+                `Failure w
+            end
+         end else result (* some call-edge failed in the middle. go down without trying further. *)
+        ) `Unconcretized call_edges in 
+      match status with 
+      | `Unconcretized -> `Concretized 
+      | _ -> status  
+  (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
+  and concolic_mcmillan_execute (ctx: intra_context) = 
     let continue = ref true in 
-    let witness_r = ref K.one in 
+    let err_leaves = ref [] in 
     let state = ref `Continue in
       while !continue && (DQ.size (ctx.worklist) > 0 || DQ.size (ctx.execlist) > 0) do
         Printf.printf " continuing...\n";
@@ -1447,13 +1498,17 @@ module McMillanChecker = struct
           (* concolic phase *)
           begin match concolic_phase ctx with 
           | `ErrorReached w -> 
-            witness_r := w;
-            continue := false;
-            state := `ErrorReached
+            begin match handle_path_to_error ctx w with 
+            | `Failure vtx -> 
+              (* refine *) <------------ TODO here
+            | `Concretized ->  
+            end
           | `Continue -> 
             state := `Continue
           end
         end else begin 
+          (* refinement phase *)
+
         end
       done; 
       match !state with 
