@@ -341,6 +341,7 @@ struct
   let guard tr = tr.guard
 
   let get_post_model ?(solver=Smt.mk_solver C.context) m f = 
+    let _ = Smt.Solver.reset solver in 
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
       if Var.of_symbol sym == None then Syntax.mk_const C.context sym 
@@ -371,7 +372,51 @@ struct
     | `And xs -> List.concat_map (destruct_and srk) xs
     | _ -> [phi]
 
-  let get_interpolate_solver trs post = 
+
+
+  let interpolate_unsat_core trs post guards core = 
+    let core_symbols =
+      List.fold_left (fun core phi ->
+          match Formula.destruct srk phi with
+          | (`Proposition (`App (s, []))) -> Symbol.Set.add s core
+          | _ -> assert false)
+        Symbol.Set.empty
+        core
+    in
+    let (itp, _) =
+      List.fold_right2 (fun tr guard (itp, post) ->
+          let subst sym =
+            match Var.of_symbol sym with
+            | Some var ->
+              if M.mem var tr.transform then
+                M.find var tr.transform
+              else
+                mk_const srk sym
+            | None -> mk_const srk sym
+          in
+          let post' = substitute_const srk subst post in
+          let reduced_guard =
+            List.filter_map (fun (indicator, guard) ->
+                if Symbol.Set.mem indicator core_symbols then
+                  Some (mk_not srk guard)
+                else
+                  None)
+              guard
+          in
+          let wp =
+            (mk_not srk (mk_or srk (post'::reduced_guard)))
+            |> Quantifier.mbp srk (fun s -> Var.of_symbol s != None)
+            |> mk_not srk
+          in
+          (wp::itp, wp))
+        trs
+        guards
+        ([post], post)
+    in `Valid (List.tl itp)  
+
+
+  let interpolate_query ?(solver=Smt.mk_solver C.context) trs post sat_callback unsat_callback = 
+    let _ = Smt.Solver.reset solver in 
     let trs =
       trs |> List.map (fun tr ->
                  let fresh_skolem =
@@ -398,6 +443,7 @@ struct
       List.concat_map (List.map (fun (s, _) -> mk_const srk s)) guards
     in
     let subscript_tbl = Hashtbl.create 991 in
+    let ss_inv = Hashtbl.create 991 in 
     let subscript sym =
       try
         Hashtbl.find subscript_tbl sym
@@ -413,106 +459,59 @@ struct
               (substitute_const srk subscript guard))
           guards
       in
-      let (ss, phis, ss_inv) =
-        M.fold (fun var term (ss, phis, ss_inv) ->
+      let (ss, phis) =
+        M.fold (fun var term (ss, phis) ->
             let var_sym = Var.symbol_of var in
             let var_ss_sym = mk_symbol srk (Var.typ var :> typ) in
             let var_ss_term = mk_const srk var_ss_sym in
             let term_ss = substitute_const srk subscript term in
-            ((var_sym, var_ss_term)::ss,
-             mk_eq srk var_ss_term term_ss::phis, (var_ss_sym, var_sym) :: ss_inv))
+            ((var_sym, var_ss_sym, var_ss_term)::ss,
+             mk_eq srk var_ss_term term_ss::phis))
           tr.transform
-          ([], ss_guards, [])
+          ([], ss_guards)
       in
-      List.iter (fun (k, v) -> Hashtbl.add subscript_tbl k v) ss;
-      mk_and srk phis, ss_inv 
+      List.iter (fun (k, l, v) -> 
+        Hashtbl.add subscript_tbl k v;
+        Hashtbl.add ss_inv l k) ss;
+      mk_and srk phis
     in
-    let solver = Smt.mk_solver srk in
-    let symbols = BatDynArray.create () in
-    let ss_inv = BatDynArray.create () in  
-    Syntax.symbols post 
-    |> Symbol.Set.to_list 
-    |> List.iter (fun post_symbol -> BatDynArray.add symbols post_symbol); 
-    List.iter2 (fun tr guard ->
-        let ss_formula, ss_inv' = to_ss_formula tr guard in 
-        Smt.Solver.add solver [ss_formula];
-        List.iter (fun x -> BatDynArray.add ss_inv x) ss_inv';
-        let ss_formula_symbols = Syntax.symbols ss_formula |> Symbol.Set.to_list in 
-          List.iter (fun s -> BatDynArray.add symbols s) ss_formula_symbols)
-      trs
-      guards;
-    Smt.Solver.add solver [substitute_const srk subscript (mk_not srk post)];
-    trs, BatDynArray.to_list symbols, BatDynArray.to_list ss_inv, solver, indicators, guards
-
-  let interpolate_unsat_core trs post guards core = 
-         let core_symbols =
-         List.fold_left (fun core phi ->
-             match Formula.destruct srk phi with
-             | (`Proposition (`App (s, []))) -> Symbol.Set.add s core
-             | _ -> assert false)
-           Symbol.Set.empty
-           core
-       in
-       let (itp, _) =
-         List.fold_right2 (fun tr guard (itp, post) ->
-             let subst sym =
-               match Var.of_symbol sym with
-               | Some var ->
-                  if M.mem var tr.transform then
-                    M.find var tr.transform
-                  else
-                    mk_const srk sym
-               | None -> mk_const srk sym
-             in
-             let post' = substitute_const srk subst post in
-             let reduced_guard =
-               List.filter_map (fun (indicator, guard) ->
-                   if Symbol.Set.mem indicator core_symbols then
-                     Some (mk_not srk guard)
-                   else
-                     None)
-                 guard
-             in
-             let wp =
-               (mk_not srk (mk_or srk (post'::reduced_guard)))
-               |> Quantifier.mbp srk (fun s -> Var.of_symbol s != None)
-               |> mk_not srk
-             in
-             (wp::itp, wp))
-           trs
-           guards
-           ([post], post)
-      in itp
-
-
-  let interpolate trs post =
-    let trs, _, _, solver, indicators, guards = get_interpolate_solver trs post in 
-    match Smt.Solver.get_unsat_core solver indicators with
-    | `Sat -> 
-      `Invalid
-    | `Unknown -> `Unknown
-    | `Unsat core ->
-    let itp = interpolate_unsat_core trs post guards core in 
-       `Valid (List.tl itp)
-
-  let interpolate_or_concrete_model trs post = 
-    let trs, symbols, ss_inv, solver, indicators, guards = get_interpolate_solver trs post in 
+    let target = substitute_const srk subscript (mk_not srk post) in 
+    let symbols = List.fold_left 
+      (fun symbols (tr, guard) ->
+        let f = to_ss_formula tr guard in 
+          Smt.Solver.add solver [f];
+          (Syntax.symbols f |> Symbol.Set.elements) @ symbols)
+       (Syntax.symbols target |> Symbol.Set.elements) (List.combine trs guards) in 
+    Smt.Solver.add solver [target];
     match Smt.Solver.get_unsat_core_or_concrete_model solver indicators symbols with 
-    | `Sat model -> 
+      | `Sat m -> (sat_callback m ss_inv)
+      | `Unsat core -> (unsat_callback trs post guards core)
+      | `Unknown -> `Unknown 
+
+
+
+  let interpolate ?(solver=Smt.mk_solver C.context) trs post =
+    interpolate_query ~solver:solver trs post (fun _ _ -> `Invalid) interpolate_unsat_core
+
+  let interpolate_or_concrete_model ?(solver=Smt.mk_solver C.context) trs post = 
+    (* subst_model: rename skolem constants back to their appropriate names using reverse subscript table *)
+    let sat_model model ss_inv = 
       let e = Interpretation.enum model in 
-      let model = BatEnum.fold (fun m (s, v) -> 
-        match Var.of_symbol s with 
-          | Some _ -> Interpretation.add s v m  
-          | None ->
-           begin match List.assoc_opt s ss_inv with 
-           | Some pre_symbol -> Interpretation.add pre_symbol v m 
-           | None -> m
-           end) (Interpretation.empty C.context) e in
-      `Invalid model 
-    | `Unknown -> `Unknown 
-    | `Unsat core -> 
-        let itp = interpolate_unsat_core trs post guards core in
-        `Valid (List.tl itp)
+      let m' = BatEnum.fold 
+        (fun m (s, v) -> 
+          match Var.of_symbol s with 
+            | Some _ -> (* s is associated with some variable *) 
+              Interpretation.add s v m 
+            | None -> (* s is e.g. trip count variable or havoc *)
+              begin 
+                try 
+                  let pre_symbol = Hashtbl.find ss_inv s 
+                  in Interpretation.add pre_symbol v m
+                with Not_found -> m 
+              end) (Interpretation.empty C.context) e
+      in `Invalid m' 
+    in interpolate_query ~solver:solver trs post sat_model interpolate_unsat_core
+
 
   let extrapolate t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
     Printf.printf "at extrapolate\n";
@@ -657,6 +656,14 @@ struct
   let check_reverse_consecution phi tr (post: C.t formula) = 
     let pre = mul (assume phi) tr in 
     let pre_formula = to_transition_formula pre |> TransitionFormula.formula in 
+      Printf.printf "checking implication  P->Q \n";
+      Printf.printf "formula P: ";
+      Syntax.pp_expr_unnumbered srk Format.std_formatter pre_formula;
+      Format.print_flush ();
+      Printf.printf "\nformula Q: ";
+      Syntax.pp_expr_unnumbered srk Format.std_formatter post;
+      Format.print_flush ();
+      Printf.printf  "\n";
       Smt.entails C.context post pre_formula 
 
   let check_consecution phi tr (post: C.t formula) = 

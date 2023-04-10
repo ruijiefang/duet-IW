@@ -88,6 +88,12 @@ module Make
   let call_weight = WG.RecGraph.call_weight
   let omega_path_weight = WG.RecGraph.omega_path_weight
 
+  let set_summary q (u, v) summary = 
+    WG.RecGraph.set_summary q (u, v) summary
+
+  let get_summary q (u, v) = 
+    WG.RecGraph.get_summary q (u, v)
+
   let label_algebra =
     let add x y = match x, y with
       | Weight x, Weight y -> Weight (T.add x y)

@@ -120,14 +120,14 @@ module Make
       support the proof (for each [i], [{ phi_{i-1} } tr_i { phi_i }] holds,
       where [phi_0] is [true] and [phi_n] implies the post-condition). *)
 
-  val interpolate : t list -> C.t formula -> [ `Valid of C.t formula list
+  val interpolate : ?solver:(C.t Smt.Solver.t) -> t list -> C.t formula -> [ `Valid of C.t formula list
                                              | `Invalid
                                              | `Unknown ]
 
   val extrapolate : t -> t -> t -> [ `Sat of (C.t formula * C.t formula ) | `Unsat ]
 
   (** Same as interpolate, but returns a concrete model if interpllation fails. *)
-  val interpolate_or_concrete_model : t list -> C.t formula 
+  val interpolate_or_concrete_model : ?solver:(C.t Smt.Solver.t) -> t list -> C.t formula 
         -> [`Valid of C.t formula list | `Invalid of C.t Interpretation.interpretation | `Unknown ]
 
 

@@ -49,9 +49,9 @@ val get_concrete_model : 'a context -> ?solver:'a Solver.t -> symbol list -> 'a 
   | `Unsat
   | `Unknown ]
 
-val is_sat : 'a context -> 'a formula -> [ `Sat | `Unsat | `Unknown ]
+val is_sat : 'a context -> ?solver:'a Solver.t -> 'a formula -> [ `Sat | `Unsat | `Unknown ]
 
-val entails : 'a context -> 'a formula -> 'a formula -> [`Yes | `No | `Unknown]
+val entails : 'a context -> ?solver:'a Solver.t -> 'a formula -> 'a formula -> [`Yes | `No | `Unknown]
 
 val equiv : 'a context -> 'a formula -> 'a formula -> [`Yes | `No | `Unknown]
 

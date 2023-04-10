@@ -369,14 +369,24 @@ let assert_valid pre tr post =
                       (T.show tr)
                       (Formula.show srk post))
 
-let check_interpolant path itp =
+let check_interpolant path itp dst =
   let rec go path itp =
     match path, itp with
     | tr::path, pre::post::itp ->
+      Printf.printf "interpolant: ";
+      Syntax.pp_expr_unnumbered srk Format.std_formatter pre;
+      Format.print_flush ();
+      Printf.printf "\ninterpolant: ";
+      Syntax.pp_expr_unnumbered srk Format.std_formatter pre;
+      Format.print_flush ();
+      Printf.printf "\n";
       assert_valid pre tr post;
       go path (post::itp)
-    | [], [_] -> ()
-    | _, _ -> assert false
+    | [], [final_itp] -> 
+        assert_valid final_itp (T.assume (dst)) (mk_true srk)
+    | _, _ -> 
+    Printf.printf "path length %d, interpolant length %d\n" (List.length path) (List.length itp);
+    assert false
   in
   go path (Ctx.mk_true::itp)
 
@@ -402,12 +412,13 @@ program:
      T.assume ((int 10) < x || x < (int 10)) ]
   in
   let post = Ctx.mk_false in
-  match T.interpolate path post with
+  match T.interpolate_or_concrete_model path post with
   | `Valid itp ->
-   (* let _ = failwith "valid" in *)check_interpolant path itp
+   (* let _ = failwith "valid" in *)check_interpolant path itp post
   | _ ->  (*let _ = failwith "wtf" in *)assert_failure "Invalid post-condition"
 
 let interpolate2 () =
+  let _ = Printf.printf " -------------------------- interpolate2 ------------------ \n" in 
 (*
 program:
    asume (x < 10); ---> good
@@ -425,13 +436,14 @@ program:
      T.assume ((int 10) < x || x < (int 10))]
   in
   let post = Ctx.mk_false in
-  match T.interpolate path post with
+  match T.interpolate_or_concrete_model path post with
   | `Valid itp ->
-    check_interpolant path itp
+    check_interpolant path itp post
   | _ -> 
     assert_failure "Invalid post-condition"
 
-let interpolate3 () = 
+let interpolate3 () =
+  let _ = Printf.printf " -------------------------- interpolate3 ------------------ \n" in 
 (*
 program:
    x := 0;
@@ -449,9 +461,9 @@ program:
     ]
   in
   let post = Ctx.mk_true in 
-  match T.interpolate path post with 
+  match T.interpolate_or_concrete_model path post with 
   | `Valid itp -> 
-    check_interpolant path itp
+    check_interpolant path itp post
   | _ -> 
     assert_failure "Invalid post-condition"
 
@@ -463,7 +475,7 @@ let verify_model m =
   if BatEnum.count m <> 2 then assert_failure "incorrect number of atoms in interpretation"
 
 let interpolate_fail () = 
-
+  let _ = Printf.printf " -------------------------- interpolate_fail ------------------ \n" in 
   let path = 
     let open Infix in
     [T.assign "x" (int 0);
@@ -479,7 +491,22 @@ let interpolate_fail () =
   | _ ->  
     assert_failure "Invalid post-condition; got interpolant when should be sat"
   end 
+
+let interpolate_havoc3 () =
+  let _ = Printf.printf " -------------------------- interpolate_havoc3 ------------------ \n" in
+  let path =
+    let open Infix in
+    [T.havoc ["x"];T.assume ((int 0) <= x); T.assign "y" (x + (int 1)); T.assume ((int 0) < y)]
+  in
+  let post = Ctx.mk_true in
+  match T.interpolate_or_concrete_model path post with
+  | `Valid itp ->
+    check_interpolant path itp post
+  | _ -> assert_failure "Invalid post-condition"
+
+
 let interpolate_havoc () =
+  let _ = Printf.printf " -------------------------- interpolate_havoc ------------------ \n" in
   let path =
     let open Infix in
     [T.assign "x" (int 0);
@@ -488,10 +515,34 @@ let interpolate_havoc () =
      T.assume (y < (int 0))]
   in
   let post = Ctx.mk_false in
-  match T.interpolate path post with
+  match T.interpolate_or_concrete_model path post with
   | `Valid itp ->
-    check_interpolant path itp
+    check_interpolant path itp post
   | _ -> assert_failure "Invalid post-condition"
+
+let interpolate_havoc2 () =
+  let _ = Printf.printf " -------------------------- interpolate_havoc2 ------------------ \n" in
+  let path =
+    let open Infix in
+    [T.havoc ["z"];
+     T.havoc ["w"];
+     T.assign "y" ((int 3)+ z);
+     T.assume (Ctx.mk_true)]
+  in
+  let post = Ctx.mk_true in
+  match T.interpolate_or_concrete_model path post with
+  | `Invalid _ -> 
+    Printf.printf "good; invalid\n"
+  | `Valid lis -> 
+    Printf.printf "err: got a valid answer in interpolate_havoc2\n";
+    List.iteri (fun i itp -> 
+      Printf.printf "interpolant %d: " i;
+      Syntax.pp_expr_unnumbered srk Format.std_formatter itp;
+      Format.print_flush ();
+      Printf.printf "\n") lis;
+    check_interpolant path lis post;
+  | _ -> assert_failure "Error: got unknown answer"
+
 
 let negative_eigenvalue () =
   let tr =
@@ -525,6 +576,8 @@ let suite = "Transition" >::: [
     "interpolate2" >:: interpolate2;
     "interpolate3" >:: interpolate3;
     "interpolate_havoc" >:: interpolate_havoc;
+    "interpolate_havoc2" >:: interpolate_havoc2;
+    "interpolate_havoc3" >:: interpolate_havoc3;
     "interpolate_fail" >:: interpolate_fail;
     "negative_eigenvalue" >:: negative_eigenvalue;
     "extrapolate1" >:: extrapolate1;

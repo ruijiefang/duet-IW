@@ -16,13 +16,12 @@ let get_concrete_model  srk ?(solver=mk_solver srk) symbols phi =
   Solver.add solver [phi];
   Solver.get_concrete_model solver symbols
 
-let is_sat srk phi =
-  let solver = mk_solver srk in
+let is_sat srk ?(solver=mk_solver srk) phi =
   Solver.add solver [phi];
   Solver.check solver []
 
-let entails srk phi psi =
-  match is_sat srk (mk_and srk [phi; mk_not srk psi]) with
+let entails srk ?(solver=mk_solver srk) phi psi =
+  match is_sat srk ~solver:solver (mk_and srk [phi; mk_not srk psi]) with
   | `Sat -> `No
   | `Unsat -> `Yes
   | `Unknown -> `Unknown

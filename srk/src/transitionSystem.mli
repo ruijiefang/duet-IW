@@ -64,6 +64,12 @@ module Make
       vertices.  *)
   val call_weight : query -> (vertex * vertex) -> transition
 
+  (** Set procedure summary; delegates call to WG.RecGraph.set_summary *)
+  val set_summary : query -> (vertex * vertex) -> transition -> unit 
+
+  (** Get procedure summary; delegates call to WG.RecGraph.get_summary *)
+  val get_summary : query -> (vertex * vertex) -> transition
+
   (** Over-approximate the sum of the weights of all infinite paths
      starting at a given vertex. *)
   val omega_path_weight : query -> (transition,'b) Pathexpr.omega_algebra -> 'b
