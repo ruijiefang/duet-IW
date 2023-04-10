@@ -704,6 +704,7 @@ end
 module ProcMap = BatMap.Make(ProcName)
 module IntMap = BatMap.Make(Int)
 module StringMap = BatMap.Make(String)
+module ISet = BatSet.Make(Int)
 module DQ = BatDeque
 module ARR = Batteries.DynArray 
 type cfg_t = K.t label WG.t
@@ -791,17 +792,20 @@ module ReachTree = struct
     graph : cfg_t;
     entry : int;
     err_loc: int;
-    cfg_vertex : int ARR.t;
-    parents : int ARR.t;
-    labels : (Ctx.t Syntax.formula) ARR.t;
     pre_state : state_formula;
     post_state : state_formula;
     mutable vtxcnt : int;
+    mutable cfg_vertex : int IntMap.t;
+    mutable parents : int IntMap.t;
+    mutable labels : (Ctx.t Syntax.formula) IntMap.t;
+    mutable free_ids : int DQ.t;
     mutable covers : int IntMap.t;       
+    mutable children : int list IntMap.t;
     (* also maintain reverse map for each y, storing (x, y) that are in cover. *)
-    mutable reverse_covers : (int list) IntMap.t;
-    children : int list ARR.t;
-    mutable precedent_nodes : (int list) IntMap.t;
+    (* i.e. reverse_covers[y] returns all x such that (x,y) is in the cover. *)
+    mutable reverse_covers : (ISet.t) IntMap.t;
+    (* precedent_nodes[v] stores all tree nodes mapping to CFG vertex v. Used in mc_close. *)
+    mutable precedent_nodes : (ISet.t) IntMap.t;
     mutable models : (Ctx.t Interpretation.interpretation) IntMap.t;
     mutable edge_weight_substitutes : K.t ProcMap.t;
     interproc : ProcedureRefinements.t ref
@@ -812,26 +816,61 @@ module ReachTree = struct
       graph = g;
       entry = entry;
       err_loc = err_loc;
-      cfg_vertex = ARR.create ();
-      parents = ARR.create ();
-      labels = ARR.create ();
       pre_state = pre;
       post_state = post;
       vtxcnt = 0;
+      cfg_vertex = IntMap.empty;
+      parents = IntMap.empty; 
+      labels = IntMap.empty;
+      free_ids = DQ.empty;
+      children = IntMap.empty;
       covers =  IntMap.empty;
       reverse_covers = IntMap.empty;
-      children = ARR.create ();
       precedent_nodes = IntMap.empty;
       models = IntMap.empty;
       edge_weight_substitutes = ProcMap.empty;
       interproc = interproc
     }
+  (* blow up subtree at v *)
+  let rec blowup (t : t) (v : int) = 
+    let v_children = IntMap.find_default [] v t.children in 
+    let v_mapsto = IntMap.find v t.cfg_vertex in 
+    (* first put v on the free ids list *)
+    t.free_ids <- DQ.cons v t.free_ids;
+    (* disassociate v with all data structures *)    
+    t.cfg_vertex <- IntMap.remove v t.cfg_vertex;
+    t.parents <- IntMap.remove v t.parents;
+    t.labels <- IntMap.remove v t.labels;
+    t.models <- IntMap.remove v t.models;
+    (* delete v from list of precedent nodes of maps_to(v). *)
+    let precedents = IntMap.find v_mapsto t.precedent_nodes in 
+      t.precedent_nodes <- IntMap.add v_mapsto (ISet.remove v precedents) t.precedent_nodes;
+    (* handle deletion coverings. Check if (v, x) in t.covers. If so, remove v from t.reverse_covers[x]. *)
+    match IntMap.find_opt v t.covers  with 
+    | Some x -> 
+      let x_coverers = IntMap.find x t.reverse_covers in 
+        t.reverse_covers <- IntMap.add x (ISet.remove x x_coverers) t.reverse_covers;
+        (* remove (v, x) from t.covers as well *)
+        t.covers <- IntMap.remove v t.covers   
+    | None -> ();
+    (* handle deletion of coverings. For each y in t.reverse_covers[v], remove (y, v) in t.covers. *)
+    match IntMap.find_opt v t.reverse_covers with 
+    | Some v_coverers ->
+      (* first we can remove t.reverse_covers[v]. *)
+      t.reverse_covers <- IntMap.remove v t.reverse_covers;
+      (* next we remove (y,v) from t.covers for every y in v_coverers. *)
+      ISet.iter (fun y -> 
+        t.covers <- IntMap.remove y t.covers) v_coverers
+    | None -> (); (* in this case we're done. *)
+    (* finally, do recursive deletion *)
+    List.iter (fun child -> blowup t child) v_children
+
 
   (*  [t %^ i]: get parent of node i in tree t.  *)
-  let parent (t : t) (i : int) = ARR.get t.parents i 
+  let parent (t : t) (i : int) = IntMap.find i t.parents 
 
   (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
-  let maps_to (t : t) (i : int) = ARR.get t.cfg_vertex i 
+  let maps_to (t : t) (i : int) = IntMap.find i t.cfg_vertex 
 
   (* [ew t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
   let edge_weight (t : t) u v = 
@@ -858,7 +897,7 @@ module ReachTree = struct
 
   (* [children t v] returns children of tree node v in tree t. *)
   let children (t : t) v = 
-    ARR.get t.children v 
+    IntMap.find v t.children 
 
   (* [descendants t v] returns descendants of tree node v in tree t in DFS order. *)
   let rec descendants (t : t) v = 
@@ -878,10 +917,11 @@ module ReachTree = struct
       List.length chs == 0
 
   (* [label t v] returns the node label of tree node v in tree t. *)
-  let label (t : t) v = ARR.get t.labels v
+  let label (t : t) v = IntMap.find v t.labels
 
   (* (replaces) sets a label at v *)
-  let set_label (t: t) v lbl = ARR.set t.labels v lbl
+  let set_label (t: t) v lbl = 
+    t.labels <- IntMap.add v lbl  t.labels
 
   let substitute_edge_weight (t: t) ((u, v) : int * int) w = 
     t.edge_weight_substitutes <- ProcMap.add (u, v) w t.edge_weight_substitutes
@@ -907,12 +947,14 @@ module ReachTree = struct
           end
     in f v |> List.rev 
 
-  (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
-  let get_precedent_nodes t v = 
-    (* The list is stored in tree structure in reverse, so we reverse it to get preorder. *)
-    let cfg_vertex = maps_to t v in 
-    let postordered_precedents = IntMap.find_default [] cfg_vertex (t.precedent_nodes) in 
-    List.rev postordered_precedents 
+    (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
+    (* the list of precedent nodes for a cfg vertex is a list of tree nodes which map to the same cfg location, ordered by < on integers. *)
+    let get_precedent_nodes t v = 
+      let cfg_vertex = maps_to t v in 
+      let precedents_set = 
+        IntMap.find_default ISet.empty cfg_vertex (t.precedent_nodes) in 
+          ISet.elements precedents_set
+  
 
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
   (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
@@ -929,21 +971,33 @@ module ReachTree = struct
       in let ews = List.rev (t %<*- u) 
       in ews 
 
+  let get_id (art : t) = 
+    match DQ.front art.free_ids with 
+    | Some (new_id, free_ids') -> 
+      begin (* there are some recycled ids; make use of them. *)
+        art.free_ids <- free_ids';
+        new_id
+      end
+    | None -> (* no more recycled ids; generate a new one. *)
+      begin 
+        let new_id = art.vtxcnt in 
+          art.vtxcnt <- art.vtxcnt + 1; new_id
+      end
+
   (* Add new tree leaf mapping to CFG vertex v and with parent tree node p. *)
-  let add_tree_vertex (art: t) ?model (v: WG.vertex) (p: int) = 
+  let add_tree_vertex (art: t) ?model ?(label=mk_true ()) (v: WG.vertex) (p: int) = 
     (* sequentially add v to the lists, indexed by !vtxcnt *)
-    let new_vertex = art.vtxcnt in 
-    art.vtxcnt <- art.vtxcnt + 1;
-    ARR.add art.cfg_vertex v;
-    ARR.add art.parents p;
-    ARR.add art.labels (mk_true ());
-    ARR.add art.children [];
+    let new_vertex = get_id art in (* note that new_vertex refers to a new tree vertex, where as v is a corresp. cfg location. *)
+    art.cfg_vertex <- IntMap.add new_vertex v art.cfg_vertex;
+    art.parents <- IntMap.add new_vertex p art.parents;
+    art.labels <- IntMap.add new_vertex label art.labels;
+    art.children <- IntMap.add new_vertex [] art.children;
     (* set children of parent to be !vtxcnt :: children. *)
-    ARR.set art.children p (new_vertex :: (children art p)); 
+    if p >= 0 then art.children <- IntMap.add p (new_vertex :: (IntMap.find p art.children)) art.children;
     (* Add v to precedent_nodes. *)
-    let precedent_nodes = IntMap.find_default [] v art.precedent_nodes in 
-    art.precedent_nodes <- IntMap.add v (new_vertex :: precedent_nodes) art.precedent_nodes;
-    (* Push it onto the worklist and increment vertex counter. *)
+    let precedent_nodes = IntMap.find_default ISet.empty v art.precedent_nodes |> ISet.add new_vertex in 
+    art.precedent_nodes <- IntMap.add v precedent_nodes art.precedent_nodes;
+    (* if there is a model, then add it as well. *)
     match model with 
     | Some model -> 
       (* putting vertex v (will be assigned tree node !ctx.vtxcnt) on execlist with model... *)
@@ -961,6 +1015,8 @@ module ReachTree = struct
         for every out-neighbor y of v, first try deriving a post-state model of v-> y, if successful, put it
           on the concolic execution worklist. Otherwise, it is a frontier node, and put it on the 
           mcmillan worklist. *)
+  
+  (* returns a list of new nodes to be added to the worklist *)
   let expand_plain (art : t) (v : int) = 
     (* vg is v's correpsonding cfg location in tree `art` *)
     let vg = maps_to art v in 
@@ -1015,7 +1071,6 @@ module McMillanChecker = struct
       mode: mc_mode;
       solver: Ctx.t Srk.Smt.Solver.t; (** persistent solver state object, prevents Z3 from allocating per SMT call *)
       interproc: ProcedureRefinements.t ref;
-      proc_ctxs : intra_context StringMap.t;
   }
   (* mode of McMillan's algorithm: plain, or CRA-fueled concolic mode *)
   and mc_mode = 
@@ -1044,12 +1099,11 @@ module McMillanChecker = struct
       art = ReachTree.make ts entry err_loc pre_state post_state gctx.interproc;
       global_ctx = ref gctx;
     }
-  and mk_mc_context (start_mode: mc_mode) (ts: cfg_t) = 
+  and mk_mc_context (start_mode: mc_mode) = 
     {
       mode = start_mode; 
       solver = Smt.mk_solver Ctx.context;
       interproc = ref (ProcedureRefinements.init ());
-      proc_ctxs = StringMap.empty;
     }
 
   (** some helper methods *)
@@ -1078,7 +1132,7 @@ module McMillanChecker = struct
 
   let verify_well_labelled_tree (t: ReachTree.t) = 
     let rec aux v =
-      let children = ARR.get t.children v in 
+      let children = ReachTree.children t v in 
       (*mypp_formula (Printf.sprintf "visiting %d, label: " v) [ ARR.get t.labels v ];*)
       match children with 
       | [] (* leaf node *) -> 
@@ -1088,7 +1142,7 @@ module McMillanChecker = struct
             WG.fold_succ_e (fun (x, _, y) acc ->
               logf ~level:`debug "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" x y; 
               false 
-            ) t.graph (ARR.get t.cfg_vertex v) true
+            ) t.graph (ReachTree.maps_to t v) true
           | Some _ -> true 
         end 
       | _ -> 
@@ -1109,7 +1163,7 @@ module McMillanChecker = struct
   let check_covering_welformedness (t: ReachTree.t) = 
     logf ~level:`debug "checking welformedness of covering relations\n";
     IntMap.iter (fun dst covered_from -> 
-      List.iter (fun src -> 
+      ISet.iter (fun src -> 
         logf ~level:`debug "checking if (%d, %d) in covering\n" src dst;
         match IntMap.find_opt src (t.covers) with 
         | Some dst' -> if dst' <> dst then failwith @@ Printf.sprintf "ERROR: (%d, %d) in covering\n" src dst'
@@ -1120,7 +1174,7 @@ module McMillanChecker = struct
     IntMap.iter (fun src dst -> 
       match IntMap.find_opt dst (t.reverse_covers) with 
       | Some reverse_covers ->
-        begin match List.mem src reverse_covers with 
+        begin match ISet.mem src reverse_covers with 
         | false -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but %d not in %d's reverse_covers\n" src dst src dst
         | true -> ()
         end
@@ -1140,12 +1194,14 @@ module McMillanChecker = struct
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
       log_formulas (Printf.sprintf "[relabelling %d] to label: " u) [ u_label' ];
       ReachTree.set_label art u u_label';
-      (* remove ( * -> u) in covering relation. *)
+      (* remove ( * -> u) in covering relation; we just refined label(u) so implications of form label(y)->label(u)
+         might not hold anymore. *)
       begin match IntMap.find_opt u art.reverse_covers with 
       | None -> () 
-      | Some l ->
+      | Some l -> 
         (* remove covers (List.iter (fun x -> Printf.printf " (%d->%d)" x u) l *)
-        let u_coverers  = List.fold_left (fun coverers x -> 
+        let u_coverers  = 
+        ISet.fold (fun x coverers -> 
           (* test if label(x) --> new label(u)*)
           let x_label = ReachTree.label art x in 
           let u_label = ReachTree.label art u in
@@ -1166,9 +1222,9 @@ module McMillanChecker = struct
             logf ~level:`debug "    refine: cover (x %d-> u %d) still holds\n" x u;
             log_formulas " x label: " [x_label];
             log_formulas " u label: " [u_label];
-            x :: coverers (* unchanged. *) 
+            ISet.add x coverers (* unchanged. *) 
           end
-          ) [] l in 
+          ) l ISet.empty in 
             art.reverse_covers <- IntMap.add u u_coverers (art.reverse_covers)
       end
     ) path interpolants 
@@ -1232,9 +1288,9 @@ module McMillanChecker = struct
         logf ~level:`debug "   cover success (v=%d, w=%d). \n" v w;
         log_formulas "        v label " [v_label];
         log_formulas "        w label "  [w_label];
-      let reverse_covers_w = IntMap.find_default [] w art.reverse_covers in 
+      let reverse_covers_w = IntMap.find_default ISet.empty w art.reverse_covers in 
         art.covers <- IntMap.add v w (art.covers);
-        art.reverse_covers <- IntMap.add w (v :: reverse_covers_w) art.reverse_covers;
+        art.reverse_covers <- IntMap.add w (ISet.add v reverse_covers_w) art.reverse_covers;
         true
     | `No | `Unknown -> false    
 
@@ -1258,14 +1314,14 @@ module McMillanChecker = struct
               if y <> v then 
               begin 
                 (* xs = {x | x -> y} *)
-                let xs = IntMap.find_default [] y art.reverse_covers in 
+                let xs = IntMap.find_default ISet.empty y art.reverse_covers in 
                 (* Iterate through and remove pairs (x, y) from covering relation. *)
                 (* Step 1: Remove (x |-> y) from !ptt.covers. *)
-                List.iter (fun x -> art.covers <- IntMap.remove x art.covers) xs;
+                ISet.iter (fun x -> art.covers <- IntMap.remove x art.covers) xs;
                 (* Step 2: Remove (y |-> xs) from !pthit.reverse_covers. *)
                 art.reverse_covers <- IntMap.remove y art.reverse_covers;
                 (* Step 3: add xs to worklist. *)
-                List.iter (fun x ->
+                ISet.iter (fun x ->
                   (* add x's subtree leaves back to the worklist. *)
                   let x_leaves = ReachTree.leaves art x in 
                     List.iter (fun x_leaf -> 
@@ -1355,6 +1411,8 @@ module McMillanChecker = struct
     let continue = ref true in
     let witness_r = ref K.zero in 
     let state = ref `Continue in 
+    let eps = ReachTree.add_tree_vertex ctx.art ~label:ctx.art.pre_state ctx.art.entry (-1) in 
+    ctx.worklist <- worklist_push eps ctx.worklist;
     begin
       while DQ.size (ctx.worklist) > 0 && !continue do 
         begin 
@@ -1370,7 +1428,7 @@ module McMillanChecker = struct
       logf ~level:`debug " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
       log_art ctx;
       match !state with 
-      | `ErrorReached -> `ErrorReached !witness_r
+      | `ErrorReached -> `Unsafe !witness_r
       | `Continue -> 
         logf ~level:`debug "execution saturated\n"; 
         begin match verify_well_labelled_tree ctx.art with 
@@ -1436,11 +1494,11 @@ module McMillanChecker = struct
         logf ~level:`debug "refinement_phase: %d is covered\n" u;
         `Continue
       end
-    | None -> failwith "" (* cannot happen *)
+    | None -> failwith "refinement_phase: encountered an empty worklist for refinement\n" (* cannot happen *)
 
 
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
-  let rec handle_path_to_error (ctx: intra_context) (err_leaf : int) = 
+  let rec handle_path_to_error (ctx: intra_context) (err_leaf : int) : [`Concretized of K.t | `Failure of int ] = 
     let art = ctx.art in 
     let _ = reset_solver ctx in 
     let _ = ReachTree.reset_substitute_map art in 
@@ -1485,13 +1543,19 @@ module McMillanChecker = struct
          end else result (* some call-edge failed in the middle. go down without trying further. *)
         ) `Unconcretized call_edges in 
       match status with 
-      | `Unconcretized -> `Concretized 
-      | _ -> status  
+      | `Unconcretized -> 
+        let path_cond = ReachTree.path_condition art err_leaf |> List.fold_left (fun x y -> K.mul y x) K.one in 
+        `Concretized path_cond (* by the end, we've concretized ourselves *)
+      | `Failure v -> 
+        ReachTree.reset_substitute_map art;
+        `Failure v  (* otherwise, we've encountered a concretization failure*)
+
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
   and concolic_mcmillan_execute (ctx: intra_context) = 
+    let eps = ReachTree.add_tree_vertex ctx.art ~label:ctx.art.pre_state ctx.art.entry (-1) in 
     let continue = ref true in 
-    let err_leaves = ref [] in 
     let state = ref `Continue in
+      ctx.worklist <- worklist_push eps ctx.worklist;
       while !continue && (DQ.size (ctx.worklist) > 0 || DQ.size (ctx.execlist) > 0) do
         Printf.printf " continuing...\n";
         if DQ.size (ctx.execlist) > 0 then begin 
@@ -1500,70 +1564,45 @@ module McMillanChecker = struct
           | `ErrorReached w -> 
             begin match handle_path_to_error ctx w with 
             | `Failure vtx -> 
-              (* refine *) <------------ TODO here
-            | `Concretized ->  
+              (* refine and blow away the tree at vertex vtx. *)
+              logf ~level:`debug "--- concolic_mcmillan_execute: blowing away tree at vertex %d" vtx;
+              ReachTree.blowup ctx.art vtx;
+              ctx.worklist <- worklist_push vtx ctx.worklist;
+              continue := true
+            | `Concretized pathcond ->  
+              logf ~level:`debug "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
+              state := `Concretized (pathcond);
+              continue := false
             end
           | `Continue -> 
             state := `Continue
           end
         end else begin 
           (* refinement phase *)
-
+          state := refinement_phase ctx
         end
       done; 
       match !state with 
-      | McErrorReached -> McProvenUnsafe
-      | _ -> McProvenSafe
+      | `Continue -> `Safe
+      | `Concretized cond -> `Unsafe cond 
 
 
-  let mc_exec (mode: mc_mode) (ts : cfg_t) (entry : int) (err_loc : int) : mc_result = 
+  let mc_exec (mode: mc_mode) (ts : cfg_t) (entry : int) (err_loc : int) = 
     (**
     * Set up data structures used by the algorithm: worklist, 
     * vtxcnt (keeps track of largest unused vertex number in tree), 
     * ptt is a pointer to the reachability tree.
     *)
-  (* mode: 1 -> concolic McMillan; 0 -> plain McMillan *)
-    let ctx = mk_mc_context mode ts entry err_loc in 
-      !ctx.worklist := begin
-        match mode with 
-        | PlainMcMillan -> (0 %>> DQ.empty)
-        | ConcolicMcMillan -> DQ.empty
-      end;
-      !ctx.execlist := begin
-        match mode with 
-        | PlainMcMillan -> DQ.empty 
-        | ConcolicMcMillan -> 0 %>> DQ.empty
-      end;
-      !ctx.vtxcnt := 1;
-      !ctx.ptt := { 
-          graph = ts; 
-          entry = entry; 
-          cfg_vertex = ARR.singleton entry ; 
-          parents = ARR.singleton (-1) ;
-          labels = ARR.singleton (mk_true ());
-          covers = ref IntMap.empty;
-          reverse_covers = ref IntMap.empty; (* reverse_covers[y] returns all x such that (x,y) is in the cover. *)
-          children = ARR.singleton [] ;
-          precedent_nodes = ref IntMap.empty; (* precedent_nodes[v] stores all tree nodes mapping to CFG vertex v. Used in mc_close. *)
-          models = IntMap.empty
-      };
-      match mode with 
-        | PlainMcMillan -> 
-          Printf.printf "executing plain mcmillan\n..."; 
-          plain_mcmillan_execute (!ctx)
-        | ConcolicMcMillan -> 
-          Printf.printf "getting initial abstract model...\n";
-          begin match get_initial_abstract_model ~solver:((!ctx).solver) entry err_loc ts with 
-          | `Sat m -> 
-            Printf.printf "good. continuing...\n";
-            !ctx.ptt := {!(!ctx.ptt) with models = IntMap.add 0 m !(!ctx.ptt).models}; 
-            concolic_mcmillan_execute (!ctx)
-          | _ -> 
-            Printf.printf "Proven safe by path summary.\n"; 
-            McProvenSafe
-          end
-
-
+    let global_context = mk_mc_context mode in 
+    match mode with 
+    | PlainMcMillan -> 
+      logf ~level:`debug "executing plain mcmillan's algorithm\n";
+      let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
+        plain_mcmillan_execute main_context 
+    | ConcolicMcMillan -> 
+      logf ~level:`debug "executing concolic mcmillan's algorithm\n";
+      let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
+        concolic_mcmillan_execute main_context
   end
 
 
@@ -1849,9 +1888,9 @@ let analyze_plain_mcl file =
         Printf.printf "testing reachability of location %d\n" err_loc ; 
         Printf.printf "------------------------------\n";
         match McMillanChecker.mc_exec McMillanChecker.PlainMcMillan ts entry err_loc with 
-        | McMillanChecker.McProvenSafe -> Printf.printf "  proven safe\n"
-        | McMillanChecker.McProvenUnsafe -> Printf.printf "  proven unsafe\n"
-        | McMillanChecker.McError -> Printf.printf "  mcmillan error\n";
+        | `Safe -> Printf.printf "  proven safe\n"
+        | `Unsafe _ -> Printf.printf "  proven unsafe\n"
+        | _ -> Printf.printf "  mcmillan error\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
       end
@@ -1877,9 +1916,9 @@ let analyze_concolic_mcl file =
         Printf.printf "testing reachability of location %d\n" err_loc ; 
         Printf.printf "------------------------------\n";
         match McMillanChecker.mc_exec McMillanChecker.ConcolicMcMillan ts entry err_loc with 
-        | McMillanChecker.McProvenSafe -> Printf.printf "  proven safe\n";
-        | McMillanChecker.McProvenUnsafe -> Printf.printf "  proven unsafe\n";
-        | McMillanChecker.McError -> Printf.printf "  mcmillan error\n";
+        | `Safe -> Printf.printf "  proven safe\n";
+        | `Unsafe _ -> Printf.printf "  proven unsafe\n";
+        | _ -> Printf.printf "  mcmillan error\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
       end
