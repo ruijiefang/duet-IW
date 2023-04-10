@@ -803,6 +803,7 @@ module ReachTree = struct
     children : int list ARR.t;
     mutable precedent_nodes : (int list) IntMap.t;
     mutable models : (Ctx.t Interpretation.interpretation) IntMap.t;
+    mutable edge_weight_substitutes : K.t ProcMap.t;
     interproc : ProcedureRefinements.t ref
   }
 
@@ -822,6 +823,7 @@ module ReachTree = struct
       children = ARR.create ();
       precedent_nodes = IntMap.empty;
       models = IntMap.empty;
+      edge_weight_substitutes = ProcMap.empty;
       interproc = interproc
     }
 
@@ -835,13 +837,17 @@ module ReachTree = struct
   let edge_weight (t : t) u v = 
     let suffix = if v = t.err_loc then K.assume t.post_state else K.one in 
     let prefix = if u = t.entry then K.assume  t.pre_state else K.one in 
-    match WG.edge_weight t.graph u v with  
-    | Weight w ->
-      K.mul (K.mul prefix w) suffix 
-    | Call (u, v) ->
-      let w = ProcedureRefinements.interproc_weight !(t.interproc) t.graph (u, v) in 
-      K.mul (K.mul prefix w) suffix
-  
+    match ProcMap.find_opt (u, v) t.edge_weight_substitutes with 
+    | Some w -> w 
+    | None -> 
+      begin match WG.edge_weight t.graph u v with  
+      | Weight w ->
+        K.mul (K.mul prefix w) suffix 
+      | Call (u, v) ->
+        let w = ProcedureRefinements.interproc_weight !(t.interproc) t.graph (u, v) in 
+        K.mul (K.mul prefix w) suffix
+      end 
+
   (* [tree_path t u] returns list of tree nodes that form the corrsp. tree path from root of t to tree node u *)
   let tree_path t u = 
     let rec tree_path_rev t u = 
@@ -874,8 +880,32 @@ module ReachTree = struct
   (* [label t v] returns the node label of tree node v in tree t. *)
   let label (t : t) v = ARR.get t.labels v
 
+  (* (replaces) sets a label at v *)
   let set_label (t: t) v lbl = ARR.set t.labels v lbl
-  
+
+  let substitute_edge_weight (t: t) ((u, v) : int * int) w = 
+    t.edge_weight_substitutes <- ProcMap.add (u, v) w t.edge_weight_substitutes
+
+  let reset_substitute_map (t: t) = 
+    t.edge_weight_substitutes <- ProcMap.empty 
+
+  (* returns a list of call-edges (from shallow to deep) along path from root-to-node v*)
+  let calls_in_path (t: t) v = 
+    let rec f u = 
+      let p = parent t u in 
+        match p with 
+        | 0 -> 
+          begin match WG.edge_weight t.graph (maps_to t 0) (maps_to t u) with 
+          | Call (a, b) -> [ (a, b) ]
+          | _ -> []
+          end 
+        | n ->
+          begin match WG.edge_weight t.graph (maps_to t n) (maps_to t u) with 
+          | Call (a, b) -> (a, b) :: (f p)
+          | _ -> f p 
+          end
+    in f v |> List.rev 
+
   (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
   let get_precedent_nodes t v = 
     (* The list is stored in tree structure in reverse, so we reverse it to get preorder. *)
@@ -1136,7 +1166,7 @@ module McMillanChecker = struct
           ) [] l in 
             art.reverse_covers <- IntMap.add u u_coverers (art.reverse_covers)
       end
-    ) path ( (K.one |> K.to_transition_formula |> TransitionFormula.formula) :: interpolants) 
+    ) path interpolants 
 
 
   (* refine path to (tree) node v. 
@@ -1155,7 +1185,7 @@ module McMillanChecker = struct
       match (get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
         begin 
-        match K.interpolate ~solver:(get_solver ctx) path_condition (Ctx.mk_false) with 
+        match K.interpolate ~solver:(get_solver ctx) ((K.assume (art.pre_state)) :: path_condition) (Syntax.mk_not srk art.post_state) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
@@ -1712,13 +1742,13 @@ let test_interpolate_path (g : cfg_t) (entry : int) (err_loc : int) =
       let path_cond = getPathCond err_loc in 
       let path_cond = List.rev path_cond in 
       Printf.printf "...Got path condition\n";
-      mypp_weights "Path condition is: " path_cond;
+      log_weights "Path condition is: " path_cond;
       let interpolants = K.interpolate [ K.zero ] (mk_false ()) in 
       match interpolants with 
       | `Invalid -> Printf.printf " --- invalid\n"
       | `Unknown -> Printf.printf "  --- unknown\n"
       | `Valid interpolants ->
-        mypp_formula " *** Interpolants: " interpolants 
+        log_formulas " *** Interpolants: " interpolants 
 
 
 let analyze_concolic file = 
