@@ -1,4 +1,4 @@
-Duet
+Duet (forked from https://github.com/zkincaid/duet)
 ====
 Duet is a static analysis tool designed for analyzing concurrent programs.
 
