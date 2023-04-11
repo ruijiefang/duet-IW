@@ -341,6 +341,8 @@ struct
   let guard tr = tr.guard
 
   let get_post_model ?(solver=Smt.mk_solver C.context) m f = 
+    logf ~level:`always "pre_state model: \n";
+    logf ~level:` always "model is %a\n" Interpretation.pp m;
     let _ = Smt.Solver.reset solver in 
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
@@ -491,10 +493,12 @@ struct
 
 
   let interpolate ?(solver=Smt.mk_solver C.context) trs post =
+    Smt.Solver.reset solver;
     interpolate_query ~solver:solver trs post (fun _ _ -> `Invalid) interpolate_unsat_core
 
   let interpolate_or_concrete_model ?(solver=Smt.mk_solver C.context) trs post = 
     (* subst_model: rename skolem constants back to their appropriate names using reverse subscript table *)
+    Smt.Solver.reset solver;
     let sat_model model ss_inv = 
       let e = Interpretation.enum model in 
       let m' = BatEnum.fold 

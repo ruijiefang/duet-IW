@@ -5,7 +5,8 @@ include Log.Make(struct let name = "srk.smt" end)
 
 module Solver = SrkZ3.Solver
 
-let mk_solver ?(theory="") srk = SrkZ3.mk_solver ~theory srk
+let mk_solver ?(theory="") srk =
+  SrkZ3.mk_solver ~theory srk
 
 let get_model ?(symbols=[]) srk phi =
   let solver = mk_solver srk in

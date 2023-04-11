@@ -967,13 +967,15 @@ module ReachTree = struct
     else 
       let rec (%<*-) (art: t ref) (u : int) =
         let v = parent art u in 
-        begin if v = cutoff || v = 0 then 
+        begin if (v = cutoff) || (v = 0) then 
           [ edge_weight art (maps_to art cutoff) (maps_to art u) ]
         else 
          edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
         end 
       in let ews = List.rev (art %<*- u) 
-      in ews 
+      in 
+      logf ~level:`always "path_condition call terminated [%d]\n" u;
+      ews 
 
   let get_id (art : t ref) = 
     match DQ.front !art.free_ids with 
@@ -1032,7 +1034,7 @@ module ReachTree = struct
     List.rev !new_tree_nodes
 
   (* returns (new nodes on concolic worklist, new nodes on frontier worklist) *)
-  let expand_concolic ?(solver=Smt.mk_solver srk) (art : t ref) (v: int) = 
+  let expand_concolic solver (art : t ref) (v: int) = 
     let vg = maps_to art v in 
     let new_concolic_nodes, new_frontier_nodes = ref [], ref [] in 
       (* visit out neighbors of v *)
@@ -1040,7 +1042,7 @@ module ReachTree = struct
       | Some m ->
         WG.iter_succ_e (fun (_, weight, y) -> 
           let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
-          begin match K.get_post_model ~solver:solver m weight with 
+          begin match K.get_post_model ~solver:(solver) m weight with 
           | Some y_model -> 
             let new_vtx = add_tree_vertex art ~model:y_model y v in  
               new_concolic_nodes := new_vtx :: !new_concolic_nodes
@@ -1061,6 +1063,7 @@ end
 module McMillanChecker = struct
   (* to print the reachability tree (+ worklist), or not *) 
   let print_tree = false
+
   (* contextual information maintained by McMillan-Checker. *)
   (* intraprocedural context *)
   type intra_context = {
@@ -1081,18 +1084,10 @@ module McMillanChecker = struct
   and mc_mode = 
       | PlainMcMillan 
       | ConcolicMcMillan
- 
-  (* result of McMillan's algorithm *)
+  (* answer *)
   and mc_result = 
-    | McProvenSafe
-    | McProvenUnsafe
-    | McError
-  (* state of McMillan's algorithm *)
-  and mc_state = 
-    | McContinue
-    | McErrorReached
-    | McWellLabeled
-
+      | Safe 
+      | Unsafe of K.t list
   (** some helper functions that operate on the context *)
 
   let mk_intra_context (gctx: global_context ref) (id: ProcName.t) (ts: cfg_t) (pre_state: state_formula) (post_state: state_formula) (entry: int) (err_loc: int)  =
@@ -1116,13 +1111,15 @@ module McMillanChecker = struct
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (src : int) (sink : int) = 
-    let query = mk_query !art.graph (ReachTree.maps_to art src) in 
+    let query = ProcedureRefinements.mk_query !art.interproc !art.graph (ReachTree.maps_to art src) in 
     let post_path_summary = TS.path_weight query sink |> K.guard in
     let initial_path_weights = ReachTree.path_condition art src in 
+    log_weights "interpolate: initial weight : " initial_path_weights;
+    log_formulas "interpolate: abstract suffix formula: " [post_path_summary];
     K.interpolate_or_concrete_model ~solver:solver initial_path_weights post_path_summary 
   
 
-  let get_initial_abstract_model ?(solver=Smt.mk_solver Ctx.context) (src : int) (sink : int) (graph : cfg_t) = 
+  let get_initial_abstract_model ?(solver=Smt.mk_solver srk) (src : int) (sink : int) (graph : cfg_t) = 
     let query = mk_query graph src in 
     let path = TS.path_weight query sink in 
     let path_condition = K.guard path in 
@@ -1243,9 +1240,7 @@ module McMillanChecker = struct
   let mc_refine (ctx: intra_context ref) (v: int) = 
     let handle_failure art v = 
       logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
-      let path_condition = 
-        ReachTree.path_condition art v 
-        |> List.fold_left (fun x y -> K.mul y x) K.one  
+      let path_condition = ReachTree.path_condition art v 
       in `Failure path_condition 
     in let art = !ctx.art in 
     let path_condition = ReachTree.path_condition art v in 
@@ -1357,7 +1352,8 @@ module McMillanChecker = struct
     | Some j -> Printf.sprintf "[%d(%d)]->%d" i (ReachTree.maps_to art i) j
 
   let print_worklist (ctx: intra_context ref) = 
-    logf ~level:`always "["; DQ.iter (fun x -> Printf.printf "%d " x) !ctx.worklist; Printf.printf "]\n"
+    logf ~level:`always "["; DQ.iter (fun x -> Printf.printf "%d " x) !ctx.worklist; 
+    logf ~level:`always "]\n"
 
 
   let log_art (ctx: intra_context ref) =
@@ -1421,7 +1417,7 @@ module McMillanChecker = struct
 
   let plain_mcmillan_execute (ctx: intra_context ref) = 
     let continue = ref true in
-    let witness_r = ref K.zero in 
+    let witness_r = ref [ K.zero ] in 
     let state = ref `Continue in 
     let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     !ctx.worklist <- worklist_push eps !ctx.worklist;
@@ -1440,14 +1436,14 @@ module McMillanChecker = struct
       logf ~level:`always " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
       log_art ctx;
       match !state with 
-      | `ErrorReached -> `Unsafe !witness_r
+      | `ErrorReached -> Unsafe (!witness_r)
       | `Continue -> 
         logf ~level:`always "execution saturated\n"; 
         begin match verify_well_labelled_tree !ctx.art with 
           | false -> failwith "ERROR: well-labelled check failed"
           | true -> check_covering_welformedness !ctx.art 
         end;
-        `Safe
+        Safe
     end
 
   let concolic_phase (ctx: intra_context ref) = 
@@ -1465,7 +1461,7 @@ module McMillanChecker = struct
         let u_model = IntMap.find u !(!ctx.art).models in 
           logf ~level:`always "model of %d: \n" u;
           log_model "" u_model;
-          let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic !ctx.art u in 
+          let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) !ctx.art u in 
             List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
             List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
             `Continue
@@ -1510,13 +1506,16 @@ module McMillanChecker = struct
 
 
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
-  let rec handle_path_to_error (ctx: intra_context ref) (err_leaf : int) : [`Concretized of K.t | `Failure of int ] = 
+  let rec handle_path_to_error (ctx: intra_context ref) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
     let art = !ctx.art in 
     let _ = reset_solver ctx in 
     let _ = ReachTree.reset_substitute_map art in 
-    let seq = fun l -> List.fold_left (fun x y -> K.mul y x) K.one l in
     let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in 
-    let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in
+    let seq = List.fold_left (fun x y -> K.mul y x) K.one in 
+    let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in 
+    let _ = 
+      logf ~level:`always "handle_path_to_error called (err_leaf = %d)\n" err_leaf ;
+      logf ~level:`always "call_edges size: %d\n" (List.length call_edges) in
     let status = List.fold_left 
       (fun result curr_call ->
         if result = `Unconcretized then 
@@ -1538,13 +1537,13 @@ module McMillanChecker = struct
                 (* instantiate interprocedural reachability query *)
                 let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph e1 e2 call_entry call_exit in 
                 begin match concolic_mcmillan_execute ctx' with 
-                  | `Safe -> 
+                  | Safe -> 
                     (* concretization of error trace failed. do refine *)
                       (* declare failure *)
                       refine_summary ();
                       `Failure w 
-                  | `Unsafe tr -> 
-                      ReachTree.substitute_edge_weight art (w, z) tr; 
+                  | Unsafe tr -> 
+                      ReachTree.substitute_edge_weight art (w, z) (tr |> seq); 
                       `Unconcretized
                 end
               | `Unsat -> 
@@ -1556,24 +1555,26 @@ module McMillanChecker = struct
         ) `Unconcretized call_edges in 
       match status with 
       | `Unconcretized -> 
-        let path_cond = ReachTree.path_condition art err_leaf |> List.fold_left (fun x y -> K.mul y x) K.one in 
+        let path_cond = 
+          ReachTree.path_condition art err_leaf in 
         `Concretized path_cond (* by the end, we've concretized ourselves *)
       | `Failure v -> 
         ReachTree.reset_substitute_map art;
         `Failure v  (* otherwise, we've encountered a concretization failure*)
 
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
-  and concolic_mcmillan_execute (ctx: intra_context ref) = 
+  and concolic_mcmillan_execute (ctx: intra_context ref) : mc_result = 
     let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     let continue = ref true in 
     let state = ref `Continue in
       !ctx.worklist <- worklist_push eps !ctx.worklist;
       while !continue && (DQ.size (!ctx.worklist) > 0 || DQ.size (!ctx.execlist) > 0) do
-        Printf.printf " continuing...\n";
+        logf ~level:`always "starting a single mcmillan round [execlist size=%d; worklist size=%d]\n" (DQ.size (!ctx.execlist)) @@ DQ.size (!ctx.worklist);
         if DQ.size (!ctx.execlist) > 0 then begin 
           (* concolic phase *)
           begin match concolic_phase ctx with 
           | `ErrorReached w -> 
+            logf ~level:`always "--- concolic_mcmillan_execute: found path-to-error at vertex %d \n" w;
             begin match handle_path_to_error ctx w with 
             | `Failure vtx -> 
               (* refine and blow away the tree at vertex vtx. *)
@@ -1595,11 +1596,11 @@ module McMillanChecker = struct
         end
       done; 
       match !state with 
-      | `Continue -> `Safe
-      | `Concretized cond -> `Unsafe cond 
+      | `Continue -> Safe
+      | `Concretized cond -> Unsafe (cond) 
 
 
-  let mc_exec (mode: mc_mode) (ts : cfg_t) (entry : int) (err_loc : int) = 
+  let mc_exec (mode: mc_mode) (ts : cfg_t) (entry : int) (err_loc : int) : mc_result = 
     (**
     * Set up data structures used by the algorithm: worklist, 
     * vtxcnt (keeps track of largest unused vertex number in tree), 
@@ -1898,8 +1899,8 @@ let analyze_plain_mcl file =
         Printf.printf "testing reachability of location %d\n" err_loc ; 
         Printf.printf "------------------------------\n";
         match McMillanChecker.mc_exec McMillanChecker.PlainMcMillan ts entry err_loc with 
-        | `Safe -> Printf.printf "  proven safe\n"
-        | `Unsafe _ -> Printf.printf "  proven unsafe\n";
+        | Safe -> Printf.printf "  proven safe\n"
+        | Unsafe _ -> Printf.printf "  proven unsafe\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
       end
@@ -1925,8 +1926,8 @@ let analyze_concolic_mcl file =
         Printf.printf "testing reachability of location %d\n" err_loc ; 
         Printf.printf "------------------------------\n";
         match McMillanChecker.mc_exec McMillanChecker.ConcolicMcMillan ts entry err_loc with 
-        | `Safe -> Printf.printf "  proven safe\n";
-        | `Unsafe _ -> Printf.printf "  proven unsafe\n";
+        | Safe -> Printf.printf "  proven safe\n";
+        | Unsafe _ -> Printf.printf "  proven unsafe\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
       end
