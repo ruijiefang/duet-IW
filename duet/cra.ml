@@ -716,13 +716,13 @@ let mk_false () = Syntax.mk_false Ctx.context
 let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module MonotoneDom) else (module TransitionDom))
 
 let log_formulas prefix formulas = 
-  List.iteri (fun i f -> logf ~level:`debug "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr_unnumbered srk) f) formulas 
+  List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr_unnumbered srk) f) formulas 
 
 let log_weights prefix weights = 
-  List.iteri (fun i f -> logf ~level:`debug "[weight] %s(%i): %a\n" prefix i K.pp f) weights
+  List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i K.pp f) weights
 
 let log_model prefix model = 
-  logf ~level:`debug "[model] %s: %a\n" prefix Interpretation.pp model
+  logf ~level:`always "[model] %s: %a\n" prefix Interpretation.pp model
 
 (* Convert assertion checking problem to vertex reachability problem. *)
 let make_ts_assertions_unreachable (ts : cfg_t) assertions = 
@@ -749,41 +749,43 @@ module ProcedureRefinements =
       mutable postconditions : state_formula ProcMap.t 
     }
 
-    let init () = { preconditions = ProcMap.empty; postconditions = ProcMap.empty }
+    let init () = ref { preconditions = ProcMap.empty; postconditions = ProcMap.empty }
 
-    let refine_precondition (conditions: t) (proc_name: ProcName.t) (s : state_formula) = 
-      match ProcMap.find_opt proc_name conditions.preconditions with 
+    let refine_precondition (conditions: t ref) (proc_name: ProcName.t) (s : state_formula) = 
+      match ProcMap.find_opt proc_name !conditions.preconditions with 
       | Some pre -> 
-        conditions.preconditions <- ProcMap.add proc_name (Syntax.mk_and srk [pre ; s]) conditions.preconditions 
+        !conditions.preconditions <- ProcMap.add proc_name (Syntax.mk_and srk [pre ; s]) !conditions.preconditions 
       | None -> 
-        conditions.preconditions <- ProcMap.add proc_name s conditions.preconditions
+        !conditions.preconditions <- ProcMap.add proc_name s !conditions.preconditions
     
-    let refine_postcondition (conditions: t) (proc_name: ProcName.t) (s : state_formula) = 
+    let refine_postcondition (conditions: t ref) (proc_name: ProcName.t) (s : state_formula) = 
+      let conditions = !conditions in 
       match ProcMap.find_opt proc_name conditions.preconditions with 
       | Some pre -> 
         conditions.postconditions <- ProcMap.add proc_name (Syntax.mk_and srk [pre ; s]) conditions.postconditions 
       | None -> 
         conditions.postconditions <- ProcMap.add proc_name s conditions.postconditions
     
-    let get_precondition (conditions: t) (proc_name: ProcName.t) = ProcMap.find_opt proc_name conditions.preconditions 
-    let get_postcondition (conditions: t) (proc_name: ProcName.t) = ProcMap.find_opt proc_name conditions.postconditions 
+    let get_precondition (conditions: t ref) (proc_name: ProcName.t) = ProcMap.find_opt proc_name !conditions.preconditions 
+    let get_postcondition (conditions: t ref) (proc_name: ProcName.t) = ProcMap.find_opt proc_name !conditions.postconditions 
     
     (* different from just mk_query, first plug in all the refined procedure summary conditions before querying. *)
-    let mk_query (conditions: t) (ts: cfg_t) (src: int) = 
+    let mk_query (conditions: t ref) (ts: cfg_t) (src: int) = 
       let query = mk_query ts src in 
       ProcMap.iter (fun proc pre -> 
         let original_summary = TS.get_summary query proc in 
         let new_summary = K.mul (K.assume pre) original_summary in 
-        TS.set_summary query proc new_summary) conditions.preconditions;
+        TS.set_summary query proc new_summary) !conditions.preconditions;
       ProcMap.iter (fun proc post -> 
         let original_summary = TS.get_summary query proc in 
         let new_summary = K.mul original_summary (K.assume post) in 
-        TS.set_summary query proc new_summary) conditions.postconditions;
+        TS.set_summary query proc new_summary) !conditions.postconditions;
       query
     
-    let interproc_weight (conditions: t) (ts: cfg_t) ((u, v) : int*int) = 
+    let interproc_weight (conditions: t ref) (ts: cfg_t) ((u, v) : int*int) = 
       let q = mk_query conditions ts u in 
-        TS.call_weight q (u, v)
+      let w = TS.call_weight q (u, v) in 
+        log_weights "interproc_weight: weight" [w]; w
   end
 
 (** reachability tree module *)
@@ -812,7 +814,7 @@ module ReachTree = struct
   }
 
   let make (g: cfg_t) (entry: int) (err_loc: int) (pre: state_formula) (post: state_formula) interproc = 
-    {
+    ref {
       graph = g;
       entry = entry;
       err_loc = err_loc;
@@ -832,7 +834,8 @@ module ReachTree = struct
       interproc = interproc
     }
   (* blow up subtree at v *)
-  let rec blowup (t : t) (v : int) = 
+  let rec blowup (art : t ref) (v : int) =
+    let t = !art in  
     let v_children = IntMap.find_default [] v t.children in 
     let v_mapsto = IntMap.find v t.cfg_vertex in 
     (* first put v on the free ids list *)
@@ -863,17 +866,18 @@ module ReachTree = struct
         t.covers <- IntMap.remove y t.covers) v_coverers
     | None -> (); (* in this case we're done. *)
     (* finally, do recursive deletion *)
-    List.iter (fun child -> blowup t child) v_children
+    List.iter (fun child -> blowup art child) v_children
 
 
   (*  [t %^ i]: get parent of node i in tree t.  *)
-  let parent (t : t) (i : int) = IntMap.find i t.parents 
+  let parent (art : t ref) (i : int) = IntMap.find i !art.parents 
 
   (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
-  let maps_to (t : t) (i : int) = IntMap.find i t.cfg_vertex 
+  let maps_to (art : t ref) (i : int) = IntMap.find i !art.cfg_vertex 
 
   (* [ew t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
-  let edge_weight (t : t) u v = 
+  let edge_weight (art : t ref) u v = 
+    let t = !art in 
     let suffix = if v = t.err_loc then K.assume t.post_state else K.one in 
     let prefix = if u = t.entry then K.assume  t.pre_state else K.one in 
     match ProcMap.find_opt (u, v) t.edge_weight_substitutes with 
@@ -883,65 +887,65 @@ module ReachTree = struct
       | Weight w ->
         K.mul (K.mul prefix w) suffix 
       | Call (u, v) ->
-        let w = ProcedureRefinements.interproc_weight !(t.interproc) t.graph (u, v) in 
+        let w = ProcedureRefinements.interproc_weight (t.interproc) t.graph (u, v) in 
         K.mul (K.mul prefix w) suffix
       end 
 
   (* [tree_path t u] returns list of tree nodes that form the corrsp. tree path from root of t to tree node u *)
-  let tree_path t u = 
-    let rec tree_path_rev t u = 
+  let tree_path (art: t ref) u = 
+    let rec tree_path_rev art u = 
       match u with 
       | 0 -> [ 0 ]
-      | x -> x :: (tree_path_rev t (parent t u)) 
-    in List.rev @@ tree_path_rev t u
+      | x -> x :: (tree_path_rev art (parent art u)) 
+    in List.rev @@ tree_path_rev art u
 
   (* [children t v] returns children of tree node v in tree t. *)
-  let children (t : t) v = 
-    IntMap.find v t.children 
+  let children (art : t ref) v = 
+    IntMap.find v !art.children 
 
   (* [descendants t v] returns descendants of tree node v in tree t in DFS order. *)
-  let rec descendants (t : t) v = 
-    let v_children = children t v in 
-    v :: (List.fold_left (fun l ch -> (descendants t ch) @ l) [] v_children)
+  let rec descendants (art : t ref) v = 
+    let v_children = children art v in 
+    v :: (List.fold_left (fun l ch -> (descendants art ch) @ l) [] v_children)
 
   (* return leaves of subtree rooted at v. *)  
-  let rec leaves (t: t) v = 
-    let chs = children t v in 
+  let rec leaves (art: t ref) v = 
+    let chs = children art v in 
     if List.length chs == 0 then [ v ]
     else 
-      List.fold_left (fun child_leaves ch -> leaves t ch @ child_leaves) [] chs
+      List.fold_left (fun child_leaves ch -> leaves art ch @ child_leaves) [] chs
 
   (* is a vertex in tree a leaf? *)
-  let is_leaf (t: t) v = 
-    let chs = children t v in 
+  let is_leaf (art: t ref) v = 
+    let chs = children art v in 
       List.length chs == 0
 
   (* [label t v] returns the node label of tree node v in tree t. *)
-  let label (t : t) v = IntMap.find v t.labels
+  let label (art : t ref) v = IntMap.find v !art.labels
 
   (* (replaces) sets a label at v *)
-  let set_label (t: t) v lbl = 
-    t.labels <- IntMap.add v lbl  t.labels
+  let set_label (art: t ref) v lbl = 
+    !art.labels <- IntMap.add v lbl !art.labels
 
-  let substitute_edge_weight (t: t) ((u, v) : int * int) w = 
-    t.edge_weight_substitutes <- ProcMap.add (u, v) w t.edge_weight_substitutes
+  let substitute_edge_weight (art: t ref) ((u, v) : int * int) w = 
+    !art.edge_weight_substitutes <- ProcMap.add (u, v) w !art.edge_weight_substitutes
 
-  let reset_substitute_map (t: t) = 
-    t.edge_weight_substitutes <- ProcMap.empty 
+  let reset_substitute_map (t: t ref) = 
+    !t.edge_weight_substitutes <- ProcMap.empty 
 
   (* returns a list of call-edges (from shallow to deep) along path from root-to-node v*)
   (* call-edges are represented as 4-tuples: (node into call edge) -> callsite start -> callsite end -> (node out of call edge) *)
-  let calls_in_path (t: t) v = 
+  let calls_in_path (art: t ref) v = 
     let rec f u = 
-      let p = parent t u in 
+      let p = parent art u in 
         match p with 
         | 0 -> 
-          begin match WG.edge_weight t.graph (maps_to t 0) (maps_to t u) with 
+          begin match WG.edge_weight !art.graph (maps_to art 0) (maps_to art u) with 
           | Call (a, b) -> [ (0, (a, b), u) ]
           | _ -> []
           end 
         | n ->
-          begin match WG.edge_weight t.graph (maps_to t n) (maps_to t u) with 
+          begin match WG.edge_weight !art.graph (maps_to art n) (maps_to art u) with 
           | Call (a, b) -> (n, (a, b), u) :: (f p)
           | _ -> f p 
           end
@@ -949,59 +953,59 @@ module ReachTree = struct
 
   (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
   (* the list of precedent nodes for a cfg vertex is a list of tree nodes which map to the same cfg location, ordered by < on integers. *)
-  let get_precedent_nodes t v = 
-    let cfg_vertex = maps_to t v in 
+  let get_precedent_nodes (art: t ref) v = 
+    let cfg_vertex = maps_to art v in 
     let precedents_set = 
-      IntMap.find_default ISet.empty cfg_vertex (t.precedent_nodes) in 
+      IntMap.find_default ISet.empty cfg_vertex (!art.precedent_nodes) in 
         ISet.elements precedents_set
   
 
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
   (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
-  let path_condition (t: t) ?(cutoff = 0) (u : int) = 
-    if u == 0 then [ K.assume t.pre_state ]
+  let path_condition (art: t ref) ?(cutoff = 0) (u : int) = 
+    if u == 0 then [ K.assume !art.pre_state ]
     else 
-      let rec (%<*-) (t: t) (u : int) =
-        let v = parent t u in 
+      let rec (%<*-) (art: t ref) (u : int) =
+        let v = parent art u in 
         begin if v = cutoff || v = 0 then 
-          [ edge_weight t (maps_to t cutoff) (maps_to t u) ]
+          [ edge_weight art (maps_to art cutoff) (maps_to art u) ]
         else 
-         edge_weight t (maps_to t v) (maps_to t u) :: (t %<*- v) 
+         edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
         end 
-      in let ews = List.rev (t %<*- u) 
+      in let ews = List.rev (art %<*- u) 
       in ews 
 
-  let get_id (art : t) = 
-    match DQ.front art.free_ids with 
+  let get_id (art : t ref) = 
+    match DQ.front !art.free_ids with 
     | Some (new_id, free_ids') -> 
       begin (* there are some recycled ids; make use of them. *)
-        art.free_ids <- free_ids';
+        !art.free_ids <- free_ids';
         new_id
       end
     | None -> (* no more recycled ids; generate a new one. *)
       begin 
-        let new_id = art.vtxcnt in 
-          art.vtxcnt <- art.vtxcnt + 1; new_id
+        let new_id = !art.vtxcnt in 
+          !art.vtxcnt <- !art.vtxcnt + 1; new_id
       end
 
   (* Add new tree leaf mapping to CFG vertex v and with parent tree node p. *)
-  let add_tree_vertex (art: t) ?model ?(label=mk_true ()) (v: WG.vertex) (p: int) = 
+  let add_tree_vertex (art: t ref) ?model ?(label=mk_true ()) (v: WG.vertex) (p: int) = 
     (* sequentially add v to the lists, indexed by !vtxcnt *)
     let new_vertex = get_id art in (* note that new_vertex refers to a new tree vertex, where as v is a corresp. cfg location. *)
-    art.cfg_vertex <- IntMap.add new_vertex v art.cfg_vertex;
-    art.parents <- IntMap.add new_vertex p art.parents;
-    art.labels <- IntMap.add new_vertex label art.labels;
-    art.children <- IntMap.add new_vertex [] art.children;
+    !art.cfg_vertex <- IntMap.add new_vertex v !art.cfg_vertex;
+    !art.parents <- IntMap.add new_vertex p !art.parents;
+    !art.labels <- IntMap.add new_vertex label !art.labels;
+    !art.children <- IntMap.add new_vertex [] !art.children;
     (* set children of parent to be !vtxcnt :: children. *)
-    if p >= 0 then art.children <- IntMap.add p (new_vertex :: (IntMap.find p art.children)) art.children;
+    if p >= 0 then !art.children <- IntMap.add p (new_vertex :: (IntMap.find p !art.children)) !art.children;
     (* Add v to precedent_nodes. *)
-    let precedent_nodes = IntMap.find_default ISet.empty v art.precedent_nodes |> ISet.add new_vertex in 
-    art.precedent_nodes <- IntMap.add v precedent_nodes art.precedent_nodes;
+    let precedent_nodes = IntMap.find_default ISet.empty v !art.precedent_nodes |> ISet.add new_vertex in 
+    !art.precedent_nodes <- IntMap.add v precedent_nodes !art.precedent_nodes;
     (* if there is a model, then add it as well. *)
     match model with 
     | Some model -> 
       (* putting vertex v (will be assigned tree node !ctx.vtxcnt) on execlist with model... *)
-      art.models <- IntMap.add new_vertex model art.models;
+      !art.models <- IntMap.add new_vertex model !art.models;
       new_vertex
     | None -> 
       new_vertex
@@ -1017,22 +1021,22 @@ module ReachTree = struct
           mcmillan worklist. *)
   
   (* returns a list of new nodes to be added to the worklist *)
-  let expand_plain (art : t) (v : int) = 
+  let expand_plain (art : t ref) (v : int) = 
     (* vg is v's correpsonding cfg location in tree `art` *)
     let vg = maps_to art v in 
     let new_tree_nodes = ref [] in 
     WG.iter_succ_e (fun (_, _, y) ->  
         let u =  add_tree_vertex art y v in 
           new_tree_nodes := u :: !new_tree_nodes  
-        ) art.graph vg;
-    !new_tree_nodes
+        ) !art.graph vg;
+    List.rev !new_tree_nodes
 
   (* returns (new nodes on concolic worklist, new nodes on frontier worklist) *)
-  let expand_concolic ?(solver=Smt.mk_solver srk) (art : t) (v: int) = 
+  let expand_concolic ?(solver=Smt.mk_solver srk) (art : t ref) (v: int) = 
     let vg = maps_to art v in 
     let new_concolic_nodes, new_frontier_nodes = ref [], ref [] in 
       (* visit out neighbors of v *)
-      begin match IntMap.find_opt v art.models with 
+      begin match IntMap.find_opt v !art.models with 
       | Some m ->
         WG.iter_succ_e (fun (_, weight, y) -> 
           let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
@@ -1044,7 +1048,7 @@ module ReachTree = struct
             let new_vtx = add_tree_vertex art y v in 
               new_frontier_nodes := new_vtx :: !new_concolic_nodes 
           end
-        ) art.graph vg
+        ) !art.graph vg
       | None -> 
         failwith @@ Printf.sprintf "trying to expand from node %d(%d) without labelled model " v (maps_to art v)
       end;
@@ -1054,14 +1058,15 @@ module ReachTree = struct
 end
 
 (** Algebraic formulation of McMillan's algorithm. *)
-module McMillanChecker = struct 
-
+module McMillanChecker = struct
+  (* to print the reachability tree (+ worklist), or not *) 
+  let print_tree = false
   (* contextual information maintained by McMillan-Checker. *)
   (* intraprocedural context *)
   type intra_context = {
     id : ProcName.t;
     ts : cfg_t;
-    mutable art : ReachTree.t;
+    mutable art : ReachTree.t ref;
     mutable worklist : int DQ.t;
     mutable execlist : int DQ.t;
     global_ctx : global_context ref;
@@ -1090,30 +1095,30 @@ module McMillanChecker = struct
 
   (** some helper functions that operate on the context *)
 
-  let mk_intra_context (gctx: global_context) (id: ProcName.t) (ts: cfg_t) (pre_state: state_formula) (post_state: state_formula) (entry: int) (err_loc: int)  =
-    {
+  let mk_intra_context (gctx: global_context ref) (id: ProcName.t) (ts: cfg_t) (pre_state: state_formula) (post_state: state_formula) (entry: int) (err_loc: int)  =
+    ref {
       id = id;
       ts = ts;
       worklist = DQ.empty;
       execlist = DQ.empty;
-      art = ReachTree.make ts entry err_loc pre_state post_state gctx.interproc;
-      global_ctx = ref gctx;
+      art = ReachTree.make ts entry err_loc pre_state post_state !gctx.interproc;
+      global_ctx = gctx;
     }
   and mk_mc_context (start_mode: mc_mode) = 
-    {
+    ref {
       mode = start_mode; 
       solver = Smt.mk_solver Ctx.context;
-      interproc = ref (ProcedureRefinements.init ());
+      interproc = (ProcedureRefinements.init ());
     }
 
   (** some helper methods *)
   let worklist_push  (i : int) (q : idq_t) = DQ.cons i q 
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
-  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (t : ReachTree.t) (src : int) (sink : int) = 
-    let query = mk_query t.graph (ReachTree.maps_to t src) in 
+  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (src : int) (sink : int) = 
+    let query = mk_query !art.graph (ReachTree.maps_to art src) in 
     let post_path_summary = TS.path_weight query sink |> K.guard in
-    let initial_path_weights = ReachTree.path_condition t src in 
+    let initial_path_weights = ReachTree.path_condition art src in 
     K.interpolate_or_concrete_model ~solver:solver initial_path_weights post_path_summary 
   
 
@@ -1124,71 +1129,73 @@ module McMillanChecker = struct
     let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
       Smt.get_concrete_model Ctx.context ~solver:(solver) path_condition_symbols path_condition 
 
-  let get_global_ctx (ctx: intra_context) = !(ctx.global_ctx)
-  let reset_solver (ctx: intra_context) = Smt.Solver.reset (get_global_ctx ctx).solver
-  let get_solver (ctx: intra_context) = (get_global_ctx ctx).solver
+  let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
+  let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
+  let get_solver (ctx: intra_context ref) = 
+    let solver = !(get_global_ctx ctx).solver in 
+    Smt.Solver.reset solver; solver
 
   (** procedures for lightweight verification of ART invariants *)
 
-  let verify_well_labelled_tree (t: ReachTree.t) = 
+  let verify_well_labelled_tree (t: ReachTree.t ref) = 
     let rec aux v =
       let children = ReachTree.children t v in 
       (*mypp_formula (Printf.sprintf "visiting %d, label: " v) [ ARR.get t.labels v ];*)
       match children with 
       | [] (* leaf node *) -> 
-        begin match IntMap.find_opt v (t.covers) with 
+        begin match IntMap.find_opt v (!t.covers) with 
           | None -> 
-            logf ~level:`debug "!!! found uncovered leaf: %d\n" v;
+            logf ~level:`always "!!! found uncovered leaf: %d\n" v;
             WG.fold_succ_e (fun (x, _, y) _ (* acc *) ->
-              logf ~level:`debug "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" x y; 
+              logf ~level:`always "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" x y; 
               false 
-            ) t.graph (ReachTree.maps_to t v) true
+            ) !t.graph (ReachTree.maps_to t v) true
           | Some _ -> true 
         end 
       | _ -> 
-        begin match IntMap.find_opt v (t.covers) with 
+        begin match IntMap.find_opt v (!t.covers) with 
         | None -> 
-          logf ~level:`debug "node %d uncovered\n" v;
+          logf ~level:`always "node %d uncovered\n" v;
           List.fold_left (fun acc u -> (aux u) && acc) true children 
         | Some u -> 
-          logf ~level:`debug "node %d covered by %d\n" v u;
+          logf ~level:`always "node %d covered by %d\n" v u;
           true 
         end 
     in 
-    logf ~level:`debug "verifying well-labelledness of ART...\n";
+    logf ~level:`always "verifying well-labelledness of ART...\n";
     let r =  aux 0 in 
-    logf ~level:`debug "...done verifying well-labelledness of ART\n";
+    logf ~level:`always "...done verifying well-labelledness of ART\n";
     r
 
-  let check_covering_welformedness (t: ReachTree.t) = 
-    logf ~level:`debug "checking welformedness of covering relations\n";
+  let check_covering_welformedness (t: ReachTree.t ref) = 
+    logf ~level:`always "checking welformedness of covering relations\n";
     IntMap.iter (fun dst covered_from -> 
       ISet.iter (fun src -> 
-        logf ~level:`debug "checking if (%d, %d) in covering\n" src dst;
-        match IntMap.find_opt src (t.covers) with 
+        logf ~level:`always "checking if (%d, %d) in covering\n" src dst;
+        match IntMap.find_opt src (!t.covers) with 
         | Some dst' -> if dst' <> dst then failwith @@ Printf.sprintf "ERROR: (%d, %d) in covering\n" src dst'
         | None -> failwith "ERROR: not in covering"
       ) covered_from
-    ) (t.reverse_covers);
-    logf ~level:`debug "performing a reverse check\n";
+    ) (!t.reverse_covers);
+    logf ~level:`always "performing a reverse check\n";
     IntMap.iter (fun src dst -> 
-      match IntMap.find_opt dst (t.reverse_covers) with 
+      match IntMap.find_opt dst (!t.reverse_covers) with 
       | Some reverse_covers ->
         begin match ISet.mem src reverse_covers with 
         | false -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but %d not in %d's reverse_covers\n" src dst src dst
         | true -> ()
         end
       | None -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but no list found in reverse_covers\n" src dst
-    ) (t.covers);
-    logf ~level:`debug "...done checking welformedness of covering relations\n"
+    ) (!t.covers);
+    logf ~level:`always "...done checking welformedness of covering relations\n"
 
 
   (** Core procedures of McMillan's algorithm *)
 
 
   (* refine the label of each tree node u along path from tree root to v. *)
-  let mc_refine_with_interpolants (ctx: intra_context) path interpolants = 
-    let art = ctx.art in 
+  let mc_refine_with_interpolants (ctx: intra_context ref) path interpolants = 
+    let art = !ctx.art in 
     List.iter2 (fun u interpolant -> 
       let u_label = ReachTree.label art u in 
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
@@ -1196,7 +1203,7 @@ module McMillanChecker = struct
       ReachTree.set_label art u u_label';
       (* remove ( * -> u) in covering relation; we just refined label(u) so implications of form label(y)->label(u)
          might not hold anymore. *)
-      begin match IntMap.find_opt u art.reverse_covers with 
+      begin match IntMap.find_opt u !art.reverse_covers with 
       | None -> () 
       | Some l -> 
         (* remove covers (List.iter (fun x -> Printf.printf " (%d->%d)" x u) l *)
@@ -1209,23 +1216,23 @@ module McMillanChecker = struct
           begin match Smt.entails Ctx.context ~solver:(get_solver ctx) (x_label) (u_label) with
           | `No | `Unknown -> 
             (* remove (x, u) from covering. *)
-            logf ~level:`debug "   refine: removing cover (%d->%d)\n" x u;
-            art.covers <- IntMap.remove x (art.covers);
+            logf ~level:`always "   refine: removing cover (%d->%d)\n" x u;
+            !art.covers <- IntMap.remove x (!art.covers);
             (* add x's subtree leaves back to the worklist. *)
             let x_leaves = ReachTree.leaves art x in 
               List.iter (fun x_leaf -> 
-                logf ~level:`debug "         refine: adding %d back to worklist \n" x_leaf; 
-                ctx.worklist <- worklist_push x_leaf ctx.worklist) x_leaves;
-            art.models <- IntMap.remove x art.models;
+                logf ~level:`always "         refine: adding %d back to worklist \n" x_leaf; 
+                !ctx.worklist <- worklist_push x_leaf !ctx.worklist) x_leaves;
+            !art.models <- IntMap.remove x !art.models;
             l
           | `Yes -> 
-            logf ~level:`debug "    refine: cover (x %d-> u %d) still holds\n" x u;
+            logf ~level:`always "    refine: cover (x %d-> u %d) still holds\n" x u;
             log_formulas " x label: " [x_label];
             log_formulas " u label: " [u_label];
             ISet.add x coverers (* unchanged. *) 
           end
           ) l ISet.empty in 
-            art.reverse_covers <- IntMap.add u u_coverers (art.reverse_covers)
+            !art.reverse_covers <- IntMap.add u u_coverers (!art.reverse_covers)
       end
     ) path interpolants 
 
@@ -1233,38 +1240,38 @@ module McMillanChecker = struct
   (* refine path to (tree) node v. 
      Returns `Failure trans with trans being the path-to-error if unable to refine.
      Returns `Success if refine is able to refine. *)
-  let mc_refine (ctx: intra_context) (v: int) = 
+  let mc_refine (ctx: intra_context ref) (v: int) = 
     let handle_failure art v = 
-      logf ~level:`debug " *********************** REFINEMENT FAILED *************************\n"; 
+      logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
       let path_condition = 
         ReachTree.path_condition art v 
         |> List.fold_left (fun x y -> K.mul y x) K.one  
       in `Failure path_condition 
-    in let art = ctx.art in 
+    in let art = !ctx.art in 
     let path_condition = ReachTree.path_condition art v in 
     let path = ReachTree.tree_path art v in 
-      match (get_global_ctx ctx).mode with 
+      match !(get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
         begin 
-        match K.interpolate ~solver:(get_solver ctx) ((K.assume (art.pre_state)) :: path_condition) (Syntax.mk_not srk art.post_state) with 
+        match K.interpolate ~solver:(get_solver ctx) ((K.assume (!art.pre_state)) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
-          logf ~level:`debug "  refine: interpolant sequence for tree vertex %d: -----------\n" v;
-          logf ~level:`debug " original formula: ";
+          logf ~level:`always "  refine: interpolant sequence for tree vertex %d: -----------\n" v;
+          logf ~level:`always " original formula: ";
           log_weights "" path_condition;
-          logf ~level:`debug "--------------------------------------------------------------\n";
+          logf ~level:`always "--------------------------------------------------------------\n";
           log_formulas "" interpolants;
-          logf ~level:`debug "--------------------------------------------------------------\n";
+          logf ~level:`always "--------------------------------------------------------------\n";
           mc_refine_with_interpolants ctx path interpolants;
           `Success 
         end 
       | ConcolicMcMillan -> 
         begin 
-          match interpolate_or_get_model ~solver:(get_solver ctx) art v art.err_loc with 
+          match interpolate_or_get_model ~solver:(get_solver ctx) art v !art.err_loc with 
           `Invalid v_model -> 
-            logf ~level:`debug "Unable to refine but got model\n";
-            art.models <- IntMap.add v v_model art.models;
+            logf ~level:`always "Unable to refine but got model\n";
+            !art.models <- IntMap.add v v_model !art.models;
             handle_failure art v
           | `Unknown -> failwith ""
           | `Valid interpolants -> 
@@ -1274,29 +1281,29 @@ module McMillanChecker = struct
 
   (* Adds (v -> w) to covering relation if possible and returns true, false otherwise. *)
   (* note that (v, w) in covering if stateLabel(v) IMPLIES stateLabel(w) *)
-  let mc_cover (ctx: intra_context) v w =
-    let art = ctx.art in  
+  let mc_cover (ctx: intra_context ref) v w =
+    let art = !ctx.art in  
     let v_label = ReachTree.label art v in 
     let w_label = ReachTree.label art w in
     if (ReachTree.maps_to art v) <> (ReachTree.maps_to art w) then 
       failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w)
     else 
-      logf ~level:`debug "cover: %d->%d and %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w);
+      logf ~level:`always "cover: %d->%d and %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w);
     reset_solver ctx;
     match Smt.entails Ctx.context ~solver:(get_solver ctx) v_label w_label with 
     | `Yes -> 
-        logf ~level:`debug "   cover success (v=%d, w=%d). \n" v w;
+        logf ~level:`always "   cover success (v=%d, w=%d). \n" v w;
         log_formulas "        v label " [v_label];
         log_formulas "        w label "  [w_label];
-      let reverse_covers_w = IntMap.find_default ISet.empty w art.reverse_covers in 
-        art.covers <- IntMap.add v w (art.covers);
-        art.reverse_covers <- IntMap.add w (ISet.add v reverse_covers_w) art.reverse_covers;
+      let reverse_covers_w = IntMap.find_default ISet.empty w !art.reverse_covers in 
+        !art.covers <- IntMap.add v w (!art.covers);
+        !art.reverse_covers <- IntMap.add w (ISet.add v reverse_covers_w) !art.reverse_covers;
         true
     | `No | `Unknown -> false    
 
-  let mc_close (ctx: intra_context) (v : int) = 
+  let mc_close (ctx: intra_context ref) (v : int) = 
     (* Visits precedents of v in tree and attempts to derive covering relations[]. *)
-    let art = ctx.art in 
+    let art = !ctx.art in 
     (* A _precedent_ of v in tree is any vertex u<v such that u, v map to the same CFG locations. *)
       let precedents = ReachTree.get_precedent_nodes art v in
     (* Printf.printf "precedents of node %d : " v; List.iter (fun x -> Printf.printf " %d " x) precedents ; Printf.printf "\n";*)
@@ -1314,192 +1321,197 @@ module McMillanChecker = struct
               if y <> v then 
               begin 
                 (* xs = {x | x -> y} *)
-                let xs = IntMap.find_default ISet.empty y art.reverse_covers in 
+                let xs = IntMap.find_default ISet.empty y !art.reverse_covers in 
                 (* Iterate through and remove pairs (x, y) from covering relation. *)
                 (* Step 1: Remove (x |-> y) from !ptt.covers. *)
-                ISet.iter (fun x -> art.covers <- IntMap.remove x art.covers) xs;
+                ISet.iter (fun x -> !art.covers <- IntMap.remove x !art.covers) xs;
                 (* Step 2: Remove (y |-> xs) from !pthit.reverse_covers. *)
-                art.reverse_covers <- IntMap.remove y art.reverse_covers;
+                !art.reverse_covers <- IntMap.remove y !art.reverse_covers;
                 (* Step 3: add xs to worklist. *)
                 ISet.iter (fun x ->
                   (* add x's subtree leaves back to the worklist. *)
                   let x_leaves = ReachTree.leaves art x in 
                     List.iter (fun x_leaf -> 
-                      logf ~level:`debug "         close: adding %d back to worklist \n" x_leaf;
-                      ctx.worklist <- worklist_push x_leaf ctx.worklist) x_leaves;
-                  art.models <- IntMap.remove x art.models) xs
+                      logf ~level:`always "         close: adding %d back to worklist \n" x_leaf;
+                      !ctx.worklist <- worklist_push x_leaf !ctx.worklist) x_leaves;
+                  !art.models <- IntMap.remove x !art.models) xs
               end) v_descendants
         end; cover_success
       end) precedents false in result 
 
   (* Checks if tree node v is covered. It is covered if its ancestors or it is in covering relation. *)
-  let rec mc_is_covered (ctx: intra_context) v = 
-    let art = ctx.art in 
-    match IntMap.find_opt v art.covers with 
+  let rec mc_is_covered (ctx: intra_context ref) v = 
+    let art = !ctx.art in 
+    match IntMap.find_opt v !art.covers with 
     | None -> 
       if v == 0 then false
       else mc_is_covered ctx (ReachTree.parent art v)
     | Some u -> 
-      logf ~level:`debug "  | covered by %d\n" u;
+      logf ~level:`always "  | covered by %d\n" u;
       true 
   
-  let tree_printer_get_name (ctx: intra_context) i = 
-    let art = ctx.art in 
-    match IntMap.find_opt i art.covers with 
+  let tree_printer_get_name (ctx: intra_context ref) i = 
+    let art = !ctx.art in 
+    match IntMap.find_opt i !art.covers with 
     | None ->  Printf.sprintf "%d(%d)" i (ReachTree.maps_to art i)
     | Some j -> Printf.sprintf "[%d(%d)]->%d" i (ReachTree.maps_to art i) j
 
-  let print_worklist (ctx: intra_context) = 
-    Printf.printf "["; DQ.iter (fun x -> Printf.printf "%d " x) ctx.worklist; Printf.printf "]\n"
+  let print_worklist (ctx: intra_context ref) = 
+    logf ~level:`always "["; DQ.iter (fun x -> Printf.printf "%d " x) !ctx.worklist; Printf.printf "]\n"
 
 
-  let log_art (ctx: intra_context) =
-    logf ~level:`debug " +----------------- ART ----------------+\n";
-    let string_of_art = 
-      Tree_printer.to_string 
-        ~line_prefix:"* " 
-        ~get_name:(tree_printer_get_name ctx) 
-        ~get_children:(ReachTree.children ctx.art) 0
-      in logf ~level:`debug "%s" string_of_art; 
-    logf ~level:`debug " +----------------- ART ----------------+\n"
+  let log_art (ctx: intra_context ref) =
+    if print_tree then begin
+      logf ~level:`always " +----------------- ART ----------------+\n";
+      let string_of_art = 
+        Tree_printer.to_string 
+          ~line_prefix:"* " 
+          ~get_name:(tree_printer_get_name ctx) 
+          ~get_children:(ReachTree.children !ctx.art) 0
+        in logf ~level:`always "%s" string_of_art; 
+      logf ~level:`always " +----------------- ART ----------------+\n"
+    end
 
-
-  let single_plain_mcmillan_round (ctx: intra_context) = 
-    match DQ.front ctx.worklist with (* use DQ.rear if want BFS *) 
+  let single_plain_mcmillan_round (ctx: intra_context ref) = 
+    match DQ.front !ctx.worklist with (* use DQ.rear if want BFS *) 
       | Some (u, w) (* (w, u) if use DQ.front *) ->          
         log_art ctx;
         print_worklist ctx;
-        Printf.printf " visit %d\n" u;
-        log_formulas "label: " [ReachTree.label ctx.art u]; 
-        ctx.worklist <- w;
+        logf ~level:`always " visit %d\n" u;
+        log_formulas "label: " [ReachTree.label !ctx.art u]; 
+        !ctx.worklist <- w;
         (* Fetched tree node u from work list. First attempt to close it. *)
         if not (mc_is_covered ctx u) then begin
-          logf ~level:`debug " uncovered. try close\n";
+          logf ~level:`always " uncovered. try close\n";
           begin match mc_close ctx u with 
             | true -> (* Close succeeded. No need to further explore it. *)
-              logf ~level:`debug "Close succeeded.\n"; 
+              logf ~level:`always "Close succeeded.\n"; 
               (* ctx.worklist := u %>> !(ctx.worklist); *)
               `Continue 
             | false -> (* u is uncovered. *)
-              if (ReachTree.maps_to ctx.art u) == ctx.art.err_loc then 
+              if (ReachTree.maps_to !ctx.art u) == !(!ctx.art).err_loc then 
                 begin match mc_refine ctx u with 
                   | `Success -> 
-                    logf ~level:`debug " refinement result: SUCCESS\n";
+                    logf ~level:`always " refinement result: SUCCESS\n";
                     (* for every node along path of refinement try close *)
-                    let path = ReachTree.tree_path ctx.art u in 
+                    let path = ReachTree.tree_path !ctx.art u in 
                       List.iter (fun x -> let _ = mc_close ctx x in ()) path;
                       (* ctx.worklist := u %>> !(ctx.worklist); *)
                       `Continue
                   | `Failure path_cond -> 
-                    logf ~level:`debug " refinement result: FAILURE\n";
+                    logf ~level:`always " refinement result: FAILURE\n";
                     `ErrorReached path_cond
                 end 
               else begin 
-                logf ~level:`debug " expanding...\n";
-                let new_nodes = ReachTree.expand_plain ctx.art u in 
-                  List.iter (fun n -> ctx.worklist <- worklist_push n ctx.worklist) new_nodes;
-                `Continue
+                logf ~level:`always " expanding...\n";
+                let new_nodes = ReachTree.expand_plain !ctx.art u in 
+                  logf ~level:`always "new nodes: [";
+                  List.iter (fun n -> 
+                    logf ~level:`always "%d " n;
+                    !ctx.worklist <- worklist_push n !ctx.worklist) new_nodes;
+                  logf ~level:`always " ]\n";
+                  `Continue
               end
           end end
         else begin (* u is closed *)
-          logf ~level:`debug "  | covered \n"; 
+          logf ~level:`always "  | covered \n"; 
           `Continue 
         end
       | None -> failwith "err: single_mcmillan_round assumes worklist is non-empty"
 
-  let plain_mcmillan_execute (ctx: intra_context) = 
+  let plain_mcmillan_execute (ctx: intra_context ref) = 
     let continue = ref true in
     let witness_r = ref K.zero in 
     let state = ref `Continue in 
-    let eps = ReachTree.add_tree_vertex ctx.art ~label:ctx.art.pre_state ctx.art.entry (-1) in 
-    ctx.worklist <- worklist_push eps ctx.worklist;
+    let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
+    !ctx.worklist <- worklist_push eps !ctx.worklist;
     begin
-      while DQ.size (ctx.worklist) > 0 && !continue do 
+      while DQ.size (!ctx.worklist) > 0 && !continue do 
         begin 
           match single_plain_mcmillan_round ctx with 
           | `Continue -> continue := true; state := `Continue
           | `ErrorReached witness -> 
-            logf ~level:`debug "  not continueing any further --- error reached\n";
+            logf ~level:`always "  not continueing any further --- error reached\n";
             witness_r := witness; 
             continue := false; 
             state := `ErrorReached
         end
       done;
-      logf ~level:`debug " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
+      logf ~level:`always " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
       log_art ctx;
       match !state with 
       | `ErrorReached -> `Unsafe !witness_r
       | `Continue -> 
-        logf ~level:`debug "execution saturated\n"; 
-        begin match verify_well_labelled_tree ctx.art with 
+        logf ~level:`always "execution saturated\n"; 
+        begin match verify_well_labelled_tree !ctx.art with 
           | false -> failwith "ERROR: well-labelled check failed"
-          | true -> check_covering_welformedness ctx.art 
+          | true -> check_covering_welformedness !ctx.art 
         end;
         `Safe
     end
 
-  let concolic_phase (ctx: intra_context) = 
-    match DQ.front (ctx.execlist) with 
+  let concolic_phase (ctx: intra_context ref) = 
+    match DQ.front (!ctx.execlist) with 
     | Some (u, w) -> 
       log_art ctx;
-      logf ~level:`debug " visit %d (%d)\n" u (ReachTree.maps_to ctx.art u);
-      if (ReachTree.maps_to ctx.art u) = ctx.art.err_loc then 
+      logf ~level:`always " visit %d (%d)\n" u (ReachTree.maps_to !ctx.art u);
+      if (ReachTree.maps_to !ctx.art u) = !(!ctx.art).err_loc then 
         begin 
           (**TODO: backsolving of recursive interproc calls *)
           `ErrorReached u
         end
       else begin
-        ctx.execlist <- w;
-        let u_model = IntMap.find u ctx.art.models in 
-          logf ~level:`debug "model of %d: \n" u;
+        !ctx.execlist <- w;
+        let u_model = IntMap.find u !(!ctx.art).models in 
+          logf ~level:`always "model of %d: \n" u;
           log_model "" u_model;
-          let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic ctx.art u in 
-            List.iter (fun concolic_node -> ctx.execlist <- worklist_push concolic_node ctx.execlist) new_concolic_nodes;
-            List.iter (fun frontier_node -> ctx.worklist <- worklist_push frontier_node ctx.worklist) new_frontier_nodes;
+          let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic !ctx.art u in 
+            List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
+            List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
             `Continue
       end
     | None -> failwith "err: concolic_phase is reading from empty execution worklist" (* cannot happen *)
 
-  let refinement_phase (ctx: intra_context) = 
-    match DQ.front (ctx.worklist) with 
+  let refinement_phase (ctx: intra_context ref) = 
+    match DQ.front (!ctx.worklist) with 
     | Some (u, w) -> 
       log_art ctx;
-      ctx.worklist <- w;
+      !ctx.worklist <- w;
       (* Fetched tree node u from work list. First attempt to close it. *)
       if not (mc_is_covered ctx u) then 
         begin
-          logf ~level:`debug " uncovered. try close\n";
+          logf ~level:`always " uncovered. try close\n";
           if mc_close ctx u then (* Close succeeded. No need to further explore it. *)
             begin 
-              logf ~level:`debug "Close succeeded.\n"; 
+              logf ~level:`always "Close succeeded.\n"; 
               `Continue
             end   
           else (* u is uncovered. *)
             begin match mc_refine ctx u with 
             | `Success -> (* refinement succeeded *)
-              logf ~level:`debug "refinement_phase: refinement succeeded\n";
+              logf ~level:`always "refinement_phase: refinement succeeded\n";
               (* for every node along path of refinement try close *)
-              let path = ReachTree.tree_path ctx.art u in 
+              let path = ReachTree.tree_path !ctx.art u in 
                 List.iter (fun x -> let _ = mc_close ctx x in ()) path;
                 `Continue 
             | `Failure _ -> 
-              ctx.execlist <- worklist_push u ctx.execlist; (* put u onto execlist since it now has a model. *)
+              !ctx.execlist <- worklist_push u !ctx.execlist; (* put u onto execlist since it now has a model. *)
               (* for every node along path of refinement try close *)
-              let path = ReachTree.tree_path ctx.art u in 
+              let path = ReachTree.tree_path !ctx.art u in 
                 List.iter (fun x -> let _ = mc_close ctx x in ()) path 
               ; `Continue
             end
         end
       else begin 
-        logf ~level:`debug "refinement_phase: %d is covered\n" u;
+        logf ~level:`always "refinement_phase: %d is covered\n" u;
         `Continue
       end
     | None -> failwith "refinement_phase: encountered an empty worklist for refinement\n" (* cannot happen *)
 
 
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
-  let rec handle_path_to_error (ctx: intra_context) (err_leaf : int) : [`Concretized of K.t | `Failure of int ] = 
-    let art = ctx.art in 
+  let rec handle_path_to_error (ctx: intra_context ref) (err_leaf : int) : [`Concretized of K.t | `Failure of int ] = 
+    let art = !ctx.art in 
     let _ = reset_solver ctx in 
     let _ = ReachTree.reset_substitute_map art in 
     let seq = fun l -> List.fold_left (fun x y -> K.mul y x) K.one l in
@@ -1516,15 +1528,15 @@ module McMillanChecker = struct
             (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
             let refine_summary () = 
               let pre_cond = 
-                K.mul (K.assume (art.pre_state)) prefix |> to_formula in 
+                K.mul (K.assume (!art.pre_state)) prefix |> to_formula in 
               let post_cond = 
-                K.mul suffix (K.assume (art.post_state)) |> to_formula in 
-                ProcedureRefinements.refine_precondition !(art.interproc) (call_entry, call_exit) pre_cond;
-                ProcedureRefinements.refine_postcondition !(art.interproc) (call_entry, call_exit) post_cond;
+                K.mul suffix (K.assume (!art.post_state)) |> to_formula in 
+                ProcedureRefinements.refine_precondition (!art.interproc) (call_entry, call_exit) pre_cond;
+                ProcedureRefinements.refine_postcondition (!art.interproc) (call_entry, call_exit) post_cond;
             in begin match K.extrapolate prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 (* instantiate interprocedural reachability query *)
-                let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) art.graph e1 e2 call_entry call_exit in 
+                let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph e1 e2 call_entry call_exit in 
                 begin match concolic_mcmillan_execute ctx' with 
                   | `Safe -> 
                     (* concretization of error trace failed. do refine *)
@@ -1551,26 +1563,26 @@ module McMillanChecker = struct
         `Failure v  (* otherwise, we've encountered a concretization failure*)
 
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
-  and concolic_mcmillan_execute (ctx: intra_context) = 
-    let eps = ReachTree.add_tree_vertex ctx.art ~label:ctx.art.pre_state ctx.art.entry (-1) in 
+  and concolic_mcmillan_execute (ctx: intra_context ref) = 
+    let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     let continue = ref true in 
     let state = ref `Continue in
-      ctx.worklist <- worklist_push eps ctx.worklist;
-      while !continue && (DQ.size (ctx.worklist) > 0 || DQ.size (ctx.execlist) > 0) do
+      !ctx.worklist <- worklist_push eps !ctx.worklist;
+      while !continue && (DQ.size (!ctx.worklist) > 0 || DQ.size (!ctx.execlist) > 0) do
         Printf.printf " continuing...\n";
-        if DQ.size (ctx.execlist) > 0 then begin 
+        if DQ.size (!ctx.execlist) > 0 then begin 
           (* concolic phase *)
           begin match concolic_phase ctx with 
           | `ErrorReached w -> 
             begin match handle_path_to_error ctx w with 
             | `Failure vtx -> 
               (* refine and blow away the tree at vertex vtx. *)
-              logf ~level:`debug "--- concolic_mcmillan_execute: blowing away tree at vertex %d" vtx;
-              ReachTree.blowup ctx.art vtx;
-              ctx.worklist <- worklist_push vtx ctx.worklist;
+              logf ~level:`always "--- concolic_mcmillan_execute: blowing away tree at vertex %d" vtx;
+              ReachTree.blowup !ctx.art vtx;
+              !ctx.worklist <- worklist_push vtx !ctx.worklist;
               continue := true
             | `Concretized pathcond ->  
-              logf ~level:`debug "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
+              logf ~level:`always "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
               state := `Concretized (pathcond);
               continue := false
             end
@@ -1596,11 +1608,11 @@ module McMillanChecker = struct
     let global_context = mk_mc_context mode in 
     match mode with 
     | PlainMcMillan -> 
-      logf ~level:`debug "executing plain mcmillan's algorithm\n";
+      logf ~level:`always "executing plain mcmillan's algorithm\n";
       let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
         plain_mcmillan_execute main_context 
     | ConcolicMcMillan -> 
-      logf ~level:`debug "executing concolic mcmillan's algorithm\n";
+      logf ~level:`always "executing concolic mcmillan's algorithm\n";
       let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
         concolic_mcmillan_execute main_context
   end
