@@ -773,11 +773,11 @@ module ProcedureRefinements =
       let query = mk_query ts src in 
       ProcMap.iter (fun proc pre -> 
         let original_summary = TS.get_summary query proc in 
-        let new_summary = T.mul (T.assume pre) original_summary in 
+        let new_summary = K.mul (K.assume pre) original_summary in 
         TS.set_summary query proc new_summary) conditions.preconditions;
       ProcMap.iter (fun proc post -> 
         let original_summary = TS.get_summary query proc in 
-        let new_summary = T.mul original_summary (T.assume post) in 
+        let new_summary = K.mul original_summary (K.assume post) in 
         TS.set_summary query proc new_summary) conditions.postconditions;
       query
     
@@ -912,7 +912,7 @@ module ReachTree = struct
       List.fold_left (fun child_leaves ch -> leaves t ch @ child_leaves) [] chs
 
   (* is a vertex in tree a leaf? *)
-  let rec is_leaf (t: t) v = 
+  let is_leaf (t: t) v = 
     let chs = children t v in 
       List.length chs == 0
 
@@ -947,18 +947,18 @@ module ReachTree = struct
           end
     in f v |> List.rev 
 
-    (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
-    (* the list of precedent nodes for a cfg vertex is a list of tree nodes which map to the same cfg location, ordered by < on integers. *)
-    let get_precedent_nodes t v = 
-      let cfg_vertex = maps_to t v in 
-      let precedents_set = 
-        IntMap.find_default ISet.empty cfg_vertex (t.precedent_nodes) in 
-          ISet.elements precedents_set
+  (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
+  (* the list of precedent nodes for a cfg vertex is a list of tree nodes which map to the same cfg location, ordered by < on integers. *)
+  let get_precedent_nodes t v = 
+    let cfg_vertex = maps_to t v in 
+    let precedents_set = 
+      IntMap.find_default ISet.empty cfg_vertex (t.precedent_nodes) in 
+        ISet.elements precedents_set
   
 
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
   (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
-  let rec path_condition (t: t) ?(cutoff = 0) (u : int) = 
+  let path_condition (t: t) ?(cutoff = 0) (u : int) = 
     if u == 0 then [ K.assume t.pre_state ]
     else 
       let rec (%<*-) (t: t) (u : int) =
@@ -1139,7 +1139,7 @@ module McMillanChecker = struct
         begin match IntMap.find_opt v (t.covers) with 
           | None -> 
             logf ~level:`debug "!!! found uncovered leaf: %d\n" v;
-            WG.fold_succ_e (fun (x, _, y) acc ->
+            WG.fold_succ_e (fun (x, _, y) _ (* acc *) ->
               logf ~level:`debug "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" x y; 
               false 
             ) t.graph (ReachTree.maps_to t v) true
@@ -1507,7 +1507,7 @@ module McMillanChecker = struct
     let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in
     let status = List.fold_left 
       (fun result curr_call ->
-        if result <> `Failure _ then 
+        if result = `Unconcretized then 
           begin
             let (w, (call_entry, call_exit), z) = curr_call in 
             let prefix = ReachTree.path_condition art w |> seq in 
@@ -1606,8 +1606,6 @@ module McMillanChecker = struct
   end
 
 
-open Smt 
-
 (**
   Directed algebraic concolic executor guided by path summaries in CRA
  *)
@@ -1626,7 +1624,7 @@ module Executor = struct
   (* set of paths explored by concolic executor. *)
   and mtree = {
     graph : cfg_t;
-    entry : int;
+    start : int;
     cfg_vertex : int ARR.t;
     parents : int ARR.t; 
     model : Ctx.t Interpretation.interpretation IntMap.t;
@@ -1645,7 +1643,7 @@ module Executor = struct
   (* make a reference to an empty mtree. *)
   let mk_mtree_ptr (ts: cfg_t) (entry: int) = ref { 
       graph = ts; 
-      entry = entry; 
+      start = entry; 
       cfg_vertex = ARR.singleton entry ; 
       parents = ARR.singleton (-1) ;
       model  = IntMap.empty (* IntMap.singleton 0 initial_model *) }
@@ -1677,7 +1675,7 @@ module Executor = struct
 
 
   (* get path weight sequence in CFG mapped by tree path 0---->u in mtree t *)
-  let rec (%-*>) (t: mtree) (u : int) : K.t list = 
+  let (%-*>) (t: mtree) (u : int) : K.t list = 
     if u == 0 then [ ]
     else let rec (%<*-) (t : mtree) (u : int) =
      match t %^ u with 
@@ -1889,8 +1887,7 @@ let analyze_plain_mcl file =
         Printf.printf "------------------------------\n";
         match McMillanChecker.mc_exec McMillanChecker.PlainMcMillan ts entry err_loc with 
         | `Safe -> Printf.printf "  proven safe\n"
-        | `Unsafe _ -> Printf.printf "  proven unsafe\n"
-        | _ -> Printf.printf "  mcmillan error\n";
+        | `Unsafe _ -> Printf.printf "  proven unsafe\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
       end
@@ -1918,7 +1915,6 @@ let analyze_concolic_mcl file =
         match McMillanChecker.mc_exec McMillanChecker.ConcolicMcMillan ts entry err_loc with 
         | `Safe -> Printf.printf "  proven safe\n";
         | `Unsafe _ -> Printf.printf "  proven unsafe\n";
-        | _ -> Printf.printf "  mcmillan error\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
       end
@@ -1931,7 +1927,7 @@ let dump_cfg simplify file =
   | [main] ->
     begin 
       let rg = Interproc.make_recgraph file in 
-      let entry = (RG.block_entry rg main).did in 
+      let _ (* entry *) = (RG.block_entry rg main).did in 
       let (ts, assertions) = make_transition_system simplify rg in 
       let ts, _ = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts
