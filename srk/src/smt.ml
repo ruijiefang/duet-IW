@@ -5,11 +5,15 @@ include Log.Make(struct let name = "srk.smt" end)
 
 module Solver = SrkZ3.Solver
 
+let cnt = ref 0 
+
 let mk_solver ?(theory="") srk =
+  logf ~level:`always "mk_solver called (%d)\n" !cnt; 
+  cnt := !cnt + 1;
   SrkZ3.mk_solver ~theory srk
 
-let get_model ?(symbols=[]) srk phi =
-  let solver = mk_solver srk in
+let get_model ?(symbols=[]) srk ?(solver=mk_solver srk) phi =
+  let _ = Solver.reset solver in 
   Solver.add solver [phi];
   Solver.get_model ~symbols solver
 

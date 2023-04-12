@@ -35,7 +35,7 @@ val mk_solver : ?theory:string -> 'a context -> 'a Solver.t
     evaluate terms, but its bindings may not be enumerated (see
     [Interpretation] for more detail). *)
 val get_model : ?symbols:(symbol list) ->
-  'a context ->
+  'a context -> ?solver:'a Solver.t -> 
   'a formula ->
   [ `Sat of 'a interpretation
   | `Unsat

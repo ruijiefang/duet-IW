@@ -784,7 +784,7 @@ module ProcedureRefinements =
     
     let interproc_weight (conditions: t ref) (ts: cfg_t) ((u, v) : int*int) = 
       let q = mk_query conditions ts u in 
-      let w = TS.call_weight q (u, v) in 
+      let w = TS.get_summary q (u, v) in 
         log_weights "interproc_weight: weight" [w]; w
   end
 
@@ -1041,7 +1041,10 @@ module ReachTree = struct
       begin match IntMap.find_opt v !art.models with 
       | Some m ->
         WG.iter_succ_e (fun (_, weight, y) -> 
-          let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
+          let weight =
+            match weight with 
+            | Weight w -> w
+            | Call (u, v) -> ProcedureRefinements.interproc_weight !art.interproc !art.graph (u, v)  in 
           begin match K.get_post_model ~solver:(solver) m weight with 
           | Some y_model -> 
             let new_vtx = add_tree_vertex art ~model:y_model y v in  
@@ -1534,19 +1537,23 @@ module McMillanChecker = struct
                 ProcedureRefinements.refine_postcondition (!art.interproc) (call_entry, call_exit) post_cond;
             in begin match K.extrapolate prefix summary suffix with 
               | `Sat (e1, e2) -> 
+                log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
                 (* instantiate interprocedural reachability query *)
                 let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph e1 e2 call_entry call_exit in 
                 begin match concolic_mcmillan_execute ctx' with 
                   | Safe -> 
+                    logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute failed. refining\n";
                     (* concretization of error trace failed. do refine *)
                       (* declare failure *)
                       refine_summary ();
                       `Failure w 
                   | Unsafe tr -> 
-                      ReachTree.substitute_edge_weight art (w, z) (tr |> seq); 
+                    logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path\n";
+                       ReachTree.substitute_edge_weight art (w, z) (tr |> seq); 
                       `Unconcretized
                 end
               | `Unsat -> 
+                logf ~level:`always "--- handle_path_to_error : extrapolate failed; performing refine_summary () \n";
                 (* extrapolate failure; do refine *)
                 refine_summary (); 
                 `Failure w

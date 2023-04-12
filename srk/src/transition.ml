@@ -352,20 +352,13 @@ struct
     let f_guard' = Syntax.substitute_const C.context replacer f_guard in 
     let f_transform = transform f in 
     let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in 
-    match Smt.get_concrete_model C.context ~solver:(solver) (symbols) f_guard' with 
+    match Smt.get_model ~symbols:(symbols) C.context ~solver:(solver)  f_guard' with 
     | `Sat skolem_model -> 
       let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
-        let replacer (sym : Syntax.symbol) = 
-          if List.mem sym symbols then mk_real C.context @@ Interpretation.real skolem_model sym  
-          else  mk_const C.context sym  
-        in
         let sub_expr = Syntax.substitute_const C.context replacer rhs in 
         let lhs_symbol =  Var.symbol_of lhs in
-        (* let _ = Printf.printf "substituting lhs = %s\nrhs=" @@ Syntax.show_symbol C.context lhs_symbol in 
-        let _ = Syntax.pp_expr_unnumbered C.context Format.std_formatter rhs in
-        Printf.printf "\n"; *)
-        let sub_val = Interpretation.evaluate_term m sub_expr in 
-        Interpretation.add lhs_symbol (`Real sub_val) m' 
+        let sub_val = Interpretation.evaluate_term skolem_model sub_expr in 
+        Interpretation.add lhs_symbol (`Real sub_val) m'
       ) m f_transform in Some post_model 
     | _ -> None 
 
@@ -610,7 +603,7 @@ struct
       symbols_printer symbols_t3_t2;
           Format.print_flush();
      Printf.printf "\n------------ SMT query in extrapolate ------------\n";
-     match Smt.get_concrete_model srk symbols_conj conj with 
+     match Smt.get_model ~symbols:symbols_conj srk conj with 
       | `Sat m -> 
         Printf.printf "extrapolate: result is SAT, got model\n";
         Interpretation.pp Format.std_formatter m ;
