@@ -735,6 +735,18 @@ module RecGraph = struct
       table = Pathexpr.mk_table ();
       algebra = algebra }
 
+  let intra_path_summary (wq: 'a weight_query) src tgt = 
+    let q = wq.query in 
+    let g = q.recgraph in 
+    let (table, algebra) = prepare wq in
+    Pathexpr.eval ~table ~algebra (path_weight g.path_graph src tgt)
+
+  let inter_path_summary (wq: 'a weight_query) src tgt = 
+    let q = wq.query in 
+    let g = q.interproc in 
+    let (table, algebra) = prepare wq in 
+    Pathexpr.eval_nested ~table ~algebra (path_weight g src tgt) 
+  
   let path_weight query tgt =
     let (table, algebra) = prepare query in
     Pathexpr.eval_nested ~table ~algebra (pathexpr query.query tgt)
@@ -743,6 +755,7 @@ module RecGraph = struct
     let (table, algebra) = prepare query in
     Pathexpr.eval ~table ~algebra (call_pathexpr query.query (src, tgt))
 
+  
   let omega_path_weight query omega_algebra =
     let (table, algebra) = prepare query in
     let omega_table = Pathexpr.mk_omega_table table in

@@ -213,6 +213,10 @@ module RecGraph : sig
   val get_summary : 'a weight_query -> call -> 'a
   val set_summary : 'a weight_query -> call -> 'a -> unit
 
+  val intra_path_summary : 'a weight_query -> int -> int -> 'a
+
+  val inter_path_summary : 'a weight_query -> int -> int -> 'a
+ 
   (** Find the sum of weights of all infinite interprocedural paths
      beginning at the query's source vertex. *)
   val omega_path_weight : 'a weight_query -> ('a,'b) Pathexpr.omega_algebra -> 'b

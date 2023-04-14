@@ -93,7 +93,12 @@ module Make
 
   let get_summary q (u, v) = 
     WG.RecGraph.get_summary q (u, v)
+  
+  let inter_path_summary = WG.RecGraph.inter_path_summary
 
+  let intra_path_summary = WG.RecGraph.intra_path_summary 
+  
+  
   let label_algebra =
     let add x y = match x, y with
       | Weight x, Weight y -> Weight (T.add x y)
