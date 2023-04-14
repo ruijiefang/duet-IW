@@ -742,50 +742,44 @@ let make_ts_assertions_unreachable (ts : cfg_t) assertions =
       new_vertices := u :: !new_vertices 
   ); !pts, !new_vertices
 
-module ProcedureRefinements = 
-  struct
-    type t = {
-      mutable preconditions : state_formula ProcMap.t;
-      mutable postconditions : state_formula ProcMap.t 
-    }
+module Summarizer = 
+  struct 
+      type t = {
+        graph: cfg_t;
+        src: int;
+        query: TS.query
+      }
 
-    let init () = ref { preconditions = ProcMap.empty; postconditions = ProcMap.empty }
+      let init (graph: cfg_t) (src: int) =
+        let q = mk_query graph src in  
+        ref { graph = graph; src = src; query = q; }
 
-    let refine_precondition (conditions: t ref) (proc_name: ProcName.t) (s : state_formula) = 
-      match ProcMap.find_opt proc_name !conditions.preconditions with 
-      | Some pre -> 
-        !conditions.preconditions <- ProcMap.add proc_name (Syntax.mk_and srk [pre ; s]) !conditions.preconditions 
-      | None -> 
-        !conditions.preconditions <- ProcMap.add proc_name s !conditions.preconditions
-    
-    let refine_postcondition (conditions: t ref) (proc_name: ProcName.t) (s : state_formula) = 
-      let conditions = !conditions in 
-      match ProcMap.find_opt proc_name conditions.preconditions with 
-      | Some pre -> 
-        conditions.postconditions <- ProcMap.add proc_name (Syntax.mk_and srk [pre ; s]) conditions.postconditions 
-      | None -> 
-        conditions.postconditions <- ProcMap.add proc_name s conditions.postconditions
-    
-    let get_precondition (conditions: t ref) (proc_name: ProcName.t) = ProcMap.find_opt proc_name !conditions.preconditions 
-    let get_postcondition (conditions: t ref) (proc_name: ProcName.t) = ProcMap.find_opt proc_name !conditions.postconditions 
-    
-    (* different from just mk_query, first plug in all the refined procedure summary conditions before querying. *)
-    let mk_query (conditions: t ref) (ts: cfg_t) (src: int) = 
-      let query = mk_query ts src in 
-      ProcMap.iter (fun proc pre -> 
-        let original_summary = TS.get_summary query proc in 
-        let new_summary = K.mul (K.assume pre) original_summary in 
-        TS.set_summary query proc new_summary) !conditions.preconditions;
-      ProcMap.iter (fun proc post -> 
-        let original_summary = TS.get_summary query proc in 
-        let new_summary = K.mul original_summary (K.assume post) in 
-        TS.set_summary query proc new_summary) !conditions.postconditions;
-      query
-    
-    let interproc_weight (conditions: t ref) (ts: cfg_t) ((u, v) : int*int) = 
-      let q = mk_query conditions ts u in 
-      let w = TS.get_summary q (u, v) in 
-        log_weights "interproc_weight: weight" [w]; w
+
+      let proc_summary (ctx: t ref) ((u, v) : int * int) = 
+        let q = !ctx.query in 
+          TS.get_summary q (u, v)
+      
+      let set_proc_summary (ctx: t ref) ((u, v): int * int) (w: K.t) = 
+        let q = !ctx.query in 
+          TS.set_summary q (u, v) w
+      
+      let refine_precondition (ctx: t ref) ((u, v): int * int) (s: state_formula) = 
+        let w = proc_summary ctx (u, v) in 
+        let w' = K.mul (K.assume s) w in 
+        set_proc_summary ctx (u, v) w' 
+      
+      let refine_postcondition (ctx: t ref) ((u, v): int * int) (s: state_formula) = 
+        let w = proc_summary ctx (u, v) in 
+        let w' = K.mul w (K.assume s) in 
+        set_proc_summary ctx (u, v) w' 
+
+      let path_weight_intra (ctx: t ref) (src: int) (dst: int) = 
+        let q = !ctx.query in 
+          TS.intra_path_summary q src dst
+      
+      let path_weight_inter (ctx: t ref) (src: int) (dst: int) = 
+        let q = !ctx.query in 
+          TS.inter_path_summary q src dst 
   end
 
 (** reachability tree module *)
@@ -810,7 +804,7 @@ module ReachTree = struct
     mutable precedent_nodes : (ISet.t) IntMap.t;
     mutable models : (Ctx.t Interpretation.interpretation) IntMap.t;
     mutable edge_weight_substitutes : K.t ProcMap.t;
-    interproc : ProcedureRefinements.t ref
+    interproc : Summarizer.t ref
   }
 
   let make (g: cfg_t) (entry: int) (err_loc: int) (pre: state_formula) (post: state_formula) interproc = 
@@ -887,7 +881,7 @@ module ReachTree = struct
       | Weight w ->
         K.mul (K.mul prefix w) suffix 
       | Call (u, v) ->
-        let w = ProcedureRefinements.interproc_weight (t.interproc) t.graph (u, v) in 
+        let w = Summarizer.proc_summary (t.interproc) (u, v) in 
         K.mul (K.mul prefix w) suffix
       end 
 
@@ -1044,7 +1038,7 @@ module ReachTree = struct
           let weight =
             match weight with 
             | Weight w -> w
-            | Call (u, v) -> ProcedureRefinements.interproc_weight !art.interproc !art.graph (u, v)  in 
+            | Call (u, v) -> Summarizer.proc_summary !art.interproc (u, v)  in 
           begin match K.get_post_model ~solver:(solver) m weight with 
           | Some y_model -> 
             let new_vtx = add_tree_vertex art ~model:y_model y v in  
@@ -1081,7 +1075,7 @@ module McMillanChecker = struct
   and global_context = {
       mode: mc_mode;
       solver: Ctx.t Srk.Smt.Solver.t; (** persistent solver state object, prevents Z3 from allocating per SMT call *)
-      interproc: ProcedureRefinements.t ref;
+      interproc: Summarizer.t ref;
   }
   (* mode of McMillan's algorithm: plain, or CRA-fueled concolic mode *)
   and mc_mode = 
@@ -1102,20 +1096,20 @@ module McMillanChecker = struct
       art = ReachTree.make ts entry err_loc pre_state post_state !gctx.interproc;
       global_ctx = gctx;
     }
-  and mk_mc_context (start_mode: mc_mode) = 
+  and mk_mc_context (start_mode: mc_mode) (global_cfg: cfg_t) (global_src: int) = 
     ref {
       mode = start_mode; 
       solver = Smt.mk_solver Ctx.context;
-      interproc = (ProcedureRefinements.init ());
+      interproc = (Summarizer.init global_cfg global_src);
     }
 
   (** some helper methods *)
   let worklist_push  (i : int) (q : idq_t) = DQ.cons i q 
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
-  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (src : int) (sink : int) = 
-    let query = ProcedureRefinements.mk_query !art.interproc !art.graph (ReachTree.maps_to art src) in 
-    let post_path_summary = TS.path_weight query sink |> K.guard in
+  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
+    let query = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
+    let post_path_summary = query |> K.guard in
     let initial_path_weights = ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_formulas "interpolate: abstract suffix formula: " [post_path_summary];
@@ -1240,7 +1234,7 @@ module McMillanChecker = struct
   (* refine path to (tree) node v. 
      Returns `Failure trans with trans being the path-to-error if unable to refine.
      Returns `Success if refine is able to refine. *)
-  let mc_refine (ctx: intra_context ref) (v: int) = 
+  let mc_refine (ctx: intra_context ref) (recurse_level: int) (v: int) = 
     let handle_failure art v = 
       logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
       let path_condition = ReachTree.path_condition art v 
@@ -1266,7 +1260,7 @@ module McMillanChecker = struct
         end 
       | ConcolicMcMillan -> 
         begin 
-          match interpolate_or_get_model ~solver:(get_solver ctx) art v !art.err_loc with 
+          match interpolate_or_get_model ~solver:(get_solver ctx) art recurse_level v !art.err_loc with 
           `Invalid v_model -> 
             logf ~level:`always "Unable to refine but got model\n";
             !art.models <- IntMap.add v v_model !art.models;
@@ -1389,7 +1383,7 @@ module McMillanChecker = struct
               `Continue 
             | false -> (* u is uncovered. *)
               if (ReachTree.maps_to !ctx.art u) == !(!ctx.art).err_loc then 
-                begin match mc_refine ctx u with 
+                begin match mc_refine ctx 0 u with 
                   | `Success -> 
                     logf ~level:`always " refinement result: SUCCESS\n";
                     (* for every node along path of refinement try close *)
@@ -1471,7 +1465,7 @@ module McMillanChecker = struct
       end
     | None -> failwith "err: concolic_phase is reading from empty execution worklist" (* cannot happen *)
 
-  let refinement_phase (ctx: intra_context ref) = 
+  let refinement_phase (ctx: intra_context ref) (recurse_level: int) = 
     match DQ.front (!ctx.worklist) with 
     | Some (u, w) -> 
       log_art ctx;
@@ -1486,7 +1480,7 @@ module McMillanChecker = struct
               `Continue
             end   
           else (* u is uncovered. *)
-            begin match mc_refine ctx u with 
+            begin match mc_refine ctx recurse_level u with 
             | `Success -> (* refinement succeeded *)
               logf ~level:`always "refinement_phase: refinement succeeded\n";
               (* for every node along path of refinement try close *)
@@ -1509,7 +1503,7 @@ module McMillanChecker = struct
 
 
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
-  let rec handle_path_to_error (ctx: intra_context ref) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
+  let rec handle_path_to_error (ctx: intra_context ref) (recurse_level: int) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
     let art = !ctx.art in 
     let _ = reset_solver ctx in 
     let _ = ReachTree.reset_substitute_map art in 
@@ -1533,14 +1527,14 @@ module McMillanChecker = struct
                 K.mul (K.assume (!art.pre_state)) prefix |> to_formula in 
               let post_cond = 
                 K.mul suffix (K.assume (!art.post_state)) |> to_formula in 
-                ProcedureRefinements.refine_precondition (!art.interproc) (call_entry, call_exit) pre_cond;
-                ProcedureRefinements.refine_postcondition (!art.interproc) (call_entry, call_exit) post_cond;
+                Summarizer.refine_precondition (!art.interproc) (call_entry, call_exit) pre_cond;
+                Summarizer.refine_postcondition (!art.interproc) (call_entry, call_exit) post_cond;
             in begin match K.extrapolate prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
                 (* instantiate interprocedural reachability query *)
                 let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph e1 e2 call_entry call_exit in 
-                begin match concolic_mcmillan_execute ctx' with 
+                begin match concolic_mcmillan_execute ctx' (recurse_level + 1) with 
                   | Safe -> 
                     logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute failed. refining\n";
                     (* concretization of error trace failed. do refine *)
@@ -1570,7 +1564,7 @@ module McMillanChecker = struct
         `Failure v  (* otherwise, we've encountered a concretization failure*)
 
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
-  and concolic_mcmillan_execute (ctx: intra_context ref) : mc_result = 
+  and concolic_mcmillan_execute (ctx: intra_context ref) (recurse_level: int) : mc_result = 
     let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     let continue = ref true in 
     let state = ref `Continue in
@@ -1582,7 +1576,7 @@ module McMillanChecker = struct
           begin match concolic_phase ctx with 
           | `ErrorReached w -> 
             logf ~level:`always "--- concolic_mcmillan_execute: found path-to-error at vertex %d \n" w;
-            begin match handle_path_to_error ctx w with 
+            begin match handle_path_to_error ctx recurse_level w with 
             | `Failure vtx -> 
               (* refine and blow away the tree at vertex vtx. *)
               logf ~level:`always "--- concolic_mcmillan_execute: blowing away tree at vertex %d" vtx;
@@ -1599,7 +1593,7 @@ module McMillanChecker = struct
           end
         end else begin 
           (* refinement phase *)
-          state := refinement_phase ctx
+          state := refinement_phase ctx recurse_level
         end
       done; 
       match !state with 
@@ -1613,7 +1607,7 @@ module McMillanChecker = struct
     * vtxcnt (keeps track of largest unused vertex number in tree), 
     * ptt is a pointer to the reachability tree.
     *)
-    let global_context = mk_mc_context mode in 
+    let global_context = mk_mc_context mode ts entry in 
     match mode with 
     | PlainMcMillan -> 
       logf ~level:`always "executing plain mcmillan's algorithm\n";
@@ -1622,7 +1616,7 @@ module McMillanChecker = struct
     | ConcolicMcMillan -> 
       logf ~level:`always "executing concolic mcmillan's algorithm\n";
       let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
-        concolic_mcmillan_execute main_context
+        concolic_mcmillan_execute main_context 0
   end
 
 
