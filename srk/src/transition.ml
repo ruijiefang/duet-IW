@@ -342,7 +342,7 @@ struct
 
   let get_post_model ?(solver=Smt.mk_solver C.context) m f = 
     logf ~level:`always "pre_state model: \n";
-    logf ~level:` always "model is %a\n" Interpretation.pp m;
+    logf ~level:`always "model is %a\n" Interpretation.pp m;
     let _ = Smt.Solver.reset solver in 
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 

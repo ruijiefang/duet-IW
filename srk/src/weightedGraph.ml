@@ -521,6 +521,11 @@ module RecGraph = struct
   type query =
     { recgraph : t;
 
+      (* The instrumented graph retains the path_graph of recgraph as a
+         subgraph, and for each call-edge (u,v) to target procedure (src,tgt),
+         adds an edge (u, src) to the target procedure. *)
+      instrumented_graph : Pathexpr.simple Pathexpr.t weighted_graph;
+
       (* The intraprocedural path graph has an edge u->v for
          each entry vertex u and each vertex v reachable from u,
          weighted with a path expression for the paths from u to v. *)
@@ -594,7 +599,14 @@ module RecGraph = struct
       |> VertexSet.elements
     in
     let intraproc_paths = msat_path_weight rg.path_graph sources in
-    let interproc =
+    let instrumented_edges = 
+      M.fold (fun (u, _) (entry, _) acc -> 
+          (u,entry) :: acc
+        ) rg.call_edges []
+    in let instrumented_graph = 
+      List.fold_left (fun acc (u, src) -> 
+        add_edge acc u (Pathexpr.mk_one rg.context) src) rg.path_graph instrumented_edges
+    in let interproc =
       let intraproc_paths = edge_weight intraproc_paths in
       List.fold_left (fun interproc_graph src ->
           fold_reachable_edges (fun u v interproc_graph ->
@@ -612,6 +624,7 @@ module RecGraph = struct
         sources
     in
     { recgraph = rg;
+      instrumented_graph = instrumented_graph;
       intraproc_paths = intraproc_paths;
       interproc = interproc;
       interproc_paths = msat_path_weight interproc [src];
@@ -743,9 +756,9 @@ module RecGraph = struct
 
   let inter_path_summary (wq: 'a weight_query) src tgt = 
     let q = wq.query in 
-    let g = q.interproc in 
+    let g = q.instrumented_graph in 
     let (table, algebra) = prepare wq in 
-    Pathexpr.eval_nested ~table ~algebra (path_weight g src tgt) 
+    Pathexpr.eval ~table ~algebra (path_weight g src tgt) 
   
   let path_weight query tgt =
     let (table, algebra) = prepare query in

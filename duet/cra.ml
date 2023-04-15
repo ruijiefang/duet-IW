@@ -763,21 +763,17 @@ module Summarizer =
         let q = !ctx.query in 
           TS.set_summary q (u, v) w
       
-      let refine_precondition (ctx: t ref) ((u, v): int * int) (s: state_formula) = 
+      let refine (ctx: t ref) ((u, v): int * int) (pre: state_formula) (post: state_formula) =
         let w = proc_summary ctx (u, v) in 
-        let w' = K.mul (K.assume s) w in 
-        set_proc_summary ctx (u, v) w' 
-      
-      let refine_postcondition (ctx: t ref) ((u, v): int * int) (s: state_formula) = 
-        let w = proc_summary ctx (u, v) in 
-        let w' = K.mul w (K.assume s) in 
-        set_proc_summary ctx (u, v) w' 
+        let w_pre = K.mul (K.assume (Syntax.mk_not srk pre)) w in 
+        let w_post = K.mul w (K.assume (Syntax.mk_not srk post)) in 
+        K.add w_pre w_post |> set_proc_summary ctx (u, v)
 
-      let path_weight_inter (ctx: t ref) (src: int) (dst: int) = 
+      let path_weight_intra (ctx: t ref) (src: int) (dst: int) = 
         let q = !ctx.query in 
           TS.intra_path_summary q src dst
       
-      let path_weight_intra (ctx: t ref) (src: int) (dst: int) = 
+      let path_weight_inter (ctx: t ref) (src: int) (dst: int) = 
         let q = !ctx.query in 
           TS.inter_path_summary q src dst 
   end
@@ -870,19 +866,22 @@ module ReachTree = struct
   let maps_to (art : t ref) (i : int) = IntMap.find i !art.cfg_vertex 
 
   (* [ew t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
-  let edge_weight (art : t ref) u v = 
+  let cfg_edge_weight (art : t ref) cfg_u cfg_v = 
     let t = !art in 
-    let suffix = if v = t.err_loc then K.assume t.post_state else K.one in 
-    let prefix = if u = t.entry then K.assume  t.pre_state else K.one in 
-    match ProcMap.find_opt (u, v) t.edge_weight_substitutes with 
-    | Some w -> w 
+    let suffix = if cfg_v = t.err_loc then K.assume t.post_state else K.one in 
+    let prefix = if cfg_u = t.entry then K.assume  t.pre_state else K.one in 
+    match ProcMap.find_opt (cfg_u, cfg_v) t.edge_weight_substitutes with 
+    | Some w -> 
+      w 
     | None -> 
-      begin match WG.edge_weight t.graph u v with  
+      begin match WG.edge_weight t.graph cfg_u cfg_v with  
       | Weight w ->
         K.mul (K.mul prefix w) suffix 
       | Call (u, v) ->
-        let w = Summarizer.proc_summary (t.interproc) (u, v) in 
-        K.mul (K.mul prefix w) suffix
+        let w = Summarizer.proc_summary (t.interproc) (u, v) in
+        let full_weight = K.mul (K.mul prefix w) suffix in 
+        log_weights (Printf.sprintf "******* retrieving summary for %d,%d *****\n" u v) [w; full_weight];
+        full_weight
       end 
 
   (* [tree_path t u] returns list of tree nodes that form the corrsp. tree path from root of t to tree node u *)
@@ -966,9 +965,9 @@ module ReachTree = struct
       let rec (%<*-) (art: t ref) (u : int) =
         let v = parent art u in 
         begin if (v = cutoff) || (v = 0) then 
-          [ edge_weight art (maps_to art cutoff) (maps_to art u) ]
+          [ cfg_edge_weight art (maps_to art cutoff) (maps_to art u) ]
         else 
-         edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
+         cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
         end 
       in let ews = List.rev (art %<*- u) 
       in 
@@ -1249,7 +1248,7 @@ module McMillanChecker = struct
       match !(get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
         begin 
-        match K.interpolate ~solver:(get_solver ctx) ((K.assume (!art.pre_state)) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
+        match K.interpolate ~solver:(get_solver ctx) (path_condition) (Syntax.mk_not srk !art.post_state) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
@@ -1271,6 +1270,7 @@ module McMillanChecker = struct
             handle_failure art v
           | `Unknown -> failwith ""
           | `Valid interpolants -> 
+            logf ~level:`always "--- mc_refine: interpolation succeeded. path length %d, interpolant length %d" (List.length path) (List.length interpolants);
             mc_refine_with_interpolants ctx path interpolants; 
             `Success 
         end
@@ -1536,15 +1536,16 @@ module McMillanChecker = struct
             let (w, (call_entry, call_exit), z) = curr_call in 
             let prefix = ReachTree.path_condition art w |> seq in 
             let suffix = ReachTree.path_condition art ~cutoff:z err_leaf |> seq in 
-            let summary = ReachTree.edge_weight art w z in 
+            let summary = 
+              logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
+              ReachTree.cfg_edge_weight art (ReachTree.maps_to art w) (ReachTree.maps_to art z) in 
             (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
             let refine_summary () = 
               let pre_cond = 
                 K.mul (K.assume (!art.pre_state)) prefix |> to_formula in 
               let post_cond = 
                 K.mul suffix (K.assume (!art.post_state)) |> to_formula in 
-                Summarizer.refine_precondition (!art.interproc) (call_entry, call_exit) pre_cond;
-                Summarizer.refine_postcondition (!art.interproc) (call_entry, call_exit) post_cond;
+                Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond
             in begin match K.extrapolate prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
