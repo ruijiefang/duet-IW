@@ -961,7 +961,8 @@ module ReachTree = struct
           | Call (a, b) -> (n, (a, b), u) :: (f p)
           | _ -> f p 
           end
-    in f v |> List.rev 
+    in 
+      if v = 0 then [] else f v |> List.rev 
 
   (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
   (* the list of precedent nodes for a cfg vertex is a list of tree nodes which map to the same cfg location, ordered by < on integers. *)
@@ -981,18 +982,22 @@ module ReachTree = struct
     end else 
       let rec (%<*-) (art: t ref) (u : int) =
         let v = parent art u in 
-        begin if (v = 0) then 
+        begin if (v = 0) then begin 
+          logf ~level:`always "path_condition: v = 0 case triggered \n";
           [ cfg_edge_weight art (maps_to art 0) (maps_to art u) ; K.assume (!art.pre_state) ]
-        else 
-          begin if (v = cutoff) then 
-            begin if (maps_to art v = !art.err_loc) then 
+        end else 
+          begin if (v = cutoff) then (* v=0 case is already handled above *)
+            begin if (maps_to art u = !art.err_loc) then begin 
+              logf ~level:`always "path_condition: v = err_loc case triggered \n";
               [K.assume (!art.post_state) ; (cfg_edge_weight art (maps_to art cutoff) (maps_to art u))]
-            else
+            end else
             [ cfg_edge_weight art (maps_to art cutoff) (maps_to art u) ]
             end
           else 
-              begin if (maps_to art v = !art.err_loc) then 
-                (K.assume (!art.post_state)) :: (cfg_edge_weight art (maps_to art v) (maps_to art u)) :: (art %<*- v)
+              begin if (maps_to art u = !art.err_loc) then 
+              begin 
+                logf ~level:`always "path_condition: v = err_loc case triggered \n";
+                (K.assume (!art.post_state)) :: (cfg_edge_weight art (maps_to art v) (maps_to art u)) :: (art %<*- v) end
               else
                 cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
               end 
@@ -1000,7 +1005,7 @@ module ReachTree = struct
         end 
       in let ews = List.rev (art %<*- u) 
       in 
-      logf ~level:`always "path_condition call terminated [%d]\n" u;
+      logf ~level:`always "path_condition call terminated [%d, maps_to %d, err_loc %d]\n" u (maps_to art u) (!art.err_loc);
       ews 
 
   let get_id (art : t ref) = 
@@ -1622,8 +1627,8 @@ module McMillanChecker = struct
 
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
   and concolic_mcmillan_execute (ctx: intra_context ref) (recurse_level: int) : mc_result = 
-    logf ~level:`always "recurse_level: %d\n" recurse_level;
-    if recurse_level > 1 then failwith "failing because recursive level > 1";
+    logf ~level:`always " *********************************************** recurse_level: %d\n" recurse_level;
+    if recurse_level > 3 then failwith "failing because recursive level > 1";
     let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     let continue = ref true in 
     let state = ref `Continue in
