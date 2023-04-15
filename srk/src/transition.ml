@@ -634,7 +634,7 @@ struct
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
           `Sat (ex1, ex2) 
-      | _ -> `Unsat 
+      | _ -> failwith "extrapolate failed!!!" (*`Unsat*) 
 
   let valid_triple phi path post =
     let path_not_post = List.fold_right mul path (assume (mk_not srk post)) in

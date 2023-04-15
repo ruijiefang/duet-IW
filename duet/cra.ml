@@ -811,23 +811,38 @@ module ReachTree = struct
       pre_state = pre;
       post_state = post;
       vtxcnt = 0;
-      cfg_vertex = IntMap.empty;
-      parents = IntMap.empty; 
-      labels = IntMap.empty;
-      free_ids = DQ.empty;
-      children = IntMap.empty;
+      cfg_vertex = IntMap.empty; (** ok *)
+      parents = IntMap.empty;  (** ok *)
+      labels = IntMap.empty; (** ok *)
+      free_ids = DQ.empty; (** ok *)
+      children = IntMap.empty; (***)
       covers =  IntMap.empty;
-      reverse_covers = IntMap.empty;
-      precedent_nodes = IntMap.empty;
-      models = IntMap.empty;
+      reverse_covers = IntMap.empty;(** ok *) 
+      precedent_nodes = IntMap.empty; (** ok *)
+      models = IntMap.empty; (** ok *)
       edge_weight_substitutes = ProcMap.empty;
       interproc = interproc
     }
+
+  let print_tree (art: t ref) indent v = 
+    let rec print_tree_ (art: t ref) indent v = 
+      logf ~level:`always "%s|" indent;
+      logf ~level:`always "%s+-%d(%d)" indent v (IntMap.find v !art.cfg_vertex);
+      List.iter (fun x -> print_tree_ art (indent^" ") x) (IntMap.find_default [] v !art.children)
+    in logf ~level:`always "*"; print_tree_ art indent v
+
   (* blow up subtree at v *)
-  let rec blowup (art : t ref) (v : int) =
+  let rec blowup ?(indent="") (art : t ref) (v : int) =
+    let _ = logf ~level:`always "%sblowup: tree node %d \n" indent v in 
+    let _ = print_tree art indent v in 
     let t = !art in  
     let v_children = IntMap.find_default [] v t.children in 
     let v_mapsto = IntMap.find v t.cfg_vertex in 
+    let v_parent = IntMap.find v t.parents in 
+    (* see if we need to delete v from list of children in its parents. *)
+    IntMap.find v_parent !art.children 
+    |> List.filter (fun x -> not (x = v)) 
+    |> fun x -> (!art.children <- IntMap.add v_parent x !art.children);
     (* first put v on the free ids list *)
     t.free_ids <- DQ.cons v t.free_ids;
     (* disassociate v with all data structures *)    
@@ -856,7 +871,7 @@ module ReachTree = struct
         t.covers <- IntMap.remove y t.covers) v_coverers
     | None -> (); (* in this case we're done. *)
     (* finally, do recursive deletion *)
-    List.iter (fun child -> blowup art child) v_children
+    List.iter (fun child -> blowup ~indent:(indent^" ") art child) v_children
 
 
   (*  [t %^ i]: get parent of node i in tree t.  *)
@@ -865,23 +880,23 @@ module ReachTree = struct
   (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
   let maps_to (art : t ref) (i : int) = IntMap.find i !art.cfg_vertex 
 
-  (* [ew t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
+  (* [cfg_edge_weight t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
+  (* ruijie: note that u, v refer to control-flow graph vertices but not art nodes. this may seem like
+     bad API design (I admit), but this was a legacy convention retained elsewhere in code, so we avoid
+     refactoring it for now as we don't want additional trouble. We also sometimes only have CFG locations
+     but not tree nodes, so weight-querying CFG locations is also more flexible. *)
   let cfg_edge_weight (art : t ref) cfg_u cfg_v = 
     let t = !art in 
-    let suffix = if cfg_v = t.err_loc then K.assume t.post_state else K.one in 
-    let prefix = if cfg_u = t.entry then K.assume  t.pre_state else K.one in 
     match ProcMap.find_opt (cfg_u, cfg_v) t.edge_weight_substitutes with 
     | Some w -> 
       w 
     | None -> 
       begin match WG.edge_weight t.graph cfg_u cfg_v with  
-      | Weight w ->
-        K.mul (K.mul prefix w) suffix 
+      | Weight w -> w
       | Call (u, v) ->
         let w = Summarizer.proc_summary (t.interproc) (u, v) in
-        let full_weight = K.mul (K.mul prefix w) suffix in 
-        log_weights (Printf.sprintf "******* retrieving summary for %d,%d *****\n" u v) [w; full_weight];
-        full_weight
+        log_weights (Printf.sprintf "******* retrieving summary for %d,%d *****\n" u v) [w];
+        w
       end 
 
   (* [tree_path t u] returns list of tree nodes that form the corrsp. tree path from root of t to tree node u *)
@@ -931,7 +946,7 @@ module ReachTree = struct
     !t.edge_weight_substitutes <- ProcMap.empty 
 
   (* returns a list of call-edges (from shallow to deep) along path from root-to-node v*)
-  (* call-edges are represented as 4-tuples: (node into call edge) -> callsite start -> callsite end -> (node out of call edge) *)
+  (* call-edges are represented as 4-tuples: (tree node into call edge) -> callsite start -> callsite end -> (tree node out of call edge) *)
   let calls_in_path (art: t ref) v = 
     let rec f u = 
       let p = parent art u in 
@@ -960,14 +975,28 @@ module ReachTree = struct
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
   (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
   let path_condition (art: t ref) ?(cutoff = 0) (u : int) = 
-    if u == 0 then [ K.assume !art.pre_state ]
-    else 
+    if u == 0 then begin 
+      logf ~level:`always "path_condition: querying root node path condition %d\n" u;
+      [ K.assume !art.pre_state ]
+    end else 
       let rec (%<*-) (art: t ref) (u : int) =
         let v = parent art u in 
-        begin if (v = cutoff) || (v = 0) then 
-          [ cfg_edge_weight art (maps_to art cutoff) (maps_to art u) ]
+        begin if (v = 0) then 
+          [ cfg_edge_weight art (maps_to art 0) (maps_to art u) ; K.assume (!art.pre_state) ]
         else 
-         cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
+          begin if (v = cutoff) then 
+            begin if (maps_to art v = !art.err_loc) then 
+              [K.assume (!art.post_state) ; (cfg_edge_weight art (maps_to art cutoff) (maps_to art u))]
+            else
+            [ cfg_edge_weight art (maps_to art cutoff) (maps_to art u) ]
+            end
+          else 
+              begin if (maps_to art v = !art.err_loc) then 
+                (K.assume (!art.post_state)) :: (cfg_edge_weight art (maps_to art v) (maps_to art u)) :: (art %<*- v)
+              else
+                cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
+              end 
+          end 
         end 
       in let ews = List.rev (art %<*- u) 
       in 
@@ -1031,6 +1060,10 @@ module ReachTree = struct
     List.rev !new_tree_nodes
 
   (* returns (new nodes on concolic worklist, new nodes on frontier worklist) *)
+  (* a newly expanded node (leaf) is deemed a _concolic node_ if it can inherit 
+     a post-state model from its parent by means of symbol substitution. It is deemed 
+     a _frontier node_ if concrete execution cannot reach it from its parent node. A 
+     frontier node does not have a model associated with it and is in need of refinement. *)
   let expand_concolic solver (art : t ref) (v: int) = 
     let vg = maps_to art v in 
     let new_concolic_nodes, new_frontier_nodes = ref [], ref [] in 
@@ -1062,7 +1095,7 @@ end
 (** Algebraic formulation of McMillan's algorithm. *)
 module McMillanChecker = struct
   (* to print the reachability tree (+ worklist), or not *) 
-  let print_tree = false
+  let print_tree = true
 
   (* contextual information maintained by McMillan-Checker. *)
   (* intraprocedural context *)
@@ -1112,7 +1145,7 @@ module McMillanChecker = struct
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
     let query = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
-    let post_path_summary = query |> K.guard in
+    let post_path_summary = K.mul query (K.assume (Syntax.mk_not srk !art.post_state)) |> K.guard in
     let initial_path_weights = ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_formulas "interpolate: abstract suffix formula: " [post_path_summary];
@@ -1266,6 +1299,7 @@ module McMillanChecker = struct
           match interpolate_or_get_model ~solver:(get_solver ctx) art recurse_level v !art.err_loc with 
           `Invalid v_model -> 
             logf ~level:`always "Unable to refine but got model\n";
+            (* for node v, since v is a frontier node, update art.models to store its corresponding model. *)
             !art.models <- IntMap.add v v_model !art.models;
             handle_failure art v
           | `Unknown -> failwith ""
@@ -1533,6 +1567,9 @@ module McMillanChecker = struct
       (fun result curr_call ->
         if result = `Unconcretized then 
           begin
+            (* w, z are tree nodes such that (art.maps_to w, art.maps_to z) is a call-edge to (call_entry, call_exit)
+               and (call_entry, call_exit) refer to cfg vertex locations delineating the procedure entry/exit in the 
+               recursive control flow graph. *)
             let (w, (call_entry, call_exit), z) = curr_call in 
             let prefix = ReachTree.path_condition art w |> seq in 
             let suffix = ReachTree.path_condition art ~cutoff:z err_leaf |> seq in 
@@ -1557,7 +1594,10 @@ module McMillanChecker = struct
                     (* concretization of error trace failed. do refine *)
                       (* declare failure *)
                       refine_summary ();
-                      `Failure w 
+                      (* return the dst vertex of the call-edge (w,z) as frontier node for refinement. *)
+                      (* a frontier node is a node that cannot be reached by means of concrete execution from its parent, 
+                         and here our interprocedural definition is the same. *)
+                      `Failure z (* z is the dst vertex of call-edge (w, (call_entry, call_exit), z) *)
                   | Unsafe tr -> 
                     logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path\n";
                        ReachTree.substitute_edge_weight art (w, z) (tr |> seq); 
@@ -1582,6 +1622,8 @@ module McMillanChecker = struct
 
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
   and concolic_mcmillan_execute (ctx: intra_context ref) (recurse_level: int) : mc_result = 
+    logf ~level:`always "recurse_level: %d\n" recurse_level;
+    if recurse_level > 1 then failwith "failing because recursive level > 1";
     let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     let continue = ref true in 
     let state = ref `Continue in
@@ -1594,13 +1636,16 @@ module McMillanChecker = struct
           | `ErrorReached w -> 
             logf ~level:`always "--- concolic_mcmillan_execute: found path-to-error at vertex %d \n" w;
             begin match handle_path_to_error ctx recurse_level w with 
-            | `Failure vtx -> 
-              (* refine and blow away the tree at vertex vtx. *)
-              logf ~level:`always "--- concolic_mcmillan_execute: blowing away tree at vertex %d" vtx;
-              let children = ReachTree.children !ctx.art vtx in 
-              List.iter (fun child -> ReachTree.blowup !ctx.art child) children;
-              !ctx.worklist <- worklist_push vtx !ctx.worklist;
-              continue := true
+            | `Failure frontier_node -> (* path-to-error concretization failed. frontier_node is the src node of a call-edge. *)
+              (* refine and blow away the tree at `frontier_node`. *)
+              logf ~level:`always "--- concolic_mcmillan_execute: frontier node is %d\n" frontier_node;
+              let children = ReachTree.children !ctx.art frontier_node in 
+                (* blow away children of tree node `frontier_node`. *)
+                List.iter (fun child -> 
+                  logf ~level:`always " --- concolic_mcmillan_execute: blowing away subtree at child node %d \n" child;                  
+                  ReachTree.blowup !ctx.art child) children;
+                !ctx.worklist <- worklist_push frontier_node !ctx.worklist;
+                continue := true
             | `Concretized pathcond ->  
               logf ~level:`always "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
               state := `Concretized (pathcond);
