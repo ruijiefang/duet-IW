@@ -976,31 +976,19 @@ module ReachTree = struct
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
   (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
   let path_condition (art: t ref) ?(cutoff = 0) (u : int) = 
-    if u == 0 then begin 
-      logf ~level:`always "path_condition: querying root node path condition %d\n" u;
-      [ K.assume !art.pre_state ]
-    end else 
+    if u == 0 then 
+      [ ]
+    else 
       let rec (%<*-) (art: t ref) (u : int) =
         let v = parent art u in 
         begin if (v = 0) then begin 
           logf ~level:`always "path_condition: v = 0 case triggered \n";
-          [ cfg_edge_weight art (maps_to art 0) (maps_to art u) ; K.assume (!art.pre_state) ]
+          [ cfg_edge_weight art (maps_to art 0) (maps_to art u)  ]
         end else 
           begin if (v = cutoff) then (* v=0 case is already handled above *)
-            begin if (maps_to art u = !art.err_loc) then begin 
-              logf ~level:`always "path_condition: v = err_loc case triggered \n";
-              [K.assume (!art.post_state) ; (cfg_edge_weight art (maps_to art cutoff) (maps_to art u))]
-            end else
             [ cfg_edge_weight art (maps_to art cutoff) (maps_to art u) ]
-            end
           else 
-              begin if (maps_to art u = !art.err_loc) then 
-              begin 
-                logf ~level:`always "path_condition: v = err_loc case triggered \n";
-                (K.assume (!art.post_state)) :: (cfg_edge_weight art (maps_to art v) (maps_to art u)) :: (art %<*- v) end
-              else
-                cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
-              end 
+            cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
           end 
         end 
       in let ews = List.rev (art %<*- u) 
@@ -1151,18 +1139,10 @@ module McMillanChecker = struct
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
     let query = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
     let post_path_summary = K.mul query (K.assume (Syntax.mk_not srk !art.post_state)) |> K.guard in
-    let initial_path_weights = ReachTree.path_condition art src in 
+    let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_formulas "interpolate: abstract suffix formula: " [post_path_summary];
     K.interpolate_or_concrete_model ~solver:solver initial_path_weights post_path_summary 
-  
-
-  let get_initial_abstract_model ?(solver=Smt.mk_solver srk) (src : int) (sink : int) (graph : cfg_t) = 
-    let query = mk_query graph src in 
-    let path = TS.path_weight query sink in 
-    let path_condition = K.guard path in 
-    let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
-      Smt.get_concrete_model Ctx.context ~solver:(solver) path_condition_symbols path_condition 
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
   let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
@@ -1576,17 +1556,15 @@ module McMillanChecker = struct
                and (call_entry, call_exit) refer to cfg vertex locations delineating the procedure entry/exit in the 
                recursive control flow graph. *)
             let (w, (call_entry, call_exit), z) = curr_call in 
-            let prefix = ReachTree.path_condition art w |> seq in 
-            let suffix = ReachTree.path_condition art ~cutoff:z err_leaf |> seq in 
+            let prefix = K.assume (!art.pre_state) :: ReachTree.path_condition art w |> seq in 
+            let suffix = ((ReachTree.path_condition art ~cutoff:z err_leaf) @ [K.assume (!art.post_state)]) |> seq in 
             let summary = 
               logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
               ReachTree.cfg_edge_weight art (ReachTree.maps_to art w) (ReachTree.maps_to art z) in 
             (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
             let refine_summary () = 
-              let pre_cond = 
-                K.mul (K.assume (!art.pre_state)) prefix |> to_formula in 
-              let post_cond = 
-                K.mul suffix (K.assume (!art.post_state)) |> to_formula in 
+              let pre_cond = prefix |> to_formula in 
+              let post_cond = suffix |> to_formula in 
                 Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond
             in begin match K.extrapolate prefix summary suffix with 
               | `Sat (e1, e2) -> 
