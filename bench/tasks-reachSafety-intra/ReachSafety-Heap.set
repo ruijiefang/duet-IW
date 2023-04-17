@@ -1,0 +1,12 @@
+# Contains tasks that require the analysis of data structures on the heap, pointer aliases, and function pointers.
+heap-manipulation/*.yml
+list-properties/*.yml
+ldv-regression/*.yml
+ddv-machzwd/*.yml
+forester-heap/*.yml
+list-ext-properties/*.yml
+list-ext2-properties/*.yml
+ldv-sets/*.yml
+list-simple/*.yml
+heap-data/*.yml
+list-ext3-properties/*.yml
