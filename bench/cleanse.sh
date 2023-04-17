@@ -14,6 +14,14 @@ for file in `ls | grep "\.c"`; do
     rm $file;
     echo "deleting ${file%.c}.yml..."
     rm -- "${file%.c}.yml"
+  elif [[ "$out" == *"Floats:    True"* ]]; then
+    echo "floats use found; delete?"
+    read inp;
+    echo "deleting "$file"..."
+    rm $file;
+    echo "deleting ${file%.c}.yml..."
+    rm -- "${file%.c}.yml"
   fi
+
 done 
 

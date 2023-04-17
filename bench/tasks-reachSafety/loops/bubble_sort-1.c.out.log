@@ -1,9 +1,0 @@
-+ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic bubble_sort-1.c
-sh: 1: eog: not found
-
-entry: 227
-bubble_sort-1.c:60: Warning: Variable-sized local variable a
-
-real	0m1.756s
-user	0m1.782s
-sys	0m0.135s
