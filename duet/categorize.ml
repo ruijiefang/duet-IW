@@ -23,7 +23,10 @@ let categorize file =
         try
           file |> CfgIr.iter_defs (fun def ->
                       match def.dkind with
-                      | Store (_, _) -> raise Not_found
+                      | Builtin (Exit) -> ()
+                      | Builtin _ -> Printf.printf "builtin alloc\n"; raise Not_found
+                      | AssertMemSafe _ -> Printf.printf "assertMemSafe\n"; raise Not_found 
+                      | Store (_, _) -> Printf.printf "store\n"; raise Not_found
                       | _ -> ());
           false
         with Not_found -> true
