@@ -1,0 +1,17 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic veris.c_NetBSD-libc_loop.c
+ Adding assertion node 17 -> 35 for label (0): 
+!(p <= tmp)
+sh: 1: eog: not found
+
+entry: 7
+testing reachability of location 35
+------------------------------
+getting initial abstract model...
+good. continuing...
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.540s
+user	0m0.569s
+sys	0m0.107s

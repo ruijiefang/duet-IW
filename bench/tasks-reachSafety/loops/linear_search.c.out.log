@@ -1,0 +1,18 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic linear_search.c
+ Adding assertion node 12 -> 75 for label (0): 
+tmp___1 = 0
+sh: 1: eog: not found
+
+entry: 62
+testing reachability of location 75
+------------------------------
+getting initial abstract model...
+good. continuing...
+linear_search.c:27: Warning: Body of function main falls-through. Adding a return statement
+Fatal error: exception Invalid_argument("evaluate_term: no interpretation for constant symbol")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.711s
+user	0m0.737s
+sys	0m0.109s

@@ -1,0 +1,16 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic trex04.c
+ Adding assertion node 62 -> 123 for label (0): 
+!(x <= 0)
+sh: 1: eog: not found
+
+entry: 65
+testing reachability of location 123
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+trex04.c:47: Warning: Body of function main falls-through. Adding a return statement
+
+real	0m0.795s
+user	0m0.821s
+sys	0m0.122s

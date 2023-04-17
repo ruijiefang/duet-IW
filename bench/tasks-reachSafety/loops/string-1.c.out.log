@@ -1,0 +1,15 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic string-1.c
+ Adding assertion node 128 -> 156 for label (0): 
+tmp = 0
+sh: 1: eog: not found
+
+entry: 131
+testing reachability of location 156
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+
+real	0m1.021s
+user	0m1.048s
+sys	0m0.120s

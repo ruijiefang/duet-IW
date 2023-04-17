@@ -1,0 +1,17 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic veris.c_sendmail_tTflag_arr_one_loop.c
+ Adding assertion node 46 -> 57 for label (0): 
+!(0 <= i)
+sh: 1: eog: not found
+
+entry: 49
+testing reachability of location 57
+------------------------------
+getting initial abstract model...
+good. continuing...
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.611s
+user	0m0.634s
+sys	0m0.098s

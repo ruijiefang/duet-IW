@@ -1,0 +1,15 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic while_infinite_loop_3.c
+ Adding assertion node 4 -> 28 for label (0): 
+!(x = 0)
+sh: 1: eog: not found
+
+entry: 22
+testing reachability of location 28
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+
+real	0m0.464s
+user	0m0.517s
+sys	0m0.080s

@@ -1,0 +1,16 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic sum04-1.c
+ Adding assertion node 33 -> 39 for label (0): 
+tmp = 0
+sh: 1: eog: not found
+
+entry: 36
+testing reachability of location 39
+------------------------------
+getting initial abstract model...
+good. continuing...
+  proven unsafe
+sum04-1.c:19: Warning: Body of function main falls-through. Adding a return statement
+
+real	0m0.380s
+user	0m0.398s
+sys	0m0.046s

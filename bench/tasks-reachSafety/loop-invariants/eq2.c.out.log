@@ -1,0 +1,65 @@
++ timeout 60 /home/rjf/fast/duet-private//duet.exe -mcl-plain eq2.c
+forward inv gen...
+forward inv gen...
+forward inv gen...
+ Adding assertion node 23 -> 47 for label (0): 
+!(y = z)
+ Adding assertion node 37 -> 48 for label (0): 
+true
+digraph G {
+  "8";
+  "14";
+  "23";
+  "26";
+  "30";
+  "31";
+  "37";
+  "39";
+  "40";
+  "41";
+  "42";
+  "43";
+  "44";
+  "45";
+  "46";
+  "47";
+  "48";
+  
+  
+  "8" -> "46" [label="{when (0 < z:7 /\\ 0 < y:6 /\\ (-y:6 + z:7) = 0)}", ];
+  "14" -> "8" [label="{y := (y:6 + 1)\n z := (z:7 + 1)\n when !(tmp___0:5 = 0)}",
+               ];
+  "14" -> "23" [label="{when tmp___0:5 = 0}", ];
+  "23" -> "45" [label="{return := 0\n return@pos := type_err:10:11:13\n return@width := type_err:9:12:14\n when y:6 = z:7}",
+                ];
+  "23" -> "47" [label="{when !(y:6 = z:7)}", ];
+  "26" -> "8" [label="{y := (havoc:0 + 1)\n z := (havoc:0 + 1)\n when 0 <= havoc:0}",
+               ];
+  "30" -> "31" [label="{when !(cond:33 = 0)}", ];
+  "30" -> "41" [label="{when cond:33 = 0}", ];
+  "31" -> "44" [label="{return := havoc:34\n return@pos := type_err:36:37\n return@width := type_err:35:38}",
+                ];
+  "37" -> "43" [label="{when false}", ];
+  "37" -> "48" [label="{}", ];
+  "39" -> "37" [label="{}", ];
+  "40" -> "31" [label="{when false}", ];
+  "41" -> "40" [label="call(39, 43)", ];
+  "42" -> "30" [label="{cond := param0:41}", ];
+  "46" -> "14" [label="{tmp___0 := havoc:4\n when 0 <= havoc:4}", ];
+  
+  }
+entry: 26
+testing reachability of location 48
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+testing reachability of location 47
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+
+real	0m0.420s
+user	0m0.456s
+sys	0m0.077s

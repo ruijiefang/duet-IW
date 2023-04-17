@@ -1,0 +1,18 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic array-1.c
+ Adding assertion node 32 -> 42 for label (0): 
+!(menor <= tr)
+sh: 1: eog: not found
+
+entry: 35
+testing reachability of location 42
+------------------------------
+getting initial abstract model...
+good. continuing...
+array-1.c:17: Warning: Variable-sized local variable array
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.651s
+user	0m0.685s
+sys	0m0.095s

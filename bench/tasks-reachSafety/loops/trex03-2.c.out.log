@@ -1,0 +1,15 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic trex03-2.c
+ Adding assertion node 70 -> 89 for label (0): 
+tmp___4 = 0
+sh: 1: eog: not found
+
+entry: 73
+testing reachability of location 89
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+
+real	0m0.788s
+user	0m0.836s
+sys	0m0.093s

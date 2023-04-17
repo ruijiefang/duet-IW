@@ -1,0 +1,15 @@
+[L12]             int x=0;
+       VAL        [x=0]
+[L26]  COND TRUE  1
+[L28]  CALL       eval()
+[L16]  COND TRUE  1
+[L17]             x=1
+       VAL        [x=1]
+[L28]  RET        eval()
+[L29]  CALL       __VERIFIER_assert(x==0)
+       VAL        [\old(cond)=0, x=1]
+[L6]   COND TRUE  !(cond)
+       VAL        [\old(cond)=0, cond=0, x=1]
+[L7]              reach_error()
+       VAL        [\old(cond)=0, cond=0, x=1]
+

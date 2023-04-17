@@ -1,0 +1,15 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic lu.cmp.c
+ Adding assertion node 225 -> 272 for label (0): 
+!(i < 50)
+sh: 1: eog: not found
+
+entry: 235
+testing reachability of location 272
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+
+real	0m2.040s
+user	0m2.055s
+sys	0m0.135s

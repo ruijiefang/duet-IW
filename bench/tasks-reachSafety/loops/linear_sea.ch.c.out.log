@@ -1,0 +1,18 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic linear_sea.ch.c
+ Adding assertion node 12 -> 69 for label (0): 
+tmp___1 = 0
+sh: 1: eog: not found
+
+entry: 56
+testing reachability of location 69
+------------------------------
+getting initial abstract model...
+good. continuing...
+linear_sea.ch.c:26: Warning: Body of function main falls-through. Adding a return statement
+Fatal error: exception Invalid_argument("evaluate_term: no interpretation for constant symbol")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.667s
+user	0m0.682s
+sys	0m0.118s

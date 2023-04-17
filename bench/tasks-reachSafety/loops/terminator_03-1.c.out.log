@@ -1,0 +1,15 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic terminator_03-1.c
+ Adding assertion node 39 -> 45 for label (0): 
+tmp___1 = 0
+sh: 1: eog: not found
+
+entry: 42
+testing reachability of location 45
+------------------------------
+getting initial abstract model...
+good. continuing...
+  proven unsafe
+
+real	0m0.340s
+user	0m0.344s
+sys	0m0.070s

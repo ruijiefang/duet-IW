@@ -1,0 +1,68 @@
++ timeout 60 /home/rjf/fast/duet-private//duet.exe -mcl-plain linear-inequality-inv-a.c
+forward inv gen...
+forward inv gen...
+forward inv gen...
+ Adding assertion node 50 -> 67 for label (0): 
+true
+digraph G {
+  "8";
+  "15";
+  "19";
+  "34";
+  "43";
+  "48";
+  "49";
+  "50";
+  "52";
+  "53";
+  "54";
+  "56";
+  "57";
+  "58";
+  "59";
+  "61";
+  "62";
+  "63";
+  "64";
+  "65";
+  "66";
+  "67";
+  
+  
+  "8" -> "15" [label="{v := 0\n s := 0\n i := 0\n when !(n:1 = 0)}", ];
+  "8" -> "48" [label="{__retres6 := 0\n when n:1 = 0}", ];
+  "15" -> "66" [label="{when 0 <= i:2}", ];
+  "19" -> "34" [label="{when n:1 <= i:2}", ];
+  "19" -> "57" [label="{when i:2 < n:1}", ];
+  "34" -> "43" [label="{when v:3 <= s:4}", ];
+  "34" -> "54" [label="{when s:4 < v:3}", ];
+  "43" -> "48" [label="{__retres6 := 0\n when s:4 <= 65025}", ];
+  "43" -> "59" [label="{when 65025 < s:4}", ];
+  "48" -> "64" [label="{return := __retres6:5\n return@pos := type_err:7:8\n return@width := type_err:6:9}",
+                ];
+  "49" -> "62" [label="{}", ];
+  "50" -> "63" [label="{when false}", ];
+  "50" -> "67" [label="{}", ];
+  "52" -> "50" [label="{}", ];
+  "53" -> "48" [label="{__retres6 := 1}", ];
+  "54" -> "53" [label="call(52, 63)", ];
+  "56" -> "15" [label="{v := havoc:10\n s := (s:4 + havoc:10)\n i := (i:2 + 1)}",
+                ];
+  "57" -> "56" [label="call(65, 65)", ];
+  "58" -> "48" [label="{__retres6 := 1}", ];
+  "59" -> "58" [label="call(52, 63)", ];
+  "61" -> "8" [label="{n := havoc:11}", ];
+  "62" -> "61" [label="call(65, 65)", ];
+  "66" -> "19" [label="{}", ];
+  
+  }
+entry: 49
+testing reachability of location 67
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+
+real	0m0.403s
+user	0m0.435s
+sys	0m0.067s

@@ -1,0 +1,17 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic while_infinite_loop_4.c
+ Adding assertion node 4 -> 28 for label (0): 
+!(x = 0)
+sh: 1: eog: not found
+
+entry: 22
+testing reachability of location 28
+------------------------------
+getting initial abstract model...
+good. continuing...
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.463s
+user	0m0.482s
+sys	0m0.114s

@@ -1,0 +1,16 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic count_up_down-2.c
+ Adding assertion node 20 -> 26 for label (0): 
+!((y < n \/ n < y))
+sh: 1: eog: not found
+
+entry: 23
+testing reachability of location 26
+------------------------------
+getting initial abstract model...
+good. continuing...
+  proven unsafe
+count_up_down-2.c:22: Warning: Body of function main falls-through. Adding a return statement
+
+real	0m0.323s
+user	0m0.320s
+sys	0m0.070s

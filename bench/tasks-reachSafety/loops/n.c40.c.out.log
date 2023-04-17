@@ -1,0 +1,15 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic n.c40.c
+ Adding assertion node 26 -> 45 for label (0): 
+true
+sh: 1: eog: not found
+
+entry: 42
+testing reachability of location 45
+------------------------------
+getting initial abstract model...
+good. continuing...
+  proven unsafe
+
+real	0m0.402s
+user	0m0.396s
+sys	0m0.057s

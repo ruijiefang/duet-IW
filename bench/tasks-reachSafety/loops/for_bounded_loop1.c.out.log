@@ -1,0 +1,30 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic for_bounded_loop1.c
+ Adding assertion node 25 -> 58 for label (0): 
+!(x = 0)
+ Adding assertion node 36 -> 59 for label (0): 
+!((x < 0 \/ 0 < x))
+ Adding assertion node 41 -> 60 for label (0): 
+!(x = 0)
+sh: 1: eog: not found
+
+entry: 44
+testing reachability of location 60
+------------------------------
+getting initial abstract model...
+good. continuing...
+  proven unsafe
+testing reachability of location 59
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+testing reachability of location 58
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+for_bounded_loop1.c:31: Warning: Body of function main falls-through. Adding a return statement
+
+real	0m0.553s
+user	0m0.547s
+sys	0m0.068s

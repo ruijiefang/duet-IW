@@ -1,0 +1,63 @@
++ timeout 60 /home/rjf/fast/duet-private//duet.exe -mcl-plain even.c
+forward inv gen...
+forward inv gen...
+forward inv gen...
+ Adding assertion node 16 -> 40 for label (0): 
+!((x mod 2) = 0)
+ Adding assertion node 30 -> 41 for label (0): 
+true
+digraph G {
+  "3";
+  "8";
+  "16";
+  "19";
+  "23";
+  "24";
+  "30";
+  "32";
+  "33";
+  "34";
+  "35";
+  "36";
+  "37";
+  "38";
+  "39";
+  "40";
+  "41";
+  
+  
+  "3" -> "39" [label="{when 0 <= x:2}", ];
+  "8" -> "3" [label="{x := (x:2 + 2)\n when !(tmp:1 = 0)}", ];
+  "8" -> "16" [label="{when tmp:1 = 0}", ];
+  "16" -> "38" [label="{return := 0\n return@pos := type_err:5:6:8\n return@width := type_err:4:7:9\n when (x:2 mod 2) = 0}",
+                ];
+  "16" -> "40" [label="{when !((x:2 mod 2) = 0)}", ];
+  "19" -> "3" [label="{x := 0}", ];
+  "23" -> "24" [label="{when !(cond:28 = 0)}", ];
+  "23" -> "34" [label="{when cond:28 = 0}", ];
+  "24" -> "37" [label="{return := havoc:29\n return@pos := type_err:31:32\n return@width := type_err:30:33}",
+                ];
+  "30" -> "36" [label="{when false}", ];
+  "30" -> "41" [label="{}", ];
+  "32" -> "30" [label="{}", ];
+  "33" -> "24" [label="{when false}", ];
+  "34" -> "33" [label="call(32, 36)", ];
+  "35" -> "23" [label="{cond := param0:36}", ];
+  "39" -> "8" [label="{tmp := havoc:0}", ];
+  
+  }
+entry: 19
+testing reachability of location 41
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+testing reachability of location 40
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+
+real	0m0.419s
+user	0m0.451s
+sys	0m0.080s

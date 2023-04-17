@@ -1,0 +1,67 @@
++ timeout 60 /home/rjf/fast/duet-private//duet.exe -mcl-plain eq1.c
+forward inv gen...
+forward inv gen...
+forward inv gen...
+ Adding assertion node 44 -> 68 for label (0): 
+tmp___3 = 0
+ Adding assertion node 58 -> 69 for label (0): 
+true
+digraph G {
+  "10";
+  "16";
+  "44";
+  "47";
+  "51";
+  "52";
+  "58";
+  "60";
+  "61";
+  "62";
+  "63";
+  "64";
+  "65";
+  "66";
+  "67";
+  "68";
+  "69";
+  
+  
+  "10" -> "67" [label="{when (0 <= x:11 /\\ 0 <= w:2 /\\ (-w:2 + x:11) = 0 /\\ (-y:5 + z:10) = 0)}",
+                ];
+  "16" -> "10" [label="{w := phi_w:23:27\n x := phi_x:22:28\n y := phi_y:21:29\n z := phi_z:20:30\n when (!(tmp___2:7 = 0) /\\ 0 <= havoc:8:19\n         /\\ ((havoc:8:19 = 0 /\\ w:2 = phi_w:23:27 /\\ x:11 = phi_x:22:28\n                /\\ (y:5 + -1) = phi_y:21:29 /\\ (z:10 + -1) = phi_z:20:30)\n               \\/ (!(havoc:8:19 = 0) /\\ (w:2 + 1) = phi_w:23:27\n                     /\\ (x:11 + 1) = phi_x:22:28 /\\ y:5 = phi_y:21:29\n                     /\\ z:10 = phi_z:20:30)))}",
+                ];
+  "16" -> "44" [label="{tmp___3 := phi_tmp___3:32:34\n when (tmp___2:7 = 0\n         /\\ ((w:2 = x:11\n                /\\ ((!(y:5 = z:10) /\\ 0 = phi_tmp___3:24:31:33)\n                      \\/ (y:5 = z:10 /\\ 1 = phi_tmp___3:24:31:33))\n                /\\ phi_tmp___3:24:31:33 = phi_tmp___3:32:34)\n               \\/ (!(w:2 = x:11) /\\ 0 = phi_tmp___3:32:34)))}",
+                ];
+  "44" -> "66" [label="{return := 0\n return@pos := type_err:15:16:25\n return@width := type_err:14:17:26\n when !(tmp___3:12 = 0)}",
+                ];
+  "44" -> "68" [label="{when tmp___3:12 = 0}", ];
+  "47" -> "10" [label="{w := havoc:0\n x := havoc:0\n y := havoc:3:18\n z := havoc:3:18\n when (0 <= havoc:0 /\\ 0 <= havoc:3:18)}",
+                ];
+  "51" -> "52" [label="{when !(cond:63 = 0)}", ];
+  "51" -> "62" [label="{when cond:63 = 0}", ];
+  "52" -> "65" [label="{return := havoc:64\n return@pos := type_err:66:67\n return@width := type_err:65:68}",
+                ];
+  "58" -> "64" [label="{when false}", ];
+  "58" -> "69" [label="{}", ];
+  "60" -> "58" [label="{}", ];
+  "61" -> "52" [label="{when false}", ];
+  "62" -> "61" [label="call(60, 64)", ];
+  "63" -> "51" [label="{cond := param0:71}", ];
+  "67" -> "16" [label="{tmp___2 := havoc:6\n when 0 <= havoc:6}", ];
+  
+  }
+entry: 47
+testing reachability of location 69
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+testing reachability of location 68
+------------------------------
+executing plain mcmillan
+...execution saturated
+  proven safe
+
+real	0m0.453s
+user	0m0.462s
+sys	0m0.086s

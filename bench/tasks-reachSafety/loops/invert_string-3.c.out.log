@@ -1,0 +1,20 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic invert_string-3.c
+ Adding assertion node 57 -> 74 for label (0): 
+!(tr = tr:0)
+sh: 1: eog: not found
+
+entry: 65
+testing reachability of location 74
+------------------------------
+getting initial abstract model...
+good. continuing...
+invert_string-3.c:15: Warning: Variable-sized local variable str1
+invert_string-3.c:15: Warning: Variable-sized local variable str2
+invert_string-3.c:32: Warning: Body of function main falls-through. Adding a return statement
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.694s
+user	0m0.724s
+sys	0m0.111s

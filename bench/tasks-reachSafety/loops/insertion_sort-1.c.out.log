@@ -1,0 +1,18 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic insertion_sort-1.c
+ Adding assertion node 80 -> 97 for label (0): 
+!(tr <= tr:0)
+sh: 1: eog: not found
+
+entry: 87
+testing reachability of location 97
+------------------------------
+getting initial abstract model...
+good. continuing...
+insertion_sort-1.c:16: Warning: Variable-sized local variable v
+Fatal error: exception Srk.Linear.Nonlinear
++ echo 'execution timeout'
+execution timeout
+
+real	0m1.398s
+user	0m1.294s
+sys	0m0.142s

@@ -1,0 +1,17 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic trex03-1.c
+ Adding assertion node 70 -> 89 for label (0): 
+tmp___4 = 0
+sh: 1: eog: not found
+
+entry: 73
+testing reachability of location 89
+------------------------------
+getting initial abstract model...
+good. continuing...
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m0.781s
+user	0m0.815s
+sys	0m0.107s

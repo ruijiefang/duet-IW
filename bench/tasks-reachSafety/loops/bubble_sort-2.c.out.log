@@ -1,0 +1,76 @@
++ timeout 60 /home/rjf/fast/duet//duet.exe -mcl-concolic bubble_sort-2.c
+Ill-typed pointer assignment: 223 : __cil_tmp4=(*Record list_head)(*mem_123)
+Ill-typed pointer assignment: 242 : mem_124=(**Record list_head)__cil_tmp9
+Ill-typed pointer assignment: 243 : __cil_tmp10=(*Record list_head)(*mem_124)
+Ill-typed pointer assignment: 259 : mem_125=(**Record list_head)__cil_tmp14
+Ill-typed pointer assignment: 260 : __cil_tmp15=(*Record list_head)(*mem_125)
+Ill-typed pointer assignment: 279 : __cil_tmp17=(*Record list_head)(*mem_126)
+Ill-typed pointer assignment: 298 : mem_127=(**Record list_head)__cil_tmp22
+Ill-typed pointer assignment: 299 : __cil_tmp23=(*Record list_head)(*mem_127)
+Ill-typed pointer assignment: 313 : __cil_tmp26=(*Record node)0
+Ill-typed pointer assignment: 316 : __cil_tmp29=(*Record list_head)__cil_tmp28
+Ill-typed pointer assignment: 339 : __cil_tmp36=(*Record list_head)__cil_tmp35
+Ill-typed pointer assignment: 343 : mem_128=(**Record list_head)__cil_tmp39
+Ill-typed pointer assignment: 344 : __cil_tmp40=(*Record list_head)(*mem_128)
+Ill-typed pointer assignment: 362 : __cil_tmp45=(*Record list_head)__cil_tmp44
+Ill-typed pointer assignment: 367 : mem_129=(**Record list_head)__cil_tmp49
+Ill-typed pointer assignment: 368 : __cil_tmp50=(*Record list_head)(*mem_129)
+Ill-typed pointer assignment: 386 : __cil_tmp55=(*Record list_head)__cil_tmp54
+Ill-typed pointer assignment: 390 : mem_130=(**Record list_head)__cil_tmp58
+Ill-typed pointer assignment: 391 : __cil_tmp59=(*Record list_head)(*mem_130)
+Ill-typed pointer assignment: 409 : __cil_tmp64=(*Record list_head)__cil_tmp63
+Ill-typed pointer assignment: 414 : mem_131=(**Record list_head)__cil_tmp68
+Ill-typed pointer assignment: 415 : __cil_tmp69=(*Record list_head)(*mem_131)
+Ill-typed pointer assignment: 450 : __cil_tmp78=(*Record list_head)__cil_tmp77
+Ill-typed pointer assignment: 488 : mem_132=(**Record list_head)__cil_tmp89
+Ill-typed pointer assignment: 489 : __cil_tmp90=(*Record list_head)(*mem_132)
+Ill-typed pointer assignment: 492 : mem_133=(**Record list_head)__cil_tmp92
+Ill-typed pointer assignment: 493 : __cil_tmp93=(*mem_133)
+Ill-typed pointer assignment: 513 : mem_134=(**Record list_head)__cil_tmp99
+Ill-typed pointer assignment: 514 : __cil_tmp100=(*Record list_head)(*mem_134)
+Ill-typed pointer assignment: 516 : __cil_tmp101=(*mem_135)
+Ill-typed pointer assignment: 532 : __cil_tmp105=(*Record list_head)(*mem_136)
+Ill-typed pointer assignment: 538 : __cil_tmp109=(*Record list_head)__cil_tmp108
+Ill-typed pointer assignment: 548 : __cil_tmp111=(*Record list_head)(*mem_137)
+Ill-typed pointer assignment: 556 : __cil_tmp113=(*Record node)0
+Ill-typed pointer assignment: 559 : __cil_tmp116=(*Record list_head)__cil_tmp115
+Ill-typed pointer assignment: 79 : next=(*mem_15)
+Ill-typed pointer assignment: 93 : __cil_tmp6=(*Record node)0
+Ill-typed pointer assignment: 96 : __cil_tmp9=(*Record list_head)__cil_tmp8
+Ill-typed pointer assignment: 31 : pos0=(*mem_11)
+Ill-typed pointer assignment: 34 : pos1=(*mem_12)
+Ill-typed pointer assignment: 64 : __cil_tmp3=(*Record node)0
+Ill-typed pointer assignment: 67 : __cil_tmp6=(*Record list_head)__cil_tmp5
+Ill-typed pointer assignment: 167 : mem_7=(**Record list_head)__cil_tmp4
+Ill-typed pointer assignment: 168 : __cil_tmp5=(*mem_7)
+Ill-typed pointer assignment: 170 : __cil_tmp6=(*mem_8)
+Ill-typed pointer assignment: 141 : __cil_tmp7=(*Record list_head)__cil_tmp6
+Ill-typed pointer assignment: 148 : mem_17=(**Record list_head)__cil_tmp9
+Ill-typed pointer assignment: 154 : mem_18=(**Record list_head)__cil_tmp13
+Ill-typed pointer assignment: 177 : __cil_tmp3=(*mem_4)
+Ill-typed pointer assignment: 184 : mem_5=(**Record list_head)__cil_tmp4
+Ill-typed pointer assignment: 193 : mem_8=(**Record list_head)__cil_tmp5
+Ill-typed pointer assignment: 199 : mem_10=(**Record list_head)__cil_tmp7
+ Adding assertion node 581 -> 707 for label (0): 
+true
+ Adding assertion node 583 -> 708 for label (0): 
+true
+sh: 1: eog: not found
+
+entry: 589
+testing reachability of location 708
+------------------------------
+getting initial abstract model...
+Proven safe by path summary.
+  proven safe
+testing reachability of location 707
+------------------------------
+getting initial abstract model...
+good. continuing...
+Fatal error: exception Failure("cannot handle call")
++ echo 'execution timeout'
+execution timeout
+
+real	0m6.709s
+user	0m6.670s
+sys	0m0.263s
