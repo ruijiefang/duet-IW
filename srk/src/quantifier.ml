@@ -5,8 +5,8 @@ open BatPervasives
 include Log.Make(struct let name = "srk.quantifier" end)
 
 exception Equal_term of Linear.QQVector.t
- 
 type quantifier_prefix = ([`Forall | `Exists] * symbol) list
+
 
 module V = Linear.QQVector
 module VS = BatSet.Make(Linear.QQVector)
@@ -1838,7 +1838,8 @@ let _orient project eqs =
   in
   go eqs []
 
-let mbp ?(dnf=false) srk exists phi =
+
+let mbp ?(dnf=false) srk ?(solver'=Smt.mk_solver ~theory:"QF_LIA" srk) exists phi =
   let phi =
     eliminate_ite srk phi
     |> rewrite srk
@@ -1854,7 +1855,7 @@ let mbp ?(dnf=false) srk exists phi =
       project
       IntSet.empty
   in
-  let solver = Smt.mk_solver ~theory:"QF_LIA" srk in
+  let solver = solver' in
   let disjuncts = ref [] in
   let is_true phi =
     match Formula.destruct srk phi with

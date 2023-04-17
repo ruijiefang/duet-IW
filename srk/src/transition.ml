@@ -369,8 +369,9 @@ struct
 
 
 
-  let interpolate_unsat_core trs post guards core = 
-    let core_symbols =
+  let interpolate_unsat_core solver' trs post guards core = 
+    let refresh s = Smt.Solver.reset s; s 
+    in let core_symbols =
       List.fold_left (fun core phi ->
           match Formula.destruct srk phi with
           | (`Proposition (`App (s, []))) -> Symbol.Set.add s core
@@ -400,7 +401,7 @@ struct
           in
           let wp =
             (mk_not srk (mk_or srk (post'::reduced_guard)))
-            |> Quantifier.mbp srk (fun s -> Var.of_symbol s != None)
+            |> Quantifier.mbp srk ~solver':(refresh solver') (fun s -> Var.of_symbol s != None)
             |> mk_not srk
           in
           (wp::itp, wp))
@@ -485,11 +486,11 @@ struct
 
 
 
-  let interpolate ?(solver=Smt.mk_solver C.context) trs post =
+  let interpolate ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post =
     Smt.Solver.reset solver;
-    interpolate_query ~solver:solver trs post (fun _ _ -> `Invalid) interpolate_unsat_core
+    interpolate_query ~solver:solver trs post (fun _ _ -> `Invalid) @@ interpolate_unsat_core qflia_solver
 
-  let interpolate_or_concrete_model ?(solver=Smt.mk_solver C.context) trs post = 
+  let interpolate_or_concrete_model ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post = 
     (* subst_model: rename skolem constants back to their appropriate names using reverse subscript table *)
     Smt.Solver.reset solver;
     let sat_model model ss_inv = 
@@ -507,7 +508,7 @@ struct
                 with Not_found -> m 
               end) (Interpretation.empty C.context) e
       in `Invalid m' 
-    in interpolate_query ~solver:solver trs post sat_model interpolate_unsat_core
+    in interpolate_query ~solver:solver trs post sat_model @@ interpolate_unsat_core qflia_solver
 
 
   let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =

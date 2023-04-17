@@ -1119,6 +1119,7 @@ module McMillanChecker = struct
   and global_context = {
       mode: mc_mode;
       solver: Ctx.t Srk.Smt.Solver.t; (** persistent solver state object, prevents Z3 from allocating per SMT call *)
+      qflia_solver : Ctx.t Srk.Smt.Solver.t;
       interproc: Summarizer.t ref;
   }
   (* mode of McMillan's algorithm: plain, or CRA-fueled concolic mode *)
@@ -1144,6 +1145,7 @@ module McMillanChecker = struct
     ref {
       mode = start_mode; 
       solver = Smt.mk_solver Ctx.context;
+      qflia_solver = Smt.mk_solver ~theory:"QF_LIA" Ctx.context;
       interproc = (Summarizer.init global_cfg global_src);
     }
 
@@ -1151,13 +1153,13 @@ module McMillanChecker = struct
   let worklist_push  (i : int) (q : idq_t) = DQ.cons i q 
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
-  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
+  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
     let post_path_summary = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
     let err_state = Syntax.mk_not srk !art.post_state in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_weights "interpolate: abstract suffix formula: " [post_path_summary];
-    match K.interpolate_or_concrete_model ~solver:solver (initial_path_weights @ [post_path_summary]) err_state with 
+    match K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver (initial_path_weights @ [post_path_summary]) err_state with 
     | `Invalid m -> `Invalid m
     | `Valid itps -> 
       begin match List.rev itps with 
@@ -1170,6 +1172,9 @@ module McMillanChecker = struct
   let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
   let get_solver (ctx: intra_context ref) = 
     let solver = !(get_global_ctx ctx).solver in 
+    Smt.Solver.reset solver; solver
+  let get_qflia_solver (ctx: intra_context ref) = 
+    let solver = !(get_global_ctx ctx).qflia_solver in 
     Smt.Solver.reset solver; solver
 
   (** procedures for lightweight verification of ART invariants *)
@@ -1289,7 +1294,7 @@ module McMillanChecker = struct
       match !(get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
         begin 
-        match K.interpolate ~solver:(get_solver ctx) ((K.assume !art.pre_state) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
+        match K.interpolate ~solver:(get_solver ctx) ~qflia_solver:(get_qflia_solver ctx) ((K.assume !art.pre_state) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
@@ -1304,7 +1309,7 @@ module McMillanChecker = struct
         end 
       | ConcolicMcMillan -> 
         begin 
-          match interpolate_or_get_model ~solver:(get_solver ctx) art recurse_level v !art.err_loc with 
+          match interpolate_or_get_model ~solver:(get_solver ctx) ~qflia_solver:(get_qflia_solver ctx) art recurse_level v !art.err_loc with 
           `Invalid v_model -> 
             logf ~level:`always "Unable to refine but got model\n";
             (* for node v, since v is a frontier node, update art.models to store its corresponding model. *)
