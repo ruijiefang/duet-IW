@@ -41,6 +41,7 @@ int main() {
     if (result == m + n) {
         return 0;
     } else {
+      assert(false);
       //ERROR: {reach_error();abort();}
     }
 }

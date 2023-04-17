@@ -510,7 +510,7 @@ struct
     in interpolate_query ~solver:solver trs post sat_model interpolate_unsat_core
 
 
-  let extrapolate t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
+  let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
     Printf.printf "at extrapolate\n";
     let t1, t2, t3 =
       let refresh = (fun tr ->
@@ -603,7 +603,7 @@ struct
       symbols_printer symbols_t3_t2;
           Format.print_flush();
      Printf.printf "\n------------ SMT query in extrapolate ------------\n";
-     match Smt.get_model ~symbols:symbols_conj srk conj with 
+     match Smt.get_model ~solver:solver ~symbols:symbols_conj srk conj with 
       | `Sat m -> 
         Printf.printf "extrapolate: result is SAT, got model\n";
         Interpretation.pp Format.std_formatter m ;
@@ -634,7 +634,7 @@ struct
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
           `Sat (ex1, ex2) 
-      | _ -> failwith "extrapolate failed!!!" (*`Unsat*) 
+      | _ -> `Unsat (*failwith "extrapolate failed!!!" *)(* `Unsat *)
 
   let valid_triple phi path post =
     let path_not_post = List.fold_right mul path (assume (mk_not srk post)) in

@@ -747,12 +747,15 @@ module Summarizer =
       type t = {
         graph: cfg_t;
         src: int;
-        query: TS.query
+        query: TS.query;
+        (* map for accumulating procedure summary refinements. *)
+        (* pre_state, post_state, original summary *)
+        mutable conditions: (state_formula * state_formula * K.t) ProcMap.t;
       }
 
       let init (graph: cfg_t) (src: int) =
         let q = mk_query graph src in  
-        ref { graph = graph; src = src; query = q; }
+        ref { graph = graph; src = src; query = q; conditions = ProcMap.empty }
 
 
       let proc_summary (ctx: t ref) ((u, v) : int * int) = 
@@ -764,10 +767,22 @@ module Summarizer =
           TS.set_summary q (u, v) w
       
       let refine (ctx: t ref) ((u, v): int * int) (pre: state_formula) (post: state_formula) =
-        let w = proc_summary ctx (u, v) in 
-        let w_pre = K.mul (K.assume (Syntax.mk_not srk pre)) w in 
-        let w_post = K.mul w (K.assume (Syntax.mk_not srk post)) in 
-        K.add w_pre w_post |> set_proc_summary ctx (u, v)
+        let augment orig_pre orig_post summary = 
+          let new_pre = Syntax.mk_and srk [orig_pre; pre] in 
+          let new_post = Syntax.mk_and srk [orig_post; post] in 
+          let s_pre = K.mul (K.assume (Syntax.mk_not srk new_pre)) summary in 
+          let s_post = K.mul summary (K.assume (Syntax.mk_not srk new_post)) in 
+          K.add s_pre s_post |> set_proc_summary ctx (u, v)
+        in 
+        match ProcMap.find_opt (u, v) !ctx.conditions with 
+        | Some (orig_pre, orig_post, summary) -> 
+          augment orig_pre orig_post summary
+        | None -> 
+          (* if None, then proc is unrefined, so we first store its original CRA-computed summary. *)
+          let summary = proc_summary ctx (u, v) in 
+          !ctx.conditions <- ProcMap.add (u, v) (pre, post, summary) !ctx.conditions;
+          augment (mk_true ()) (mk_true ()) summary
+          
 
       let path_weight_intra (ctx: t ref) (src: int) (dst: int) = 
         let q = !ctx.query in 
@@ -1088,7 +1103,7 @@ end
 (** Algebraic formulation of McMillan's algorithm. *)
 module McMillanChecker = struct
   (* to print the reachability tree (+ worklist), or not *) 
-  let print_tree = true
+  let print_tree = false
 
   (* contextual information maintained by McMillan-Checker. *)
   (* intraprocedural context *)
@@ -1137,12 +1152,19 @@ module McMillanChecker = struct
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
-    let query = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
-    let post_path_summary = K.mul query (K.assume (Syntax.mk_not srk !art.post_state)) |> K.guard in
+    let post_path_summary = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
+    let err_state = Syntax.mk_not srk !art.post_state in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
-    log_formulas "interpolate: abstract suffix formula: " [post_path_summary];
-    K.interpolate_or_concrete_model ~solver:solver initial_path_weights post_path_summary 
+    log_weights "interpolate: abstract suffix formula: " [post_path_summary];
+    match K.interpolate_or_concrete_model ~solver:solver (initial_path_weights @ [post_path_summary]) err_state with 
+    | `Invalid m -> `Invalid m
+    | `Valid itps -> 
+      begin match List.rev itps with 
+      | _ :: rest -> `Valid (List.rev rest)
+      | _ -> failwith "err: interpolant sequence has length 0" 
+      end
+    | `Unknown -> `Unknown
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
   let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
@@ -1211,6 +1233,7 @@ module McMillanChecker = struct
   (* refine the label of each tree node u along path from tree root to v. *)
   let mc_refine_with_interpolants (ctx: intra_context ref) path interpolants = 
     let art = !ctx.art in 
+    let _ = logf ~level:`always "path length: %d\n" (List.length path); logf ~level:`always "interpolant length: %d\n" (List.length interpolants) in 
     List.iter2 (fun u interpolant -> 
       let u_label = ReachTree.label art u in 
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
@@ -1266,7 +1289,7 @@ module McMillanChecker = struct
       match !(get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
         begin 
-        match K.interpolate ~solver:(get_solver ctx) (path_condition) (Syntax.mk_not srk !art.post_state) with 
+        match K.interpolate ~solver:(get_solver ctx) ((K.assume !art.pre_state) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
@@ -1566,7 +1589,7 @@ module McMillanChecker = struct
               let pre_cond = prefix |> to_formula in 
               let post_cond = suffix |> to_formula in 
                 Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond
-            in begin match K.extrapolate prefix summary suffix with 
+            in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
                 (* instantiate interprocedural reachability query *)

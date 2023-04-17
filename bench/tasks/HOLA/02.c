@@ -21,6 +21,5 @@ int main()
 		  x++;
 		w+=2; 
 	}
-
 	static_assert(x==y);
 }

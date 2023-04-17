@@ -1,4 +1,3 @@
-#!/bin/python3
 
 import sys
 import os
@@ -60,7 +59,11 @@ def run():
                 my_env["PYTHONPATH"] = os.getcwd()
                 my_env["PATH"] = my_env["PATH"] + ":" + os.path.abspath('..')
                 subprocess.call(["benchexec",
-                                 "-W", str(timeout),
+                                "--read-only-dir",
+                                "/",
+                                "--overlay-dir",
+                                ".",
+                                "-W", str(timeout),
                                  "-t", suite,
                                  "benchmark-defs/%s.xml" % tool],
                                 env=my_env)

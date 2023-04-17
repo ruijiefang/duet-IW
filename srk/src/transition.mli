@@ -124,7 +124,7 @@ module Make
                                              | `Invalid
                                              | `Unknown ]
 
-  val extrapolate : t -> t -> t -> [ `Sat of (C.t formula * C.t formula ) | `Unsat ]
+  val extrapolate : ?solver:(C.t Smt.Solver.t) -> t -> t -> t -> [ `Sat of (C.t formula * C.t formula ) | `Unsat ]
 
   (** Same as interpolate, but returns a concrete model if interpllation fails. *)
   val interpolate_or_concrete_model : ?solver:(C.t Smt.Solver.t) -> t list -> C.t formula 

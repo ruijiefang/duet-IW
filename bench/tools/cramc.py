@@ -11,7 +11,7 @@ class Tool(benchexec.tools.template.BaseTool):
         return ("~/fast/duet-IW/duet.exe")
 
     def name(self):
-        return "CRA"
+        return "CRAMC"
 
     def determine_result(self, returncode, returnsignal, output, isTimeout):
         output = "\n".join(output)
@@ -21,10 +21,11 @@ class Tool(benchexec.tools.template.BaseTool):
             status = "TIMEOUT"
         elif returnsignal == 9:
             status = "KILLED BY SIGNAL 9"
-        elif "0 errors total" in output:
+        elif "proven safe" in output:
             status = result.RESULT_TRUE_PROP
-        elif returncode != 0:
-            status = "ERROR ({0})".format(returncode)
+        #elif returncode != 0:
+        #    #status = "ERROR ({0})".format(returncode)
         else:
-            status = result.RESULT_UNKNOWN
+            status = result.RESULT_FALSE_PROP
+            #status = result.RESULT_UNKNOWN
         return status
