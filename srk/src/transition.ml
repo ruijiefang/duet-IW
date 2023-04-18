@@ -507,7 +507,9 @@ struct
                   in Interpretation.add pre_symbol v m
                 with Not_found -> m 
               end) (Interpretation.empty C.context) e
-      in `Invalid m' 
+      in 
+      logf ~level:`always "interpolate: got model, model is: %a\n" (Interpretation.pp) m';
+      `Invalid m'
     in interpolate_query ~solver:solver trs post sat_model @@ interpolate_unsat_core qflia_solver
 
 
