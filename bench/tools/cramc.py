@@ -25,7 +25,8 @@ class Tool(benchexec.tools.template.BaseTool):
             status = result.RESULT_TRUE_PROP
         #elif returncode != 0:
         #    #status = "ERROR ({0})".format(returncode)
-        else:
+        elif "proven unsafe" in output:
             status = result.RESULT_FALSE_PROP
-            #status = result.RESULT_UNKNOWN
+        else:
+            status = result.RESULT_UNKNOWN
         return status

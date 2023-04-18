@@ -4,14 +4,11 @@
            displayName="CRAMC"
            timelimit="15min">
   <rundefinition>
-    <option name="-mcl-concolic" />
-    <tasks name="C4B">
-      <include>../tasks/C4B/*.yml</include>
-      <propertyfile>../properties/unreach-call.prp</propertyfile>
-    </tasks>
-    <tasks name="HOLA">
-      <include>../tasks/HOLA/*.yml</include>
-      <propertyfile>../properties/unreach-call.prp</propertyfile>
+    <option name="-cra" />
+    <tasks name="thesis-all">
+      <includesfile>../tasks/thesis-all.set</includesfile>
+      <propertyfile>../tasks/properties/unreach-call.prp</propertyfile>
     </tasks>
   </rundefinition>
+
 </benchmark>
