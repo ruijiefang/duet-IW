@@ -9,7 +9,7 @@ int main() {
   int a = 2;
   a = a + 1;
   int v = p(a);
-  assert (v < 10);
+  assert (v > 10);//now safe
   return 0;
 }
 

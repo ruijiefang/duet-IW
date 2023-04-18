@@ -1154,7 +1154,9 @@ module McMillanChecker = struct
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
-    let post_path_summary = (if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra) !art.interproc (ReachTree.maps_to art src) sink in 
+    let oracle = 
+      if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in 
+    let post_path_summary = oracle !art.interproc (ReachTree.maps_to art src) sink in 
     let err_state = Syntax.mk_not srk !art.post_state in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
