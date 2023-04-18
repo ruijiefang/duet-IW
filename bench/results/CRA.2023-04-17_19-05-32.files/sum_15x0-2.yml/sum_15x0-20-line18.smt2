@@ -1,0 +1,8 @@
+(declare-const |return':165| Int)
+(declare-const |param1':167| Int)
+(declare-const |param0':166| Int)
+(assert (and (= (+ |return':165| -15) 0)
+               (= (+ |param0':166| |param1':167| -15) 0)
+               (<= (+ (- |param1':167|) 15) 0) (<= (- |param1':167|) 0)
+               (= (+ |return':165| -15) 0)))
+(check-sat)

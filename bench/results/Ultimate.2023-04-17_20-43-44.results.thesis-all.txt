@@ -1,0 +1,354 @@
+   BENCHMARK INFORMATION
+Ultimate
+benchmark definition:    benchmark-defs/Ultimate.xml
+name:                    Ultimate
+run sets:                thesis-all
+date:                    Mon, 2023-04-17 20:43:44 EDT
+tool:                    Ultimate 0.2.3-863304a1
+tool executable:         /home/rjf/fast/ultimate/UAutomizer-linux/Ultimate.py
+options:
+resource limits:
+- time:                  900 s
+hardware requirements:
+------------------------------------------------------------
+
+   SYSTEM INFORMATION
+host:                    louvre
+os:                      Linux-5.4.0-146-generic-x86_64-with-glibc2.29
+cpu:                     Intel Xeon CPU E5-1607 v3 @ 3.10GHz
+- cores:                 4
+- max frequency:         3100.0 MHz
+ram:                     33594.343424000006 MB
+------------------------------------------------------------
+
+
+
+thesis-all
+Run set 1 of 1 with options '' and propertyfile 'None'
+
+inputfile                                                 status                       cpu time   wall time        host
+-----------------------------------------------------------------------------------------------------------------------
+locks/test_locks_10.yml                                   true                            28.10       10.20        None
+locks/test_locks_11.yml                                   true                            34.54       14.10        None
+locks/test_locks_12.yml                                   true                            45.28       22.62        None
+locks/test_locks_13.yml                                   true                            74.75       41.95        None
+locks/test_locks_14-1.yml                                 true                           138.99       86.10        None
+locks/test_locks_14-2.yml                                 false(unreach-call)             12.77        4.88        None
+locks/test_locks_15-1.yml                                 false(unreach-call)             12.88        4.93        None
+locks/test_locks_15-2.yml                                 TIMEOUT (true)                 286.60      180.65        None
+locks/test_locks_5.yml                                    true                            13.24        5.08        None
+locks/test_locks_6.yml                                    true                            13.71        5.21        None
+locks/test_locks_7.yml                                    true                            15.45        5.69        None
+locks/test_locks_8.yml                                    true                            16.83        6.24        None
+locks/test_locks_9.yml                                    true                            19.93        7.46        None
+loops/count_up_down-1.yml                                 TIMEOUT                        202.33      181.00        None
+loops/count_up_down-2.yml                                 false(unreach-call)             10.11        4.28        None
+loops/for_bounded_loop1.yml                               false(unreach-call)             12.21        4.83        None
+loops/for_infinite_loop_1.yml                             true                            11.47        4.42        None
+loops/for_infinite_loop_2.yml                             true                            10.81        4.43        None
+loops/sum01-2.yml                                         true                            16.04        6.42        None
+loops/sum01_bug02.yml                                     false(unreach-call)             19.94        7.86        None
+loops/sum03-1.yml                                         false(unreach-call)             16.89        6.79        None
+loops/sum03-2.yml                                         true                            12.66        5.14        None
+loops/sum04-1.yml                                         false(unreach-call)             12.81        5.36        None
+loops/sum04-2.yml                                         true                            15.05        6.51        None
+loops/terminator_02-2.yml                                 true                            11.03        4.50        None
+loops/terminator_02-2_abstracted.yml                      true                            11.44        4.65        None
+loops/terminator_03-2.yml                                 true                            11.35        4.43        None
+loops/terminator_03-2_abstracted.yml                      true                            10.65        4.44        None
+loops/trex01-1.yml                                        false(unreach-call)              9.84        4.28        None
+loops/trex01-2.yml                                        true                            11.54        4.56        None
+loops/trex02-1.yml                                        true                            11.13        4.44        None
+loops/trex02-2.yml                                        false(unreach-call)             11.06        4.33        None
+loops/trex03-1.yml                                        false(unreach-call)             10.14        4.26        None
+loops/trex03-2.yml                                        true                            11.37        4.60        None
+loops/trex03-2_abstracted.yml                             true                            12.38        4.79        None
+loops/trex04.yml                                          true                            11.52        4.54        None
+loops/trex04_abstracted.yml                               true                            11.59        4.57        None
+loops/while_infinite_loop_1.yml                           true                            11.34        4.42        None
+loops/while_infinite_loop_2.yml                           true                            11.17        4.46        None
+loops/while_infinite_loop_3.yml                           true                            10.77        4.41        None
+loops/while_infinite_loop_4.yml                           false(unreach-call)             10.47        4.34        None
+loop-acceleration/const_1-1.yml                           true                            15.89        7.16        None
+loop-acceleration/const_1-2.yml                           TIMEOUT                        198.50      181.01        None
+loop-acceleration/const_1-2_abstracted.yml                false(unreach-call)             10.13        4.25        None
+loop-acceleration/diamond_1-1.yml                         true                            51.13       29.80        None
+loop-acceleration/diamond_1-2.yml                         TIMEOUT                        204.44      181.00        None
+loop-acceleration/diamond_2-2.yml                         true                            18.31        7.07        None
+loop-acceleration/functions_1-1.yml                       true                            32.72       18.18        None
+loop-acceleration/functions_1-2.yml                       TIMEOUT                        197.53      181.00        None
+loop-acceleration/multivar_1-1.yml                        true                            10.82        4.51        None
+loop-acceleration/multivar_1-2.yml                        false(unreach-call)             10.14        4.23        None
+loop-acceleration/nested_1-1.yml                          true                            46.19       25.20        None
+loop-acceleration/nested_1-2.yml                          TIMEOUT                        202.96      181.00        None
+loop-acceleration/overflow_1-1.yml                        true                            13.52        5.40        None
+loop-acceleration/phases_1-1.yml                          TIMEOUT                        205.89      181.01        None
+loop-acceleration/phases_1-2.yml                          TIMEOUT                        199.67      181.00        None
+loop-acceleration/phases_2-1.yml                          false(unreach-call)             10.75        4.30        None
+loop-acceleration/phases_2-2.yml                          true                            17.97        9.66        None
+loop-acceleration/simple_1-1.yml                          TIMEOUT                        195.66      181.00        None
+loop-acceleration/simple_1-1_abstracted.yml               false(unreach-call)             10.58        4.31        None
+loop-acceleration/simple_1-2.yml                          true                            14.99        6.30        None
+loop-acceleration/simple_1-2_abstracted.yml               true                            11.63        4.56        None
+loop-acceleration/simple_2-1.yml                          true                            11.01        4.42        None
+loop-acceleration/simple_2-1_abstracted.yml               true                            11.31        4.50        None
+loop-acceleration/simple_2-2.yml                          false(unreach-call)              9.99        4.20        None
+loop-acceleration/simple_3-1.yml                          false(unreach-call)              9.94        4.25        None
+loop-acceleration/simple_3-2.yml                          true                            14.01        5.40        None
+loop-acceleration/simple_4-1.yml                          TIMEOUT                        194.06      181.00        None
+loop-acceleration/simple_4-1_abstracted.yml               false(unreach-call)             11.15        4.67        None
+loop-acceleration/simple_4-2.yml                          true                            13.00        5.24        None
+loop-acceleration/simple_4-2_abstracted.yml               true                            11.79        4.59        None
+loop-acceleration/underapprox_1-1.yml                     false(unreach-call)             14.18        6.08        None
+loop-acceleration/underapprox_1-2.yml                     TIMEOUT                        191.55      181.00        None
+loop-acceleration/underapprox_2-1.yml                     false(unreach-call)             14.35        6.13        None
+loop-acceleration/underapprox_2-2.yml                     true                            13.22        5.48        None
+loop-crafted/simple_vardep_1.yml                          true                            13.06        5.15        None
+loop-crafted/simple_vardep_2.yml                          true                            15.13        6.39        None
+loop-invgen/MADWiFi-encode_ie_ok.yml                      true                            17.13        6.76        None
+loop-invgen/NetBSD_loop.yml                               true                            14.47        5.81        None
+loop-invgen/SpamAssassin-loop.i.v+cfa-reducer.yml         TIMEOUT                        197.02      181.00        None
+loop-invgen/SpamAssassin-loop.yml                         true                            15.90        6.10        None
+loop-invgen/apache-escape-absolute.i.v+cfa-reducer.yml    true                            47.30       30.23        None
+loop-invgen/apache-escape-absolute.yml                    true                            15.75        5.94        None
+loop-invgen/apache-get-tag.i.p+lhb-reducer.yml            true                            26.15        9.14        None
+loop-invgen/apache-get-tag.i.p+nlh-reducer.yml            true                            54.19       22.03        None
+loop-invgen/apache-get-tag.i.p+sep-reducer.yml            true                            94.80       52.29        None
+loop-invgen/apache-get-tag.i.v+lhb-reducer.yml            true                           154.14      133.75        None
+loop-invgen/apache-get-tag.i.v+nlh-reducer.yml            true                            60.83       42.34        None
+loop-invgen/apache-get-tag.yml                            true                            16.57        6.11        None
+loop-invgen/down.yml                                      TIMEOUT                        243.40      181.00        None
+loop-invgen/fragtest_simple.yml                           TIMEOUT                        247.53      181.00        None
+loop-invgen/half_2.yml                                    TIMEOUT                        236.05      181.00        None
+loop-invgen/heapsort.yml                                  TIMEOUT                        207.62      181.01        None
+loop-invgen/id_build.i.p+nlh-reducer.yml                  true                            19.34        7.01        None
+loop-invgen/id_build.i.p+sep-reducer.yml                  true                            19.97        7.02        None
+loop-invgen/id_build.i.v+lhb-reducer.yml                  true                            12.11        4.77        None
+loop-invgen/id_build.yml                                  true                            11.80        4.60        None
+loop-invgen/id_trans.yml                                  false(unreach-call)             11.54        4.75        None
+loop-invgen/large_const.yml                               true                            16.76        7.06        None
+loop-invgen/nest-if3.yml                                  true                            11.37        4.56        None
+loop-invgen/nested6.yml                                   true                            22.77        9.05        None
+loop-invgen/nested9.yml                                   true                            16.75        7.10        None
+loop-invgen/sendmail-close-angle.yml                      true                            27.35       10.37        None
+loop-invgen/seq-3.yml                                     TIMEOUT                        223.87      181.00        None
+loop-invgen/string_concat-noarr.yml                       TIMEOUT                        230.78      181.00        None
+loop-invgen/up.yml                                        TIMEOUT                        244.99      181.00        None
+loop-lit/afnp2014.yml                                     true                            13.48        5.45        None
+loop-lit/bhmr2007.yml                                     true                            17.03        6.66        None
+loop-lit/cggmp2005.yml                                    true                            12.93        5.42        None
+loop-lit/cggmp2005_variant.yml                            true                            16.17        6.98        None
+loop-lit/cggmp2005b.yml                                   true                            12.79        5.41        None
+loop-lit/css2003.yml                                      true                            12.53        5.20        None
+loop-lit/ddlm2013.yml                                     true                            19.40        9.55        None
+loop-lit/gcnr2008.yml                                     false(unreach-call)             10.53        4.40        None
+loop-lit/gj2007.c.i.p+lhb-reducer.yml                     true                            55.13       24.86        None
+loop-lit/gj2007.c.i.p+nlh-reducer.yml                     true                            69.95       29.43        None
+loop-lit/gj2007.yml                                       true                            51.15       22.32        None
+loop-lit/gj2007b.yml                                      true                            14.54        5.95        None
+loop-lit/gr2006.yml                                       true                            64.99       30.17        None
+loop-lit/gsv2008.c.i.p+cfa-reducer.yml                    true                            11.79        4.99        None
+loop-lit/gsv2008.c.i.v+cfa-reducer.yml                    true                            12.49        4.89        None
+loop-lit/gsv2008.c.i.v+lhb-reducer.yml                    true                            12.30        5.07        None
+loop-lit/gsv2008.yml                                      true                            11.82        4.92        None
+loop-lit/hhk2008.yml                                      true                            14.57        6.34        None
+loop-lit/jm2006.c.i.v+cfa-reducer.yml                     true                            13.32        5.29        None
+loop-lit/jm2006.yml                                       true                            12.76        5.27        None
+loop-lit/jm2006_variant.yml                               true                            15.26        6.22        None
+loop-new/count_by_1.yml                                   true                            12.22        4.96        None
+loop-new/count_by_1_variant.yml                           true                            11.53        4.85        None
+loop-new/count_by_2.yml                                   TIMEOUT                        245.36      181.00        None
+loop-new/count_by_k.yml                                   TIMEOUT                        239.59      181.00        None
+loop-new/count_by_nondet.yml                              TIMEOUT                        243.32      181.01        None
+loop-new/gauss_sum.i.p+cfa-reducer.yml                    true                            13.81        6.37        None
+loop-new/gauss_sum.i.p+lhb-reducer.yml                    true                            14.74        6.25        None
+loop-new/gauss_sum.i.v+cfa-reducer.yml                    true                            13.97        5.97        None
+loop-new/gauss_sum.yml                                    true                            15.46        6.55        None
+loop-new/half.yml                                         true                            20.02        7.81        None
+loop-new/nested-1.yml                                     TIMEOUT                        206.02      181.00        None
+loop-industry-pattern/mod3.c.v+cfa-reducer.yml            true                            19.31        8.58        None
+loop-industry-pattern/mod3.c.v+lhb-reducer.yml            true                            18.57        9.48        None
+loop-industry-pattern/mod3.c.v+sep-reducer.yml            true                            12.75        5.05        None
+loop-industry-pattern/mod3.yml                            true                            13.01        5.38        None
+loop-invariants/bin-suffix-5.yml                          true                            23.56        9.41        None
+loop-invariants/const.yml                                 true                            11.36        4.52        None
+loop-invariants/eq1.yml                                   true                            11.29        4.57        None
+loop-invariants/eq2.yml                                   true                            11.83        4.59        None
+loop-invariants/even.yml                                  true                            12.19        5.07        None
+loop-invariants/linear-inequality-inv-a.yml               TIMEOUT                        207.86      181.00        None
+loop-invariants/linear-inequality-inv-b.yml               false(unreach-call)             11.85        5.02        None
+loop-invariants/mod4.yml                                  true                            12.14        4.99        None
+loop-invariants/odd.yml                                   true                            11.22        4.55        None
+loop-simple/deep-nested.yml                               TIMEOUT                        228.04      181.00        None
+loop-simple/nested_1.yml                                  true                            11.48        4.90        None
+loop-simple/nested_1b.yml                                 false(unreach-call)             12.32        5.19        None
+loop-simple/nested_2.yml                                  true                            20.05        7.81        None
+loop-simple/nested_3.yml                                  true                            43.94       18.71        None
+loop-simple/nested_4.yml                                  true                           184.42      142.74        None
+loop-simple/nested_5.yml                                  TIMEOUT                        265.26      181.00        None
+loop-simple/nested_6.yml                                  TIMEOUT                        293.99      181.01        None
+loop-zilu/benchmark02_linear.yml                          true                            10.74        4.46        None
+loop-zilu/benchmark02_linear_abstracted.yml               true                            10.67        4.46        None
+loop-zilu/benchmark04_conjunctive.yml                     true                            12.84        5.33        None
+loop-zilu/benchmark05_conjunctive.yml                     true                            14.07        5.71        None
+loop-zilu/benchmark09_conjunctive.yml                     true                            12.38        5.17        None
+loop-zilu/benchmark10_conjunctive.yml                     true                            13.79        5.72        None
+loop-zilu/benchmark11_linear.yml                          true                            11.94        5.02        None
+loop-zilu/benchmark11_linear_abstracted.yml               true                            11.01        4.59        None
+loop-zilu/benchmark14_linear.yml                          true                            11.40        4.38        None
+loop-zilu/benchmark17_conjunctive.yml                     true                            11.22        4.57        None
+loop-zilu/benchmark18_conjunctive.yml                     true                            12.27        5.09        None
+loop-zilu/benchmark19_conjunctive.yml                     true                            14.51        5.84        None
+loop-zilu/benchmark20_conjunctive.yml                     true                            11.55        4.87        None
+loop-zilu/benchmark23_conjunctive.yml                     true                            60.36       27.36        None
+loop-zilu/benchmark25_linear.yml                          true                            11.87        4.93        None
+loop-zilu/benchmark25_linear_abstracted.yml               true                            11.62        4.46        None
+loop-zilu/benchmark26_linear.yml                          true                            11.76        4.94        None
+loop-zilu/benchmark26_linear_abstracted.yml               true                            10.89        4.47        None
+loop-zilu/benchmark32_linear.yml                          true                            11.14        4.46        None
+loop-zilu/benchmark33_linear.yml                          true                            11.14        4.39        None
+loop-zilu/benchmark34_conjunctive.yml                     true                            14.02        5.86        None
+loop-zilu/benchmark35_linear.yml                          true                            10.89        4.77        None
+loop-zilu/benchmark37_conjunctive.yml                     true                            11.88        4.91        None
+loop-zilu/benchmark43_conjunctive.yml                     true                            12.78        5.15        None
+loop-zilu/benchmark43_conjunctive_abstracted.yml          true                            12.09        4.88        None
+loop-zilu/benchmark51_polynomial.yml                      true                            11.12        4.45        None
+loop-zilu/benchmark52_polynomial.yml                      true                            11.66        5.17        None
+nla-digbench/bresenham-ll.yml                             true                            18.69        7.75        None
+nla-digbench/cohencu-ll.yml                               TIMEOUT                        200.69      181.01        None
+nla-digbench/cohendiv-ll.yml                              true                            18.46        8.20        None
+nla-digbench/dijkstra-u.yml                               TIMEOUT                        196.77      181.01        None
+nla-digbench/divbin.yml                                   TIMEOUT                        207.12      181.01        None
+nla-digbench/divbin2.yml                                  TIMEOUT                        196.39      181.00        None
+nla-digbench/egcd-ll.yml                                  true                            41.18       26.45        None
+nla-digbench/egcd2-ll.yml                                 TIMEOUT                        203.89      181.00        None
+nla-digbench/egcd3-ll.yml                                 TIMEOUT                        202.30      181.01        None
+nla-digbench/fermat1-ll.yml                               true                            21.32       13.38        None
+nla-digbench/fermat2-ll.yml                               true                            17.40       10.06        None
+nla-digbench/geo1-ll.yml                                  true                            13.05        5.77        None
+nla-digbench/geo1-u.yml                                   false(unreach-call)             14.68        7.22        None
+nla-digbench/geo2-ll.yml                                  true                            13.14        5.82        None
+nla-digbench/geo3-ll.yml                                  true                            13.52        6.08        None
+nla-digbench/hard-ll.yml                                  TIMEOUT                        205.85      181.00        None
+nla-digbench/hard-u.yml                                   TIMEOUT                        201.54      181.01        None
+nla-digbench/hard2.yml                                    TIMEOUT                        208.96      181.00        None
+nla-digbench/lcm1.yml                                     TIMEOUT                        188.67      181.00        None
+nla-digbench/lcm2.yml                                     TIMEOUT                        189.22      181.01        None
+nla-digbench/mannadiv.yml                                 true                            13.89        5.80        None
+nla-digbench/prod4br-ll.yml                               true                            24.38       11.63        None
+nla-digbench/prodbin-ll.yml                               TIMEOUT                        202.47      181.00        None
+nla-digbench/ps2-ll.yml                                   true                            12.55        5.54        None
+nla-digbench/ps3-ll.yml                                   true                            12.60        5.71        None
+nla-digbench/ps4-ll.yml                                   TIMEOUT                        196.27      181.01        None
+nla-digbench/ps5-ll.yml                                   TIMEOUT                        195.12      181.00        None
+nla-digbench/ps6-ll.yml                                   TIMEOUT                        195.38      181.01        None
+nla-digbench/sqrt1-ll.yml                                 true                            16.50        6.91        None
+openssl-simplified/s3_srvr_1b.cil.yml                     true                            12.61        4.91        None
+recursive/Ackermann01-2.yml                               true                            27.90       10.89        None
+recursive/Ackermann02.yml                                 false(unreach-call)             13.89        5.68        None
+recursive/Ackermann03.yml                                 true                            90.02       44.43        None
+recursive/Ackermann04.yml                                 true                            60.47       27.36        None
+recursive/Addition01-2.yml                                true                            15.14        5.96        None
+recursive/Addition02.yml                                  false(unreach-call)             12.46        4.81        None
+recursive/Addition03-1.yml                                TIMEOUT                        253.27      181.01        None
+recursive/BallRajamani-SPIN2000-Fig1.yml                  false(unreach-call)             11.88        4.94        None
+recursive/EvenOdd01-1.yml                                 TIMEOUT                        260.15      181.00        None
+recursive/EvenOdd03.yml                                   false(unreach-call)             10.87        4.28        None
+recursive/Fibonacci01-1.yml                               true                            21.12        8.52        None
+recursive/Fibonacci02.yml                                 true                            95.51       47.43        None
+recursive/Fibonacci03.yml                                 true                           144.65       94.83        None
+recursive/Fibonacci04.yml                                 false(unreach-call)             24.26        9.57        None
+recursive/Fibonacci05.yml                                 false(unreach-call)             32.33       12.09        None
+recursive/McCarthy91-1.yml                                false(unreach-call)             10.04        4.24        None
+recursive/McCarthy91-2.yml                                true                            14.58        5.68        None
+recursive/MultCommutative-2.yml                           TIMEOUT                        262.24      181.01        None
+recursive/Primes.yml                                      true                            30.74       12.03        None
+recursive/gcd01-1.yml                                     true                            15.24        6.20        None
+recursive/gcd02.yml                                       TIMEOUT                        239.64      181.00        None
+recursive/recHanoi01.yml                                  TIMEOUT                        254.00      181.01        None
+recursive/recHanoi02-2.yml                                true                            12.44        5.01        None
+recursive/recHanoi03-2.yml                                true                            71.12       33.65        None
+recursive-simple/afterrec-1.yml                           false(unreach-call)             12.19        4.89        None
+recursive-simple/afterrec-2.yml                           true                            11.09        4.69        None
+recursive-simple/afterrec_2calls-1.yml                    false(unreach-call)             10.99        4.54        None
+recursive-simple/afterrec_2calls-2.yml                    true                            10.42        4.39        None
+recursive-simple/fibo_10-1.yml                            false(unreach-call)             63.54       25.95        None
+recursive-simple/fibo_10-2.yml                            true                           172.66      111.30        None
+recursive-simple/fibo_15-1.yml                            TIMEOUT                        244.37      181.01        None
+recursive-simple/fibo_15-2.yml                            TIMEOUT                        245.74      181.01        None
+recursive-simple/fibo_20-1.yml                            TIMEOUT                        250.91      181.01        None
+recursive-simple/fibo_20-2.yml                            TIMEOUT                        238.84      181.01        None
+recursive-simple/fibo_25-1.yml                            TIMEOUT                        244.83      181.01        None
+recursive-simple/fibo_25-2.yml                            TIMEOUT                        243.83      181.00        None
+recursive-simple/fibo_2calls_10-1.yml                     true                           222.32      147.51        None
+recursive-simple/fibo_2calls_10-2.yml                     false(unreach-call)            124.32       71.49        None
+recursive-simple/fibo_2calls_15-1.yml                     TIMEOUT                        250.88      181.00        None
+recursive-simple/fibo_2calls_15-2.yml                     TIMEOUT                        248.15      181.01        None
+recursive-simple/fibo_2calls_2-1.yml                      false(unreach-call)             13.28        5.35        None
+recursive-simple/fibo_2calls_2-2.yml                      true                            17.79        7.19        None
+recursive-simple/fibo_2calls_20-1.yml                     TIMEOUT                        253.40      181.01        None
+recursive-simple/fibo_2calls_20-2.yml                     TIMEOUT                        252.03      181.01        None
+recursive-simple/fibo_2calls_25-1.yml                     TIMEOUT                        254.76      181.00        None
+recursive-simple/fibo_2calls_25-2.yml                     TIMEOUT                        253.83      181.01        None
+recursive-simple/fibo_2calls_4-1.yml                      true                            32.33       13.40        None
+recursive-simple/fibo_2calls_4-2.yml                      false(unreach-call)             25.62       10.54        None
+recursive-simple/fibo_2calls_5-1.yml                      true                            43.74       17.81        None
+recursive-simple/fibo_2calls_5-2.yml                      false(unreach-call)             30.95       12.60        None
+recursive-simple/fibo_2calls_6-1.yml                      true                            52.25       21.06        None
+recursive-simple/fibo_2calls_6-2.yml                      false(unreach-call)             33.46       13.64        None
+recursive-simple/fibo_2calls_8-1.yml                      true                           105.09       51.88        None
+recursive-simple/fibo_2calls_8-2.yml                      false(unreach-call)             77.05       36.23        None
+recursive-simple/fibo_5-1.yml                             true                            35.23       13.50        None
+recursive-simple/fibo_5-2.yml                             false(unreach-call)             24.50        9.61        None
+recursive-simple/fibo_7-1.yml                             true                            58.32       23.21        None
+recursive-simple/fibo_7-2.yml                             false(unreach-call)             28.36       11.07        None
+recursive-simple/id2_b2_o3.yml                            true                            15.27        5.99        None
+recursive-simple/id2_b3_o2.yml                            false(unreach-call)             14.31        5.29        None
+recursive-simple/id2_b3_o5.yml                            true                            15.71        6.01        None
+recursive-simple/id2_b5_o10.yml                           true                            14.93        5.84        None
+recursive-simple/id2_i5_o5-1.yml                          false(unreach-call)             18.66        7.54        None
+recursive-simple/id2_i5_o5-2.yml                          true                            25.11        9.90        None
+recursive-simple/id_b2_o3.yml                             true                            12.91        5.20        None
+recursive-simple/id_b3_o2-2.yml                           false(unreach-call)             14.40        5.91        None
+recursive-simple/id_b3_o5-2.yml                           true                            12.70        5.22        None
+recursive-simple/id_b5_o10-2.yml                          true                            13.30        5.29        None
+recursive-simple/id_i10_o10-1.yml                         false(unreach-call)             27.60       11.51        None
+recursive-simple/id_i10_o10-2.yml                         true                            45.99       20.26        None
+recursive-simple/id_i15_o15-1.yml                         true                            89.57       48.78        None
+recursive-simple/id_i15_o15-2.yml                         false(unreach-call)             28.68       11.79        None
+recursive-simple/id_i20_o20-1.yml                         true                           180.63      117.32        None
+recursive-simple/id_i20_o20-2.yml                         false(unreach-call)             50.10       24.83        None
+recursive-simple/id_i25_o25-1.yml                         TIMEOUT                        254.73      181.00        None
+recursive-simple/id_i25_o25-2.yml                         false(unreach-call)             50.71       25.30        None
+recursive-simple/id_i5_o5-1.yml                           false(unreach-call)             16.24        6.73        None
+recursive-simple/id_i5_o5-2.yml                           true                            23.10        9.46        None
+recursive-simple/id_o10.yml                               false(unreach-call)             22.38        9.45        None
+recursive-simple/id_o100.yml                              TIMEOUT                        201.09      181.00        None
+recursive-simple/id_o1000.yml                             TIMEOUT                        200.91      181.00        None
+recursive-simple/id_o20.yml                               false(unreach-call)            158.26      137.07        None
+recursive-simple/id_o200.yml                              TIMEOUT                        200.73      181.01        None
+recursive-simple/id_o3.yml                                false(unreach-call)             12.65        5.20        None
+recursive-simple/sum_10x0-1.yml                           true                            52.68       23.03        None
+recursive-simple/sum_10x0-2.yml                           false(unreach-call)             39.13       17.44        None
+recursive-simple/sum_15x0-1.yml                           true                            93.35       47.91        None
+recursive-simple/sum_15x0-2.yml                           false(unreach-call)             81.14       44.21        None
+recursive-simple/sum_20x0-1.yml                           false(unreach-call)            197.54      135.98        None
+recursive-simple/sum_20x0-2.yml                           true                           180.70      117.27        None
+recursive-simple/sum_25x0-1.yml                           TIMEOUT                        259.34      181.01        None
+recursive-simple/sum_25x0-2.yml                           TIMEOUT                        253.61      181.01        None
+recursive-simple/sum_2x3-1.yml                            false(unreach-call)             12.34        5.13        None
+recursive-simple/sum_2x3-2.yml                            true                            19.33        7.33        None
+recursive-simple/sum_non_eq-2.yml                         true                            15.54        5.96        None
+recursive-simple/sum_non_eq-3.yml                         false(unreach-call)             10.15        4.20        None
+-----------------------------------------------------------------------------------------------------------------------
+Run set 1                                                 done                          7300.88    15419.91           -
+
+Statistics:            312 Files
+  correct:             247
+    correct true:      188
+    correct false:      59
+  incorrect:             0
+    incorrect true:      0
+    incorrect false:     0
+  unknown:              65
+  Score:               435 (max: 545)

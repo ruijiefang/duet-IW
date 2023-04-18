@@ -1,0 +1,8 @@
+(declare-const |param0':700| Int)
+(declare-const |return':699| Int)
+(assert (and (<= (+ (* -2 |return':699|) |param0':700| 25) 0)
+               (<= (+ (* -2 |return':699|) (- |param0':700|) 25) 0)
+               (<= (+ |param0':700| -25) 0)
+               (or (< (+ |return':699| -75025) 0)
+                     (< (+ (- |return':699|) 75025) 0))))
+(check-sat)

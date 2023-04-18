@@ -1,0 +1,6 @@
+(declare-const havoc Int)
+(declare-const |return':161| Int)
+(declare-const |param0':162| Int)
+(assert (and (= |param0':162| 0) (<= (+ (- havoc) |return':161|) 0)
+               (<= (- |return':161|) 0) (= (+ |return':161| -5) 0)))
+(check-sat)

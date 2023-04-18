@@ -1,0 +1,15 @@
+[L15]              unsigned int a = __VERIFIER_nondet_uint();
+[L16]              unsigned int b = __VERIFIER_nondet_uint();
+[L17]  CALL, EXPR  sum(a, b)
+       VAL         [\old(m)=0, \old(n)=0]
+[L7]   COND TRUE   n == 0
+[L8]               return m;
+       VAL         [\old(m)=0, \old(n)=0, \result=0, m=0, n=0]
+[L17]  RET, EXPR   sum(a, b)
+       VAL         [a=0, b=0, sum(a, b)=0]
+[L17]              unsigned int result = sum(a, b);
+[L18]  COND TRUE   result == a + b
+       VAL         [a=0, b=0, result=0]
+[L19]              reach_error()
+       VAL         [a=0, b=0, result=0]
+

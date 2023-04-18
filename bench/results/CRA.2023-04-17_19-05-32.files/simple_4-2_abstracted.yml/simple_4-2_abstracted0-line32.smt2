@@ -1,0 +1,5 @@
+(declare-const |phi_x:8| Int)
+(declare-const |havoc:0:7| Int)
+(assert (and (<= (- |havoc:0:7|) 0) (= (+ (- |phi_x:8|) |havoc:0:7|) 0)
+               (<= |phi_x:8| 0) (not (= (mod |phi_x:8| 2) 0))))
+(check-sat)

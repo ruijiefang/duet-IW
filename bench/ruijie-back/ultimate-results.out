@@ -1,0 +1,402 @@
+ rjf  ⎇  master {2} U:3057 ?:111  ~/fast/duet-IW/bench   python3 bench.py run --tools Ultimate --suites thesis-all --timeout 180
+Running Ultimate on suite thesis-all
+data_dir:  /home/rjf/fast/ultimate/UAutomizer-linux/data
+launcher_jar:  /home/rjf/fast/ultimate/UAutomizer-linux/plugins/org.eclipse.equinox.launcher_1.5.800.v20200727-1323.jar
+java_versions:  {'11.0': '/usr/bin/java', '1.8': '/usr/lib/jvm/java-8-openjdk-amd64/bin/java'}
+2023-04-17 20:43:46 - INFO - Unable to find pqos_wrapper, please install it for cache allocation and monitoring if your CPU supports Intel RDT (cf. https://gitlab.com/sosy-lab/software/pqos-wrapper).
+
+executing run set 'thesis-all'     (312 files)
+2023-04-17 20:43:46 - WARNING - Kernel misses feature for accounting swap memory, but machine has swap. Memory usage may be measured inaccurately. Please set swapaccount=1 on your kernel command line or disable swap with "sudo swapoff -a".
+20:43:46   locks/test_locks_10.yml                                   true                        28.10   10.20
+20:43:56   locks/test_locks_11.yml                                   true                        34.54   14.10
+20:44:10   locks/test_locks_12.yml                                   true                        45.28   22.62
+20:44:33   locks/test_locks_13.yml                                   true                        74.75   41.95
+20:45:15   locks/test_locks_14-1.yml                                 true                       138.99   86.10
+20:46:41   locks/test_locks_14-2.yml                                 false(unreach-call)         12.77    4.88
+20:46:46   locks/test_locks_15-1.yml                                 false(unreach-call)         12.88    4.93
+20:46:51   locks/test_locks_15-2.yml                                 TIMEOUT (true)             286.60  180.65
+20:49:52   locks/test_locks_5.yml                                    true                        13.24    5.08
+20:49:57   locks/test_locks_6.yml                                    true                        13.71    5.21
+20:50:03   locks/test_locks_7.yml                                    true                        15.45    5.69
+20:50:08   locks/test_locks_8.yml                                    true                        16.83    6.24
+20:50:15   locks/test_locks_9.yml                                    true                        19.93    7.46
+20:50:22   loops/count_up_down-1.yml                                 2023-04-17 20:53:23 - WARNING - Killing process 324332 due to wall time timeout.                                                                               
+TIMEOUT                    202.33  181.00
+20:53:24   loops/count_up_down-2.yml                                 false(unreach-call)         10.11    4.28
+20:53:28   loops/for_bounded_loop1.yml                               false(unreach-call)         12.21    4.83
+20:53:33   loops/for_infinite_loop_1.yml                             true                        11.47    4.42
+20:53:38   loops/for_infinite_loop_2.yml                             true                        10.81    4.43
+20:53:42   loops/sum01-2.yml                                         true                        16.04    6.42
+20:53:49   loops/sum01_bug02.yml                                     false(unreach-call)         19.94    7.86
+20:53:57   loops/sum03-1.yml                                         false(unreach-call)         16.89    6.79
+20:54:04   loops/sum03-2.yml                                         true                        12.66    5.14
+20:54:09   loops/sum04-1.yml                                         false(unreach-call)         12.81    5.36
+20:54:14   loops/sum04-2.yml                                         true                        15.05    6.51
+20:54:21   loops/terminator_02-2.yml                                 true                        11.03    4.50
+20:54:26   loops/terminator_02-2_abstracted.yml                      true                        11.44    4.65
+20:54:30   loops/terminator_03-2.yml                                 true                        11.35    4.43
+20:54:35   loops/terminator_03-2_abstracted.yml                      true                        10.65    4.44
+20:54:40   loops/trex01-1.yml                                        false(unreach-call)          9.84    4.28
+20:54:44   loops/trex01-2.yml                                        true                        11.54    4.56
+20:54:49   loops/trex02-1.yml                                        true                        11.13    4.44
+20:54:53   loops/trex02-2.yml                                        false(unreach-call)         11.06    4.33
+20:54:58   loops/trex03-1.yml                                        false(unreach-call)         10.14    4.26
+20:55:02   loops/trex03-2.yml                                        true                        11.37    4.60
+20:55:07   loops/trex03-2_abstracted.yml                             true                        12.38    4.79
+20:55:12   loops/trex04.yml                                          true                        11.52    4.54
+20:55:16   loops/trex04_abstracted.yml                               true                        11.59    4.57
+20:55:21   loops/while_infinite_loop_1.yml                           true                        11.34    4.42
+20:55:25   loops/while_infinite_loop_2.yml                           true                        11.17    4.46
+20:55:30   loops/while_infinite_loop_3.yml                           true                        10.77    4.41
+20:55:35   loops/while_infinite_loop_4.yml                           false(unreach-call)         10.47    4.34
+20:55:39   loop-acceleration/const_1-1.yml                           true                        15.89    7.16
+20:55:46   loop-acceleration/const_1-2.yml                           2023-04-17 20:58:47 - WARNING - Killing process 326861 due to wall time timeout.                                                                               
+TIMEOUT                    198.50  181.01
+20:58:48   loop-acceleration/const_1-2_abstracted.yml                false(unreach-call)         10.13    4.25
+20:58:52   loop-acceleration/diamond_1-1.yml                         true                        51.13   29.80
+20:59:22   loop-acceleration/diamond_1-2.yml                         2023-04-17 21:02:23 - WARNING - Killing process 327214 due to wall time timeout.                                                                               
+TIMEOUT                    204.44  181.00
+21:02:24   loop-acceleration/diamond_2-2.yml                         true                        18.31    7.07
+21:02:31   loop-acceleration/functions_1-1.yml                       true                        32.72   18.18
+21:02:49   loop-acceleration/functions_1-2.yml                       2023-04-17 21:05:50 - WARNING - Killing process 327587 due to wall time timeout.                                                                               
+TIMEOUT                    197.53  181.00
+21:05:51   loop-acceleration/multivar_1-1.yml                        true                        10.82    4.51
+21:05:55   loop-acceleration/multivar_1-2.yml                        false(unreach-call)         10.14    4.23
+21:06:00   loop-acceleration/nested_1-1.yml                          true                        46.19   25.20
+21:06:25   loop-acceleration/nested_1-2.yml                          2023-04-17 21:09:26 - WARNING - Killing process 328004 due to wall time timeout.                                                                               
+TIMEOUT                    202.96  181.00
+21:09:27   loop-acceleration/overflow_1-1.yml                        true                        13.52    5.40
+21:09:32   loop-acceleration/phases_1-1.yml                          2023-04-17 21:12:33 - WARNING - Killing process 328299 due to wall time timeout.                                                                               
+TIMEOUT                    205.89  181.01
+21:12:34   loop-acceleration/phases_1-2.yml                          2023-04-17 21:15:35 - WARNING - Killing process 328431 due to wall time timeout.                                                                               
+TIMEOUT                    199.67  181.00
+21:15:35   loop-acceleration/phases_2-1.yml                          false(unreach-call)         10.75    4.30
+21:15:40   loop-acceleration/phases_2-2.yml                          true                        17.97    9.66
+21:15:50   loop-acceleration/simple_1-1.yml                          2023-04-17 21:18:51 - WARNING - Killing process 328755 due to wall time timeout.                                                                               
+TIMEOUT                    195.66  181.00
+21:18:51   loop-acceleration/simple_1-1_abstracted.yml               false(unreach-call)         10.58    4.31
+21:18:56   loop-acceleration/simple_1-2.yml                          true                        14.99    6.30
+21:19:02   loop-acceleration/simple_1-2_abstracted.yml               true                        11.63    4.56
+21:19:07   loop-acceleration/simple_2-1.yml                          true                        11.01    4.42
+21:19:11   loop-acceleration/simple_2-1_abstracted.yml               true                        11.31    4.50
+21:19:16   loop-acceleration/simple_2-2.yml                          false(unreach-call)          9.99    4.20
+21:19:20   loop-acceleration/simple_3-1.yml                          false(unreach-call)          9.94    4.25
+21:19:25   loop-acceleration/simple_3-2.yml                          true                        14.01    5.40
+21:19:30   loop-acceleration/simple_4-1.yml                          2023-04-17 21:22:31 - WARNING - Killing process 329537 due to wall time timeout.                                                                               
+TIMEOUT                    194.06  181.00
+21:22:32   loop-acceleration/simple_4-1_abstracted.yml               false(unreach-call)         11.15    4.67
+21:22:36   loop-acceleration/simple_4-2.yml                          true                        13.00    5.24
+21:22:42   loop-acceleration/simple_4-2_abstracted.yml               true                        11.79    4.59
+21:22:46   loop-acceleration/underapprox_1-1.yml                     false(unreach-call)         14.18    6.08
+21:22:53   loop-acceleration/underapprox_1-2.yml                     2023-04-17 21:25:54 - WARNING - Killing process 329995 due to wall time timeout.                                                                               
+TIMEOUT                    191.55  181.00
+21:25:54   loop-acceleration/underapprox_2-1.yml                     false(unreach-call)         14.35    6.13
+21:26:01   loop-acceleration/underapprox_2-2.yml                     true                        13.22    5.48
+21:26:06   loop-crafted/simple_vardep_1.yml                          true                        13.06    5.15
+21:26:11   loop-crafted/simple_vardep_2.yml                          true                        15.13    6.39
+21:26:18   loop-invgen/MADWiFi-encode_ie_ok.yml                      true                        17.13    6.76
+21:26:25   loop-invgen/NetBSD_loop.yml                               true                        14.47    5.81
+21:26:31   loop-invgen/SpamAssassin-loop.i.v+cfa-reducer.yml         2023-04-17 21:29:32 - WARNING - Killing process 330652 due to wall time timeout.                                                                               
+TIMEOUT                    197.02  181.00
+21:29:32   loop-invgen/SpamAssassin-loop.yml                         true                        15.90    6.10
+21:29:38   loop-invgen/apache-escape-absolute.i.v+cfa-reducer.yml    true                        47.30   30.23
+21:30:09   loop-invgen/apache-escape-absolute.yml                    true                        15.75    5.94
+21:30:15   loop-invgen/apache-get-tag.i.p+lhb-reducer.yml            true                        26.15    9.14
+21:30:24   loop-invgen/apache-get-tag.i.p+nlh-reducer.yml            true                        54.19   22.03
+21:30:46   loop-invgen/apache-get-tag.i.p+sep-reducer.yml            true                        94.80   52.29
+21:31:39   loop-invgen/apache-get-tag.i.v+lhb-reducer.yml            true                       154.14  133.75
+21:33:52   loop-invgen/apache-get-tag.i.v+nlh-reducer.yml            true                        60.83   42.34
+21:34:35   loop-invgen/apache-get-tag.yml                            true                        16.57    6.11
+21:34:41   loop-invgen/down.yml                                      2023-04-17 21:37:42 - WARNING - Killing process 331698 due to wall time timeout.                                                                               
+TIMEOUT                    243.40  181.00
+21:37:43   loop-invgen/fragtest_simple.yml                           2023-04-17 21:40:44 - WARNING - Killing process 332277 due to wall time timeout.                                                                               
+TIMEOUT                    247.53  181.00
+21:40:44   loop-invgen/half_2.yml                                    2023-04-17 21:43:45 - WARNING - Killing process 332727 due to wall time timeout.                                                                               
+TIMEOUT                    236.05  181.00
+21:43:46   loop-invgen/heapsort.yml                                  2023-04-17 21:46:47 - WARNING - Killing process 332986 due to wall time timeout.                                                                               
+TIMEOUT                    207.62  181.01
+21:46:48   loop-invgen/id_build.i.p+nlh-reducer.yml                  true                        19.34    7.01
+21:46:55   loop-invgen/id_build.i.p+sep-reducer.yml                  true                        19.97    7.02
+21:47:02   loop-invgen/id_build.i.v+lhb-reducer.yml                  true                        12.11    4.77
+21:47:07   loop-invgen/id_build.yml                                  true                        11.80    4.60
+21:47:11   loop-invgen/id_trans.yml                                  false(unreach-call)         11.54    4.75
+21:47:16   loop-invgen/large_const.yml                               true                        16.76    7.06
+21:47:23   loop-invgen/nest-if3.yml                                  true                        11.37    4.56
+21:47:28   loop-invgen/nested6.yml                                   true                        22.77    9.05
+21:47:37   loop-invgen/nested9.yml                                   true                        16.75    7.10
+21:47:45   loop-invgen/sendmail-close-angle.yml                      true                        27.35   10.37
+21:47:55   loop-invgen/seq-3.yml                                     2023-04-17 21:50:56 - WARNING - Killing process 334086 due to wall time timeout.                                                                               
+TIMEOUT                    223.87  181.00
+21:50:57   loop-invgen/string_concat-noarr.yml                       2023-04-17 21:53:58 - WARNING - Killing process 334696 due to wall time timeout.                                                                               
+TIMEOUT                    230.78  181.00
+21:53:58   loop-invgen/up.yml                                        2023-04-17 21:56:59 - WARNING - Killing process 334851 due to wall time timeout.                                                                               
+TIMEOUT                    244.99  181.00
+21:57:00   loop-lit/afnp2014.yml                                     true                        13.48    5.45
+21:57:05   loop-lit/bhmr2007.yml                                     true                        17.03    6.66
+21:57:12   loop-lit/cggmp2005.yml                                    true                        12.93    5.42
+21:57:18   loop-lit/cggmp2005_variant.yml                            true                        16.17    6.98
+21:57:25   loop-lit/cggmp2005b.yml                                   true                        12.79    5.41
+21:57:30   loop-lit/css2003.yml                                      true                        12.53    5.20
+21:57:36   loop-lit/ddlm2013.yml                                     true                        19.40    9.55
+21:57:45   loop-lit/gcnr2008.yml                                     false(unreach-call)         10.53    4.40
+21:57:50   loop-lit/gj2007.c.i.p+lhb-reducer.yml                     true                        55.13   24.86
+21:58:15   loop-lit/gj2007.c.i.p+nlh-reducer.yml                     true                        69.95   29.43
+21:58:44   loop-lit/gj2007.yml                                       true                        51.15   22.32
+21:59:07   loop-lit/gj2007b.yml                                      true                        14.54    5.95
+21:59:13   loop-lit/gr2006.yml                                       true                        64.99   30.17
+21:59:43   loop-lit/gsv2008.c.i.p+cfa-reducer.yml                    true                        11.79    4.99
+21:59:48   loop-lit/gsv2008.c.i.v+cfa-reducer.yml                    true                        12.49    4.89
+21:59:53   loop-lit/gsv2008.c.i.v+lhb-reducer.yml                    true                        12.30    5.07
+21:59:58   loop-lit/gsv2008.yml                                      true                        11.82    4.92
+22:00:03   loop-lit/hhk2008.yml                                      true                        14.57    6.34
+22:00:10   loop-lit/jm2006.c.i.v+cfa-reducer.yml                     true                        13.32    5.29
+22:00:15   loop-lit/jm2006.yml                                       true                        12.76    5.27
+22:00:21   loop-lit/jm2006_variant.yml                               true                        15.26    6.22
+22:00:27   loop-new/count_by_1.yml                                   true                        12.22    4.96
+22:00:32   loop-new/count_by_1_variant.yml                           true                        11.53    4.85
+22:00:37   loop-new/count_by_2.yml                                   2023-04-17 22:03:38 - WARNING - Killing process 337711 due to wall time timeout.                                                                               
+TIMEOUT                    245.36  181.00
+22:03:39   loop-new/count_by_k.yml                                   2023-04-17 22:06:40 - WARNING - Killing process 337850 due to wall time timeout.                                                                               
+TIMEOUT                    239.59  181.00
+22:06:40   loop-new/count_by_nondet.yml                              2023-04-17 22:09:41 - WARNING - Killing process 337992 due to wall time timeout.                                                                               
+TIMEOUT                    243.32  181.01
+22:09:42   loop-new/gauss_sum.i.p+cfa-reducer.yml                    true                        13.81    6.37
+22:09:48   loop-new/gauss_sum.i.p+lhb-reducer.yml                    true                        14.74    6.25
+22:09:55   loop-new/gauss_sum.i.v+cfa-reducer.yml                    true                        13.97    5.97
+22:10:01   loop-new/gauss_sum.yml                                    true                        15.46    6.55
+22:10:07   loop-new/half.yml                                         true                        20.02    7.81
+22:10:15   loop-new/nested-1.yml                                     2023-04-17 22:13:16 - WARNING - Killing process 338707 due to wall time timeout.                                                                               
+TIMEOUT                    206.02  181.00
+22:13:17   loop-industry-pattern/mod3.c.v+cfa-reducer.yml            true                        19.31    8.58
+22:13:26   loop-industry-pattern/mod3.c.v+lhb-reducer.yml            true                        18.57    9.48
+22:13:35   loop-industry-pattern/mod3.c.v+sep-reducer.yml            true                        12.75    5.05
+22:13:40   loop-industry-pattern/mod3.yml                            true                        13.01    5.38
+22:13:46   loop-invariants/bin-suffix-5.yml                          true                        23.56    9.41
+22:13:55   loop-invariants/const.yml                                 true                        11.36    4.52
+22:14:00   loop-invariants/eq1.yml                                   true                        11.29    4.57
+22:14:05   loop-invariants/eq2.yml                                   true                        11.83    4.59
+22:14:09   loop-invariants/even.yml                                  true                        12.19    5.07
+22:14:15   loop-invariants/linear-inequality-inv-a.yml               2023-04-17 22:17:16 - WARNING - Killing process 339695 due to wall time timeout.                                                                               
+TIMEOUT                    207.86  181.00
+22:17:16   loop-invariants/linear-inequality-inv-b.yml               false(unreach-call)         11.85    5.02
+22:17:21   loop-invariants/mod4.yml                                  true                        12.14    4.99
+22:17:26   loop-invariants/odd.yml                                   true                        11.22    4.55
+22:17:31   loop-simple/deep-nested.yml                               2023-04-17 22:20:32 - WARNING - Killing process 340093 due to wall time timeout.                                                                               
+TIMEOUT                    228.04  181.00
+22:20:33   loop-simple/nested_1.yml                                  true                        11.48    4.90
+22:20:38   loop-simple/nested_1b.yml                                 false(unreach-call)         12.32    5.19
+22:20:43   loop-simple/nested_2.yml                                  true                        20.05    7.81
+22:20:51   loop-simple/nested_3.yml                                  true                        43.94   18.71
+22:21:10   loop-simple/nested_4.yml                                  true                       184.42  142.74
+22:23:33   loop-simple/nested_5.yml                                  2023-04-17 22:26:34 - WARNING - Killing process 340831 due to wall time timeout.                                                                               
+TIMEOUT                    265.26  181.00
+22:26:34   loop-simple/nested_6.yml                                  2023-04-17 22:29:35 - WARNING - Killing process 340991 due to wall time timeout.                                                                               
+TIMEOUT                    293.99  181.01
+22:29:36   loop-zilu/benchmark02_linear.yml                          true                        10.74    4.46
+22:29:41   loop-zilu/benchmark02_linear_abstracted.yml               true                        10.67    4.46
+22:29:46   loop-zilu/benchmark04_conjunctive.yml                     true                        12.84    5.33
+22:29:51   loop-zilu/benchmark05_conjunctive.yml                     true                        14.07    5.71
+22:29:57   loop-zilu/benchmark09_conjunctive.yml                     true                        12.38    5.17
+22:30:02   loop-zilu/benchmark10_conjunctive.yml                     true                        13.79    5.72
+22:30:08   loop-zilu/benchmark11_linear.yml                          true                        11.94    5.02
+22:30:13   loop-zilu/benchmark11_linear_abstracted.yml               true                        11.01    4.59
+22:30:18   loop-zilu/benchmark14_linear.yml                          true                        11.40    4.38
+22:30:22   loop-zilu/benchmark17_conjunctive.yml                     true                        11.22    4.57
+22:30:27   loop-zilu/benchmark18_conjunctive.yml                     true                        12.27    5.09
+22:30:32   loop-zilu/benchmark19_conjunctive.yml                     true                        14.51    5.84
+22:30:38   loop-zilu/benchmark20_conjunctive.yml                     true                        11.55    4.87
+22:30:43   loop-zilu/benchmark23_conjunctive.yml                     true                        60.36   27.36
+22:31:10   loop-zilu/benchmark25_linear.yml                          true                        11.87    4.93
+22:31:15   loop-zilu/benchmark25_linear_abstracted.yml               true                        11.62    4.46
+22:31:20   loop-zilu/benchmark26_linear.yml                          true                        11.76    4.94
+22:31:25   loop-zilu/benchmark26_linear_abstracted.yml               true                        10.89    4.47
+22:31:30   loop-zilu/benchmark32_linear.yml                          true                        11.14    4.46
+22:31:34   loop-zilu/benchmark33_linear.yml                          true                        11.14    4.39
+22:31:39   loop-zilu/benchmark34_conjunctive.yml                     true                        14.02    5.86
+22:31:45   loop-zilu/benchmark35_linear.yml                          true                        10.89    4.77
+22:31:50   loop-zilu/benchmark37_conjunctive.yml                     true                        11.88    4.91
+22:31:55   loop-zilu/benchmark43_conjunctive.yml                     true                        12.78    5.15
+22:32:00   loop-zilu/benchmark43_conjunctive_abstracted.yml          true                        12.09    4.88
+22:32:05   loop-zilu/benchmark51_polynomial.yml                      true                        11.12    4.45
+22:32:09   loop-zilu/benchmark52_polynomial.yml                      true                        11.66    5.17
+22:32:15   nla-digbench/bresenham-ll.yml                             true                        18.69    7.75
+22:32:23   nla-digbench/cohencu-ll.yml                               2023-04-17 22:35:24 - WARNING - Killing process 343670 due to wall time timeout.                                                                               
+TIMEOUT                    200.69  181.01
+22:35:24   nla-digbench/cohendiv-ll.yml                              true                        18.46    8.20
+22:35:33   nla-digbench/dijkstra-u.yml                               2023-04-17 22:38:34 - WARNING - Killing process 343982 due to wall time timeout.                                                                               
+TIMEOUT                    196.77  181.01
+22:38:34   nla-digbench/divbin.yml                                   2023-04-17 22:41:35 - WARNING - Killing process 344105 due to wall time timeout.                                                                               
+TIMEOUT                    207.12  181.01
+22:41:36   nla-digbench/divbin2.yml                                  2023-04-17 22:44:37 - WARNING - Killing process 344318 due to wall time timeout.                                                                               
+TIMEOUT                    196.39  181.00
+22:44:37   nla-digbench/egcd-ll.yml                                  true                        41.18   26.45
+22:45:04   nla-digbench/egcd2-ll.yml                                 2023-04-17 22:48:05 - WARNING - Killing process 344608 due to wall time timeout.                                                                               
+TIMEOUT                    203.89  181.00
+22:48:06   nla-digbench/egcd3-ll.yml                                 2023-04-17 22:51:07 - WARNING - Killing process 344797 due to wall time timeout.                                                                               
+TIMEOUT                    202.30  181.01
+22:51:07   nla-digbench/fermat1-ll.yml                               true                        21.32   13.38
+22:51:21   nla-digbench/fermat2-ll.yml                               true                        17.40   10.06
+22:51:31   nla-digbench/geo1-ll.yml                                  true                        13.05    5.77
+22:51:37   nla-digbench/geo1-u.yml                                   false(unreach-call)         14.68    7.22
+22:51:44   nla-digbench/geo2-ll.yml                                  true                        13.14    5.82
+22:51:50   nla-digbench/geo3-ll.yml                                  true                        13.52    6.08
+22:51:56   nla-digbench/hard-ll.yml                                  2023-04-17 22:54:57 - WARNING - Killing process 345624 due to wall time timeout.                                                                               
+TIMEOUT                    205.85  181.00
+22:54:58   nla-digbench/hard-u.yml                                   2023-04-17 22:57:59 - WARNING - Killing process 345760 due to wall time timeout.                                                                               
+TIMEOUT                    201.54  181.01
+22:57:59   nla-digbench/hard2.yml                                    2023-04-17 23:01:00 - WARNING - Killing process 345899 due to wall time timeout.                                                                               
+TIMEOUT                    208.96  181.00
+23:01:01   nla-digbench/lcm1.yml                                     2023-04-17 23:04:02 - WARNING - Killing process 346054 due to wall time timeout.                                                                               
+TIMEOUT                    188.67  181.00
+23:04:03   nla-digbench/lcm2.yml                                     2023-04-17 23:07:04 - WARNING - Killing process 346171 due to wall time timeout.                                                                               
+TIMEOUT                    189.22  181.01
+23:07:04   nla-digbench/mannadiv.yml                                 true                        13.89    5.80
+23:07:10   nla-digbench/prod4br-ll.yml                               true                        24.38   11.63
+23:07:22   nla-digbench/prodbin-ll.yml                               2023-04-17 23:10:23 - WARNING - Killing process 346520 due to wall time timeout.                                                                               
+TIMEOUT                    202.47  181.00
+23:10:24   nla-digbench/ps2-ll.yml                                   true                        12.55    5.54
+23:10:29   nla-digbench/ps3-ll.yml                                   true                        12.60    5.71
+23:10:35   nla-digbench/ps4-ll.yml                                   2023-04-17 23:13:36 - WARNING - Killing process 346929 due to wall time timeout.                                                                               
+TIMEOUT                    196.27  181.01
+23:13:37   nla-digbench/ps5-ll.yml                                   2023-04-17 23:16:38 - WARNING - Killing process 347103 due to wall time timeout.                                                                               
+TIMEOUT                    195.12  181.00
+23:16:38   nla-digbench/ps6-ll.yml                                   2023-04-17 23:19:39 - WARNING - Killing process 347265 due to wall time timeout.                                                                               
+TIMEOUT                    195.38  181.01
+23:19:40   nla-digbench/sqrt1-ll.yml                                 true                        16.50    6.91
+23:19:47   openssl-simplified/s3_srvr_1b.cil.yml                     true                        12.61    4.91
+23:19:52   recursive/Ackermann01-2.yml                               true                        27.90   10.89
+23:20:03   recursive/Ackermann02.yml                                 false(unreach-call)         13.89    5.68
+23:20:09   recursive/Ackermann03.yml                                 true                        90.02   44.43
+23:20:53   recursive/Ackermann04.yml                                 true                        60.47   27.36
+23:21:21   recursive/Addition01-2.yml                                true                        15.14    5.96
+23:21:27   recursive/Addition02.yml                                  false(unreach-call)         12.46    4.81
+23:21:32   recursive/Addition03-1.yml                                2023-04-17 23:24:33 - WARNING - Killing process 348352 due to wall time timeout.                                                                               
+TIMEOUT                    253.27  181.01
+23:24:33   recursive/BallRajamani-SPIN2000-Fig1.yml                  false(unreach-call)         11.88    4.94
+23:24:39   recursive/EvenOdd01-1.yml                                 2023-04-17 23:27:40 - WARNING - Killing process 348633 due to wall time timeout.                                                                               
+TIMEOUT                    260.15  181.00
+23:27:40   recursive/EvenOdd03.yml                                   false(unreach-call)         10.87    4.28
+23:27:45   recursive/Fibonacci01-1.yml                               true                        21.12    8.52
+23:27:53   recursive/Fibonacci02.yml                                 true                        95.51   47.43
+23:28:41   recursive/Fibonacci03.yml                                 true                       144.65   94.83
+23:30:16   recursive/Fibonacci04.yml                                 false(unreach-call)         24.26    9.57
+23:30:25   recursive/Fibonacci05.yml                                 false(unreach-call)         32.33   12.09
+23:30:38   recursive/McCarthy91-1.yml                                false(unreach-call)         10.04    4.24
+23:30:42   recursive/McCarthy91-2.yml                                true                        14.58    5.68
+23:30:48   recursive/MultCommutative-2.yml                           2023-04-17 23:33:49 - WARNING - Killing process 349799 due to wall time timeout.                                                                               
+TIMEOUT                    262.24  181.01
+23:33:49   recursive/Primes.yml                                      true                        30.74   12.03
+23:34:01   recursive/gcd01-1.yml                                     true                        15.24    6.20
+23:34:08   recursive/gcd02.yml                                       2023-04-17 23:37:09 - WARNING - Killing process 350254 due to wall time timeout.                                                                               
+TIMEOUT                    239.64  181.00
+23:37:09   recursive/recHanoi01.yml                                  2023-04-17 23:40:10 - WARNING - Killing process 350556 due to wall time timeout.                                                                               
+TIMEOUT                    254.00  181.01
+23:40:11   recursive/recHanoi02-2.yml                                true                        12.44    5.01
+23:40:16   recursive/recHanoi03-2.yml                                true                        71.12   33.65
+23:40:50   recursive-simple/afterrec-1.yml                           false(unreach-call)         12.19    4.89
+23:40:55   recursive-simple/afterrec-2.yml                           true                        11.09    4.69
+23:41:00   recursive-simple/afterrec_2calls-1.yml                    false(unreach-call)         10.99    4.54
+23:41:04   recursive-simple/afterrec_2calls-2.yml                    true                        10.42    4.39
+23:41:09   recursive-simple/fibo_10-1.yml                            false(unreach-call)         63.54   25.95
+23:41:35   recursive-simple/fibo_10-2.yml                            true                       172.66  111.30
+23:43:26   recursive-simple/fibo_15-1.yml                            2023-04-17 23:46:27 - WARNING - Killing process 351664 due to wall time timeout.                                                                               
+TIMEOUT                    244.37  181.01
+23:46:28   recursive-simple/fibo_15-2.yml                            2023-04-17 23:49:29 - WARNING - Killing process 351831 due to wall time timeout.                                                                               
+TIMEOUT                    245.74  181.01
+23:49:30   recursive-simple/fibo_20-1.yml                            2023-04-17 23:52:31 - WARNING - Killing process 352018 due to wall time timeout.                                                                               
+TIMEOUT                    250.91  181.01
+23:52:31   recursive-simple/fibo_20-2.yml                            2023-04-17 23:55:32 - WARNING - Killing process 352209 due to wall time timeout.                                                                               
+TIMEOUT                    238.84  181.01
+23:55:33   recursive-simple/fibo_25-1.yml                            2023-04-17 23:58:34 - WARNING - Killing process 352386 due to wall time timeout.                                                                               
+TIMEOUT                    244.83  181.01
+23:58:35   recursive-simple/fibo_25-2.yml                            2023-04-18 00:01:36 - WARNING - Killing process 352560 due to wall time timeout.                                                                               
+2023-04-18 00:01:36 - WARNING - System has swapped during benchmarking. Benchmark results are unreliable!
+TIMEOUT                    243.83  181.00
+00:01:36   recursive-simple/fibo_2calls_10-1.yml                     true                       222.32  147.51
+00:04:04   recursive-simple/fibo_2calls_10-2.yml                     false(unreach-call)        124.32   71.49
+00:05:15   recursive-simple/fibo_2calls_15-1.yml                     2023-04-18 00:08:16 - WARNING - Killing process 353206 due to wall time timeout.                                                                               
+TIMEOUT                    250.88  181.00
+00:08:17   recursive-simple/fibo_2calls_15-2.yml                     2023-04-18 00:11:18 - WARNING - Killing process 353399 due to wall time timeout.                                                                               
+TIMEOUT                    248.15  181.01
+00:11:19   recursive-simple/fibo_2calls_2-1.yml                      false(unreach-call)         13.28    5.35
+00:11:24   recursive-simple/fibo_2calls_2-2.yml                      true                        17.79    7.19
+00:11:31   recursive-simple/fibo_2calls_20-1.yml                     2023-04-18 00:14:32 - WARNING - Killing process 353877 due to wall time timeout.                                                                               
+TIMEOUT                    253.40  181.01
+00:14:33   recursive-simple/fibo_2calls_20-2.yml                     2023-04-18 00:17:34 - WARNING - Killing process 354061 due to wall time timeout.                                                                               
+TIMEOUT                    252.03  181.01
+00:17:35   recursive-simple/fibo_2calls_25-1.yml                     2023-04-18 00:20:36 - WARNING - Killing process 354274 due to wall time timeout.                                                                               
+TIMEOUT                    254.76  181.00
+00:20:36   recursive-simple/fibo_2calls_25-2.yml                     2023-04-18 00:23:37 - WARNING - Killing process 354476 due to wall time timeout.                                                                               
+TIMEOUT                    253.83  181.01
+00:23:38   recursive-simple/fibo_2calls_4-1.yml                      true                        32.33   13.40
+00:23:52   recursive-simple/fibo_2calls_4-2.yml                      false(unreach-call)         25.62   10.54
+00:24:02   recursive-simple/fibo_2calls_5-1.yml                      true                        43.74   17.81
+00:24:20   recursive-simple/fibo_2calls_5-2.yml                      false(unreach-call)         30.95   12.60
+00:24:33   recursive-simple/fibo_2calls_6-1.yml                      true                        52.25   21.06
+00:24:54   recursive-simple/fibo_2calls_6-2.yml                      false(unreach-call)         33.46   13.64
+00:25:08   recursive-simple/fibo_2calls_8-1.yml                      true                       105.09   51.88
+00:26:00   recursive-simple/fibo_2calls_8-2.yml                      false(unreach-call)         77.05   36.23
+00:26:36   recursive-simple/fibo_5-1.yml                             true                        35.23   13.50
+00:26:50   recursive-simple/fibo_5-2.yml                             false(unreach-call)         24.50    9.61
+00:26:59   recursive-simple/fibo_7-1.yml                             true                        58.32   23.21
+00:27:23   recursive-simple/fibo_7-2.yml                             false(unreach-call)         28.36   11.07
+00:27:34   recursive-simple/id2_b2_o3.yml                            true                        15.27    5.99
+00:27:40   recursive-simple/id2_b3_o2.yml                            false(unreach-call)         14.31    5.29
+00:27:45   recursive-simple/id2_b3_o5.yml                            true                        15.71    6.01
+00:27:52   recursive-simple/id2_b5_o10.yml                           true                        14.93    5.84
+00:27:57   recursive-simple/id2_i5_o5-1.yml                          false(unreach-call)         18.66    7.54
+00:28:05   recursive-simple/id2_i5_o5-2.yml                          true                        25.11    9.90
+00:28:15   recursive-simple/id_b2_o3.yml                             true                        12.91    5.20
+00:28:20   recursive-simple/id_b3_o2-2.yml                           false(unreach-call)         14.40    5.91
+00:28:26   recursive-simple/id_b3_o5-2.yml                           true                        12.70    5.22
+00:28:32   recursive-simple/id_b5_o10-2.yml                          true                        13.30    5.29
+00:28:37   recursive-simple/id_i10_o10-1.yml                         false(unreach-call)         27.60   11.51
+00:28:49   recursive-simple/id_i10_o10-2.yml                         true                        45.99   20.26
+00:29:09   recursive-simple/id_i15_o15-1.yml                         true                        89.57   48.78
+00:29:58   recursive-simple/id_i15_o15-2.yml                         false(unreach-call)         28.68   11.79
+00:30:10   recursive-simple/id_i20_o20-1.yml                         true                       180.63  117.32
+00:32:07   recursive-simple/id_i20_o20-2.yml                         false(unreach-call)         50.10   24.83
+00:32:32   recursive-simple/id_i25_o25-1.yml                         2023-04-18 00:35:33 - WARNING - Killing process 358491 due to wall time timeout.                                                                               
+TIMEOUT                    254.73  181.00
+00:35:34   recursive-simple/id_i25_o25-2.yml                         false(unreach-call)         50.71   25.30
+00:35:59   recursive-simple/id_i5_o5-1.yml                           false(unreach-call)         16.24    6.73
+00:36:06   recursive-simple/id_i5_o5-2.yml                           true                        23.10    9.46
+00:36:16   recursive-simple/id_o10.yml                               false(unreach-call)         22.38    9.45
+00:36:25   recursive-simple/id_o100.yml                              2023-04-18 00:39:26 - WARNING - Killing process 359200 due to wall time timeout.                                                                               
+TIMEOUT                    201.09  181.00
+00:39:27   recursive-simple/id_o1000.yml                             2023-04-18 00:42:28 - WARNING - Killing process 359369 due to wall time timeout.                                                                               
+TIMEOUT                    200.91  181.00
+00:42:29   recursive-simple/id_o20.yml                               false(unreach-call)        158.26  137.07
+00:44:46   recursive-simple/id_o200.yml                              2023-04-18 00:47:47 - WARNING - Killing process 359615 due to wall time timeout.                                                                               
+TIMEOUT                    200.73  181.01
+00:47:47   recursive-simple/id_o3.yml                                false(unreach-call)         12.65    5.20
+00:47:53   recursive-simple/sum_10x0-1.yml                           true                        52.68   23.03
+00:48:16   recursive-simple/sum_10x0-2.yml                           false(unreach-call)         39.13   17.44
+00:48:34   recursive-simple/sum_15x0-1.yml                           true                        93.35   47.91
+00:49:22   recursive-simple/sum_15x0-2.yml                           false(unreach-call)         81.14   44.21
+00:50:06   recursive-simple/sum_20x0-1.yml                           false(unreach-call)        197.54  135.98
+00:52:22   recursive-simple/sum_20x0-2.yml                           true                       180.70  117.27
+00:54:19   recursive-simple/sum_25x0-1.yml                           2023-04-18 00:57:20 - WARNING - Killing process 360951 due to wall time timeout.                                                                               
+TIMEOUT                    259.34  181.01
+00:57:21   recursive-simple/sum_25x0-2.yml                           2023-04-18 01:00:22 - WARNING - Killing process 361185 due to wall time timeout.
+TIMEOUT                    253.61  181.01
+01:00:23   recursive-simple/sum_2x3-1.yml                            false(unreach-call)         12.34    5.13
+01:00:28   recursive-simple/sum_2x3-2.yml                            true                        19.33    7.33
+01:00:35   recursive-simple/sum_non_eq-2.yml                         true                        15.54    5.96
+01:00:41   recursive-simple/sum_non_eq-3.yml                         false(unreach-call)         10.15    4.20
+2023-04-18 01:00:46 - WARNING - System has swapped during benchmarking. Benchmark results are unreliable!
+
+Statistics:            312 Files
+  correct:             247
+    correct true:      188
+    correct false:      59
+  incorrect:             0
+    incorrect true:      0
+    incorrect false:     0
+  unknown:              65
+  Score:               435 (max: 545)
+
+In order to get HTML and CSV tables, run
+table-generator results/Ultimate.2023-04-17_20-43-44.results.thesis-all.xml.bz2
+ rjf  ⎇  master {2} U:3057 ?:112  ~/fast/duet-IW/bench   python3 bench.py summary 
+

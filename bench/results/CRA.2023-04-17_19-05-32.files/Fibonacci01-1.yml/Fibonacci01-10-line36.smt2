@@ -1,0 +1,7 @@
+(declare-const |param0':231:236:242| Int)
+(declare-const havoc Int)
+(declare-const |return':230:237:243| Int)
+(assert (and (<= (+ havoc -46) 0) (not (= (+ havoc 2147483648) 0))
+               (<= (+ |param0':231:236:242| (- havoc)) 0)
+               (< (+ |return':230:237:243| (- havoc) 1) 0)))
+(check-sat)

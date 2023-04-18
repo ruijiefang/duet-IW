@@ -1,0 +1,347 @@
+ rjf  ⎇  master {2} U:3057 ?:107  ~/fast/duet-IW/bench  130   python3 bench.py run --tools CRA --suites thesis-all --timeout 180
+Running CRA on suite thesis-all
+2023-04-17 19:05:33 - INFO - Unable to find pqos_wrapper, please install it for cache allocation and monitoring if your CPU supports Intel RDT (cf. https://gitlab.com/sosy-lab/software/pqos-wrapper).
+
+executing run set 'thesis-all'     (312 files)
+2023-04-17 19:05:33 - WARNING - Kernel misses feature for accounting swap memory, but machine has swap. Memory usage may be measured inaccurately. Please set swapaccount=1 on your kernel command line or disable swap with "sudo swapoff -a".
+19:05:33   locks/test_locks_10.yml                                   true                         2.73    2.65
+19:05:36   locks/test_locks_11.yml                                   true                         3.44    3.36
+19:05:40   locks/test_locks_12.yml                                   true                         4.09    4.02
+19:05:44   locks/test_locks_13.yml                                   true                         4.09    4.01
+19:05:48   locks/test_locks_14-1.yml                                 true                         6.88    6.81
+19:05:55   locks/test_locks_14-2.yml                                 unknown                      6.23    6.16
+19:06:01   locks/test_locks_15-1.yml                                 unknown                     10.32   10.25
+19:06:11   locks/test_locks_15-2.yml                                 true                         8.35    8.27
+19:06:20   locks/test_locks_5.yml                                    true                         0.78    0.71
+19:06:21   locks/test_locks_6.yml                                    true                         1.08    1.00
+19:06:22   locks/test_locks_7.yml                                    true                         1.31    1.24
+19:06:23   locks/test_locks_8.yml                                    true                         1.76    1.68
+19:06:25   locks/test_locks_9.yml                                    true                         2.40    2.33
+19:06:28   loops/count_up_down-1.yml                                 true                         0.39    0.31
+19:06:28   loops/count_up_down-2.yml                                 unknown                      0.39    0.33
+19:06:29   loops/for_bounded_loop1.yml                               unknown                      0.56    0.49
+19:06:29   loops/for_infinite_loop_1.yml                             true                         0.39    0.32
+19:06:30   loops/for_infinite_loop_2.yml                             true                         0.39    0.32
+19:06:30   loops/sum01-2.yml                                         true                         0.45    0.38
+19:06:31   loops/sum01_bug02.yml                                     unknown                      0.51    0.43
+19:06:31   loops/sum03-1.yml                                         unknown                      0.45    0.37
+19:06:32   loops/sum03-2.yml                                         true                         0.38    0.30
+19:06:32   loops/sum04-1.yml                                         unknown                      0.44    0.37
+19:06:33   loops/sum04-2.yml                                         true                         0.40    0.32
+19:06:33   loops/terminator_02-2.yml                                 true                         0.78    0.63
+19:06:34   loops/terminator_02-2_abstracted.yml                      unknown                      0.41    0.33
+19:06:34   loops/terminator_03-2.yml                                 true                         0.43    0.36
+19:06:35   loops/terminator_03-2_abstracted.yml                      true                         0.35    0.27
+19:06:35   loops/trex01-1.yml                                        unknown                      1.08    0.94
+19:06:36   loops/trex01-2.yml                                        true                         1.16    1.00
+19:06:38   loops/trex02-1.yml                                        true                         0.68    0.53
+19:06:38   loops/trex02-2.yml                                        unknown                      0.68    0.53
+19:06:39   loops/trex03-1.yml                                        unknown                      0.85    0.69
+19:06:40   loops/trex03-2.yml                                        true                         0.85    0.69
+19:06:41   loops/trex03-2_abstracted.yml                             unknown                      0.63    0.47
+19:06:41   loops/trex04.yml                                          true                         0.81    0.66
+19:06:42   loops/trex04_abstracted.yml                               true                         0.76    0.61
+19:06:43   loops/while_infinite_loop_1.yml                           true                         0.34    0.27
+19:06:43   loops/while_infinite_loop_2.yml                           true                         0.34    0.27
+19:06:44   loops/while_infinite_loop_3.yml                           true                         0.60    0.45
+19:06:44   loops/while_infinite_loop_4.yml                           unknown                      0.59    0.44
+19:06:45   loop-acceleration/const_1-1.yml                           true                         0.41    0.33
+19:06:45   loop-acceleration/const_1-2.yml                           unknown                      0.40    0.33
+19:06:46   loop-acceleration/const_1-2_abstracted.yml                unknown                      0.31    0.23
+19:06:46   loop-acceleration/diamond_1-1.yml                         unknown                      0.45    0.37
+19:06:47   loop-acceleration/diamond_1-2.yml                         unknown                      0.45    0.37
+19:06:47   loop-acceleration/diamond_2-2.yml                         unknown                      0.46    0.38
+19:06:48   loop-acceleration/functions_1-1.yml                       true                         0.67    0.51
+19:06:48   loop-acceleration/functions_1-2.yml                       unknown                      0.67    0.51
+19:06:49   loop-acceleration/multivar_1-1.yml                        true                         0.38    0.30
+19:06:50   loop-acceleration/multivar_1-2.yml                        unknown                      0.38    0.30
+19:06:50   loop-acceleration/nested_1-1.yml                          true                         0.49    0.41
+19:06:51   loop-acceleration/nested_1-2.yml                          unknown                      0.49    0.42
+19:06:51   loop-acceleration/overflow_1-1.yml                        true                         0.38    0.31
+19:06:52   loop-acceleration/phases_1-1.yml                          unknown                      0.39    0.32
+19:06:52   loop-acceleration/phases_1-2.yml                          unknown                      0.39    0.32
+19:06:53   loop-acceleration/phases_2-1.yml                          2023-04-17 19:09:54 - WARNING - Killing process 298850 due to wall time timeout.                                                                               
+TIMEOUT                    181.30  181.24
+19:09:54   loop-acceleration/phases_2-2.yml                          2023-04-17 19:12:55 - WARNING - Killing process 298952 due to wall time timeout.                                                                               
+TIMEOUT                    181.33  181.25
+19:12:55   loop-acceleration/simple_1-1.yml                          unknown                      0.38    0.31
+19:12:56   loop-acceleration/simple_1-1_abstracted.yml               unknown                      0.31    0.23
+19:12:56   loop-acceleration/simple_1-2.yml                          true                         0.38    0.30
+19:12:57   loop-acceleration/simple_1-2_abstracted.yml               true                         0.31    0.23
+19:12:57   loop-acceleration/simple_2-1.yml                          true                         0.36    0.29
+19:12:57   loop-acceleration/simple_2-1_abstracted.yml               true                         0.31    0.23
+19:12:58   loop-acceleration/simple_2-2.yml                          unknown                      0.37    0.29
+19:12:58   loop-acceleration/simple_3-1.yml                          unknown                      0.64    0.48
+19:12:59   loop-acceleration/simple_3-2.yml                          true                         0.63    0.48
+19:12:59   loop-acceleration/simple_4-1.yml                          unknown                      0.40    0.32
+19:13:00   loop-acceleration/simple_4-1_abstracted.yml               unknown                      0.31    0.23
+19:13:00   loop-acceleration/simple_4-2.yml                          true                         0.40    0.33
+19:13:01   loop-acceleration/simple_4-2_abstracted.yml               true                         0.31    0.23
+19:13:01   loop-acceleration/underapprox_1-1.yml                     unknown                      0.41    0.34
+19:13:02   loop-acceleration/underapprox_1-2.yml                     unknown                      0.41    0.34
+19:13:02   loop-acceleration/underapprox_2-1.yml                     unknown                      0.41    0.34
+19:13:03   loop-acceleration/underapprox_2-2.yml                     true                         0.41    0.34
+19:13:03   loop-crafted/simple_vardep_1.yml                          true                         0.45    0.38
+19:13:04   loop-crafted/simple_vardep_2.yml                          true                         0.48    0.41
+19:13:04   loop-invgen/MADWiFi-encode_ie_ok.yml                      true                         0.70    0.63
+19:13:05   loop-invgen/NetBSD_loop.yml                               true                         0.49    0.42
+19:13:05   loop-invgen/SpamAssassin-loop.i.v+cfa-reducer.yml         2023-04-17 19:16:07 - WARNING - Killing process 300097 due to wall time timeout.                                                                               
+TIMEOUT                    181.30  181.23
+19:16:07   loop-invgen/SpamAssassin-loop.yml                         2023-04-17 19:19:08 - WARNING - Killing process 300155 due to wall time timeout.                                                                               
+TIMEOUT                    181.21  181.14
+19:19:08   loop-invgen/apache-escape-absolute.i.v+cfa-reducer.yml    true                         2.49    2.41
+19:19:11   loop-invgen/apache-escape-absolute.yml                    true                         1.65    1.57
+19:19:12   loop-invgen/apache-get-tag.i.p+lhb-reducer.yml            true                         8.77    8.67
+19:19:21   loop-invgen/apache-get-tag.i.p+nlh-reducer.yml            2023-04-17 19:22:22 - WARNING - Killing process 300389 due to wall time timeout.                                                                               
+TIMEOUT                    181.41  181.30
+19:22:23   loop-invgen/apache-get-tag.i.p+sep-reducer.yml            2023-04-17 19:25:24 - WARNING - Killing process 300457 due to wall time timeout.                                                                               
+TIMEOUT                    181.52  181.40
+19:25:24   loop-invgen/apache-get-tag.i.v+lhb-reducer.yml            true                         1.80    1.72
+19:25:26   loop-invgen/apache-get-tag.i.v+nlh-reducer.yml            true                         1.75    1.67
+19:25:28   loop-invgen/apache-get-tag.yml                            true                         1.14    1.07
+19:25:29   loop-invgen/down.yml                                      true                         0.50    0.42
+19:25:30   loop-invgen/fragtest_simple.yml                           true                         0.73    0.65
+19:25:31   loop-invgen/half_2.yml                                    true                         0.54    0.47
+19:25:31   loop-invgen/heapsort.yml                                  2023-04-17 19:28:32 - WARNING - Killing process 300823 due to wall time timeout.                                                                               
+TIMEOUT                    181.32  181.27
+19:28:33   loop-invgen/id_build.i.p+nlh-reducer.yml                  true                        49.10   49.00
+19:29:22   loop-invgen/id_build.i.p+sep-reducer.yml                  true                        47.07   46.95
+19:30:09   loop-invgen/id_build.i.v+lhb-reducer.yml                  true                         0.76    0.68
+19:30:10   loop-invgen/id_build.yml                                  true                         0.57    0.49
+19:30:10   loop-invgen/id_trans.yml                                  unknown                      0.61    0.54
+19:30:11   loop-invgen/large_const.yml                               true                         0.68    0.60
+19:30:12   loop-invgen/nest-if3.yml                                  true                         0.64    0.57
+19:30:12   loop-invgen/nested6.yml                                   unknown                      0.97    0.89
+19:30:13   loop-invgen/nested9.yml                                   true                         0.82    0.75
+19:30:14   loop-invgen/sendmail-close-angle.yml                      unknown                      0.84    0.77
+19:30:15   loop-invgen/seq-3.yml                                     true                         0.67    0.60
+19:30:16   loop-invgen/string_concat-noarr.yml                       true                         0.60    0.53
+19:30:17   loop-invgen/up.yml                                        true                         0.50    0.42
+19:30:17   loop-lit/afnp2014.yml                                     true                         0.47    0.40
+19:30:18   loop-lit/bhmr2007.yml                                     true                         0.49    0.42
+19:30:18   loop-lit/cggmp2005.yml                                    true                         0.41    0.33
+19:30:19   loop-lit/cggmp2005_variant.yml                            true                         0.51    0.44
+19:30:19   loop-lit/cggmp2005b.yml                                   true                         0.76    0.68
+19:30:20   loop-lit/css2003.yml                                      true                         0.49    0.42
+19:30:21   loop-lit/ddlm2013.yml                                     unknown                      0.55    0.47
+19:30:21   loop-lit/gcnr2008.yml                                     unknown                      0.69    0.61
+19:30:22   loop-lit/gj2007.c.i.p+lhb-reducer.yml                     unknown                      0.67    0.59
+19:30:23   loop-lit/gj2007.c.i.p+nlh-reducer.yml                     unknown                      1.82    1.74
+19:30:25   loop-lit/gj2007.yml                                       unknown                      0.45    0.38
+19:30:25   loop-lit/gj2007b.yml                                      unknown                      0.46    0.38
+19:30:26   loop-lit/gr2006.yml                                       unknown                      0.45    0.37
+19:30:26   loop-lit/gsv2008.c.i.p+cfa-reducer.yml                    true                         0.47    0.40
+19:30:27   loop-lit/gsv2008.c.i.v+cfa-reducer.yml                    true                         0.47    0.39
+19:30:27   loop-lit/gsv2008.c.i.v+lhb-reducer.yml                    true                         0.53    0.45
+19:30:28   loop-lit/gsv2008.yml                                      true                         0.44    0.36
+19:30:29   loop-lit/hhk2008.yml                                      true                         0.46    0.39
+19:30:29   loop-lit/jm2006.c.i.v+cfa-reducer.yml                     true                         0.48    0.40
+19:30:30   loop-lit/jm2006.yml                                       true                         0.47    0.40
+19:30:30   loop-lit/jm2006_variant.yml                               true                         0.50    0.43
+19:30:31   loop-new/count_by_1.yml                                   true                         0.39    0.32
+19:30:31   loop-new/count_by_1_variant.yml                           true                         0.40    0.32
+19:30:32   loop-new/count_by_2.yml                                   true                         0.39    0.32
+19:30:32   loop-new/count_by_k.yml                                   true                         0.45    0.38
+19:30:33   loop-new/count_by_nondet.yml                              unknown                      0.47    0.39
+19:30:33   loop-new/gauss_sum.i.p+cfa-reducer.yml                    true                         0.49    0.43
+19:30:34   loop-new/gauss_sum.i.p+lhb-reducer.yml                    true                         0.60    0.52
+19:30:34   loop-new/gauss_sum.i.v+cfa-reducer.yml                    true                         0.49    0.42
+19:30:35   loop-new/gauss_sum.yml                                    true                         0.46    0.38
+19:30:36   loop-new/half.yml                                         unknown                      0.49    0.41
+19:30:36   loop-new/nested-1.yml                                     true                         0.60    0.53
+19:30:37   loop-industry-pattern/mod3.c.v+cfa-reducer.yml            unknown                      0.49    0.42
+19:30:37   loop-industry-pattern/mod3.c.v+lhb-reducer.yml            true                         1.66    1.58
+19:30:39   loop-industry-pattern/mod3.c.v+sep-reducer.yml            true                         1.52    1.44
+19:30:41   loop-industry-pattern/mod3.yml                            unknown                      0.47    0.40
+19:30:41   loop-invariants/bin-suffix-5.yml                          unknown                      0.39    0.31
+19:30:42   loop-invariants/const.yml                                 true                         0.40    0.32
+19:30:42   loop-invariants/eq1.yml                                   true                         0.45    0.37
+19:30:43   loop-invariants/eq2.yml                                   true                         0.38    0.31
+19:30:43   loop-invariants/even.yml                                  true                         0.39    0.31
+19:30:44   loop-invariants/linear-inequality-inv-a.yml               unknown                      0.78    0.62
+19:30:44   loop-invariants/linear-inequality-inv-b.yml               unknown                      0.78    0.62
+19:30:45   loop-invariants/mod4.yml                                  true                         0.39    0.31
+19:30:46   loop-invariants/odd.yml                                   true                         0.39    0.32
+19:30:46   loop-simple/deep-nested.yml                               unknown                      1.71    1.64
+19:30:48   loop-simple/nested_1.yml                                  true                         0.41    0.33
+19:30:48   loop-simple/nested_1b.yml                                 unknown                      0.41    0.33
+19:30:49   loop-simple/nested_2.yml                                  true                         0.57    0.49
+19:30:49   loop-simple/nested_3.yml                                  true                         0.77    0.70
+19:30:50   loop-simple/nested_4.yml                                  true                         1.02    0.95
+19:30:51   loop-simple/nested_5.yml                                  true                         1.31    1.23
+19:30:53   loop-simple/nested_6.yml                                  true                         1.62    1.55
+19:30:54   loop-zilu/benchmark02_linear.yml                          true                         0.41    0.34
+19:30:55   loop-zilu/benchmark02_linear_abstracted.yml               true                         0.34    0.26
+19:30:55   loop-zilu/benchmark04_conjunctive.yml                     true                         0.47    0.40
+19:30:56   loop-zilu/benchmark05_conjunctive.yml                     unknown                      0.45    0.37
+19:30:56   loop-zilu/benchmark09_conjunctive.yml                     true                         0.47    0.39
+19:30:57   loop-zilu/benchmark10_conjunctive.yml                     true                         0.50    0.42
+19:30:58   loop-zilu/benchmark11_linear.yml                          true                         0.43    0.35
+19:30:58   loop-zilu/benchmark11_linear_abstracted.yml               true                         0.35    0.27
+19:30:58   loop-zilu/benchmark14_linear.yml                          true                         0.41    0.33
+19:30:59   loop-zilu/benchmark17_conjunctive.yml                     true                         0.44    0.37
+19:30:59   loop-zilu/benchmark18_conjunctive.yml                     true                         0.46    0.39
+19:31:00   loop-zilu/benchmark19_conjunctive.yml                     true                         0.50    0.42
+19:31:01   loop-zilu/benchmark20_conjunctive.yml                     true                         0.49    0.42
+19:31:01   loop-zilu/benchmark23_conjunctive.yml                     true                         0.44    0.37
+19:31:02   loop-zilu/benchmark25_linear.yml                          true                         0.42    0.35
+19:31:02   loop-zilu/benchmark25_linear_abstracted.yml               true                         0.33    0.26
+19:31:03   loop-zilu/benchmark26_linear.yml                          true                         0.39    0.32
+19:31:03   loop-zilu/benchmark26_linear_abstracted.yml               true                         0.34    0.26
+19:31:03   loop-zilu/benchmark32_linear.yml                          unknown                      0.68    0.52
+19:31:04   loop-zilu/benchmark33_linear.yml                          true                         0.41    0.35
+19:31:05   loop-zilu/benchmark34_conjunctive.yml                     true                         0.50    0.43
+19:31:05   loop-zilu/benchmark35_linear.yml                          true                         0.41    0.34
+19:31:06   loop-zilu/benchmark37_conjunctive.yml                     true                         0.42    0.35
+19:31:06   loop-zilu/benchmark43_conjunctive.yml                     true                         0.44    0.37
+19:31:07   loop-zilu/benchmark43_conjunctive_abstracted.yml          unknown                      0.36    0.28
+19:31:07   loop-zilu/benchmark51_polynomial.yml                      unknown                      0.68    0.52
+19:31:08   loop-zilu/benchmark52_polynomial.yml                      true                         0.41    0.34
+19:31:08   nla-digbench/bresenham-ll.yml                             2023-04-17 19:34:09 - WARNING - Killing process 305199 due to wall time timeout.                                                                               
+TIMEOUT                    181.12  181.06
+19:34:09   nla-digbench/cohencu-ll.yml                               true                         2.20    2.04
+19:34:12   nla-digbench/cohendiv-ll.yml                              unknown                      6.55    6.39
+19:34:18   nla-digbench/dijkstra-u.yml                               2023-04-17 19:37:19 - WARNING - Killing process 305439 due to wall time timeout.                                                                               
+TIMEOUT                    181.19  181.05
+19:37:19   nla-digbench/divbin.yml                                   unknown                      7.21    7.06
+19:37:27   nla-digbench/divbin2.yml                                  unknown                      3.92    3.84
+19:37:31   nla-digbench/egcd-ll.yml                                  unknown                      4.84    4.68
+19:37:35   nla-digbench/egcd2-ll.yml                                 unknown                      5.06    4.90
+19:37:41   nla-digbench/egcd3-ll.yml                                 2023-04-17 19:40:42 - WARNING - Killing process 305908 due to wall time timeout.                                                                               
+TIMEOUT                    181.58  181.43
+19:40:42   nla-digbench/fermat1-ll.yml                               2023-04-17 19:43:43 - WARNING - Killing process 306049 due to wall time timeout.                                                                               
+TIMEOUT                    181.20  181.06
+19:43:43   nla-digbench/fermat2-ll.yml                               unknown                      1.14    0.98
+19:43:44   nla-digbench/geo1-ll.yml                                  unknown                      0.84    0.69
+19:43:45   nla-digbench/geo1-u.yml                                   unknown                      0.74    0.66
+19:43:46   nla-digbench/geo2-ll.yml                                  true                         0.58    0.50
+19:43:47   nla-digbench/geo3-ll.yml                                  unknown                      0.61    0.53
+19:43:47   nla-digbench/hard-ll.yml                                  2023-04-17 19:46:48 - WARNING - Killing process 306499 due to wall time timeout.                                                                               
+TIMEOUT                    181.29  181.16
+19:46:49   nla-digbench/hard-u.yml                                   2023-04-17 19:49:50 - WARNING - Killing process 306596 due to wall time timeout.                                                                               
+TIMEOUT                    181.29  181.15
+19:49:50   nla-digbench/hard2.yml                                    true                         3.43    3.35
+19:49:54   nla-digbench/lcm1.yml                                     2023-04-17 19:52:55 - WARNING - Killing process 306770 due to wall time timeout.                                                                               
+TIMEOUT                    181.44  181.31
+19:52:55   nla-digbench/lcm2.yml                                     2023-04-17 19:55:56 - WARNING - Killing process 306866 due to wall time timeout.                                                                               
+TIMEOUT                    181.39  181.24
+19:55:56   nla-digbench/mannadiv.yml                                 unknown                      1.43    1.28
+19:55:58   nla-digbench/prod4br-ll.yml                               unknown                      8.28    8.13
+19:56:06   nla-digbench/prodbin-ll.yml                               unknown                      0.90    0.74
+19:56:07   nla-digbench/ps2-ll.yml                                   true                         0.62    0.54
+19:56:08   nla-digbench/ps3-ll.yml                                   true                        25.02   24.87
+19:56:33   nla-digbench/ps4-ll.yml                                   true                         6.85    6.70
+19:56:40   nla-digbench/ps5-ll.yml                                   true                        35.33   35.17
+19:57:15   nla-digbench/ps6-ll.yml                                   true                       107.85  107.70
+19:59:03   nla-digbench/sqrt1-ll.yml                                 true                         0.79    0.71
+19:59:04   openssl-simplified/s3_srvr_1b.cil.yml                     unknown                      0.91    0.83
+19:59:05   recursive/Ackermann01-2.yml                               unknown                      1.44    1.29
+19:59:06   recursive/Ackermann02.yml                                 unknown                      1.41    1.25
+19:59:07   recursive/Ackermann03.yml                                 unknown                      1.43    1.27
+19:59:09   recursive/Ackermann04.yml                                 unknown                      1.43    1.28
+19:59:10   recursive/Addition01-2.yml                                true                         1.03    0.87
+19:59:11   recursive/Addition02.yml                                  unknown                      1.02    0.87
+19:59:12   recursive/Addition03-1.yml                                true                         0.99    0.84
+19:59:13   recursive/BallRajamani-SPIN2000-Fig1.yml                  unknown                      0.88    0.73
+19:59:14   recursive/EvenOdd01-1.yml                                 unknown                      1.15    1.00
+19:59:15   recursive/EvenOdd03.yml                                   unknown                      1.15    1.00
+19:59:16   recursive/Fibonacci01-1.yml                               unknown                      1.05    0.90
+19:59:17   recursive/Fibonacci02.yml                                 unknown                      1.00    0.85
+19:59:18   recursive/Fibonacci03.yml                                 unknown                      1.06    0.91
+19:59:20   recursive/Fibonacci04.yml                                 unknown                      1.03    0.87
+19:59:21   recursive/Fibonacci05.yml                                 unknown                      1.03    0.88
+19:59:22   recursive/McCarthy91-1.yml                                unknown                      0.87    0.72
+19:59:22   recursive/McCarthy91-2.yml                                unknown                      0.87    0.72
+19:59:23   recursive/MultCommutative-2.yml                           unknown                      1.13    0.97
+19:59:24   recursive/Primes.yml                                      unknown                      2.65    2.49
+19:59:27   recursive/gcd01-1.yml                                     unknown                      1.42    1.26
+19:59:28   recursive/gcd02.yml                                       unknown                      1.70    1.54
+19:59:30   recursive/recHanoi01.yml                                  unknown                      2.21    2.05
+19:59:32   recursive/recHanoi02-2.yml                                unknown                      1.10    0.94
+19:59:33   recursive/recHanoi03-2.yml                                unknown                      1.10    0.94
+19:59:35   recursive-simple/afterrec-1.yml                           unknown                      0.72    0.58
+19:59:35   recursive-simple/afterrec-2.yml                           true                         0.72    0.57
+19:59:36   recursive-simple/afterrec_2calls-1.yml                    unknown                      0.81    0.65
+19:59:37   recursive-simple/afterrec_2calls-2.yml                    true                         0.81    0.66
+19:59:38   recursive-simple/fibo_10-1.yml                            unknown                      1.01    0.85
+19:59:39   recursive-simple/fibo_10-2.yml                            unknown                      1.00    0.85
+19:59:40   recursive-simple/fibo_15-1.yml                            unknown                      1.00    0.85
+19:59:41   recursive-simple/fibo_15-2.yml                            unknown                      1.00    0.86
+19:59:42   recursive-simple/fibo_20-1.yml                            unknown                      1.00    0.85
+19:59:43   recursive-simple/fibo_20-2.yml                            unknown                      1.00    0.85
+19:59:44   recursive-simple/fibo_25-1.yml                            unknown                      1.00    0.85
+19:59:45   recursive-simple/fibo_25-2.yml                            unknown                      1.00    0.85
+19:59:46   recursive-simple/fibo_2calls_10-1.yml                     unknown                      1.25    1.10
+19:59:47   recursive-simple/fibo_2calls_10-2.yml                     unknown                      1.26    1.11
+19:59:48   recursive-simple/fibo_2calls_15-1.yml                     unknown                      1.26    1.11
+19:59:49   recursive-simple/fibo_2calls_15-2.yml                     unknown                      1.26    1.10
+19:59:51   recursive-simple/fibo_2calls_2-1.yml                      unknown                      1.25    1.10
+19:59:52   recursive-simple/fibo_2calls_2-2.yml                      unknown                      1.24    1.09
+19:59:53   recursive-simple/fibo_2calls_20-1.yml                     unknown                      1.25    1.10
+19:59:54   recursive-simple/fibo_2calls_20-2.yml                     unknown                      1.25    1.10
+19:59:56   recursive-simple/fibo_2calls_25-1.yml                     unknown                      1.28    1.12
+19:59:57   recursive-simple/fibo_2calls_25-2.yml                     unknown                      1.25    1.09
+19:59:58   recursive-simple/fibo_2calls_4-1.yml                      unknown                      1.25    1.10
+19:59:59   recursive-simple/fibo_2calls_4-2.yml                      unknown                      1.26    1.10
+20:00:01   recursive-simple/fibo_2calls_5-1.yml                      unknown                      1.25    1.10
+20:00:02   recursive-simple/fibo_2calls_5-2.yml                      unknown                      1.26    1.11
+20:00:03   recursive-simple/fibo_2calls_6-1.yml                      unknown                      1.25    1.09
+20:00:04   recursive-simple/fibo_2calls_6-2.yml                      unknown                      1.28    1.12
+20:00:06   recursive-simple/fibo_2calls_8-1.yml                      unknown                      1.26    1.10
+20:00:07   recursive-simple/fibo_2calls_8-2.yml                      unknown                      1.27    1.11
+20:00:08   recursive-simple/fibo_5-1.yml                             unknown                      1.00    0.84
+20:00:09   recursive-simple/fibo_5-2.yml                             unknown                      1.00    0.85
+20:00:10   recursive-simple/fibo_7-1.yml                             unknown                      1.00    0.84
+20:00:11   recursive-simple/fibo_7-2.yml                             unknown                      1.00    0.84
+20:00:12   recursive-simple/id2_b2_o3.yml                            unknown                      0.98    0.83
+20:00:13   recursive-simple/id2_b3_o2.yml                            unknown                      0.99    0.83
+20:00:14   recursive-simple/id2_b3_o5.yml                            unknown                      0.99    0.84
+20:00:15   recursive-simple/id2_b5_o10.yml                           unknown                      0.98    0.84
+20:00:16   recursive-simple/id2_i5_o5-1.yml                          unknown                      0.88    0.72
+20:00:17   recursive-simple/id2_i5_o5-2.yml                          true                         0.88    0.73
+20:00:18   recursive-simple/id_b2_o3.yml                             unknown                      0.91    0.77
+20:00:19   recursive-simple/id_b3_o2-2.yml                           unknown                      0.90    0.75
+20:00:20   recursive-simple/id_b3_o5-2.yml                           unknown                      0.90    0.75
+20:00:20   recursive-simple/id_b5_o10-2.yml                          unknown                      0.90    0.74
+20:00:21   recursive-simple/id_i10_o10-1.yml                         unknown                      0.81    0.65
+20:00:22   recursive-simple/id_i10_o10-2.yml                         true                         0.81    0.66
+20:00:23   recursive-simple/id_i15_o15-1.yml                         true                         0.81    0.66
+20:00:24   recursive-simple/id_i15_o15-2.yml                         unknown                      0.81    0.65
+20:00:25   recursive-simple/id_i20_o20-1.yml                         true                         0.81    0.66
+20:00:25   recursive-simple/id_i20_o20-2.yml                         unknown                      0.81    0.66
+20:00:26   recursive-simple/id_i25_o25-1.yml                         true                         0.81    0.66
+20:00:27   recursive-simple/id_i25_o25-2.yml                         unknown                      0.81    0.65
+20:00:28   recursive-simple/id_i5_o5-1.yml                           unknown                      0.81    0.65
+20:00:29   recursive-simple/id_i5_o5-2.yml                           true                         0.81    0.65
+20:00:29   recursive-simple/id_o10.yml                               unknown                      0.81    0.66
+20:00:30   recursive-simple/id_o100.yml                              unknown                      0.81    0.66
+20:00:31   recursive-simple/id_o1000.yml                             unknown                      0.81    0.65
+20:00:32   recursive-simple/id_o20.yml                               unknown                      0.81    0.66
+20:00:33   recursive-simple/id_o200.yml                              unknown                      0.81    0.66
+20:00:33   recursive-simple/id_o3.yml                                unknown                      0.81    0.65
+20:00:34   recursive-simple/sum_10x0-1.yml                           true                         0.87    0.72
+20:00:35   recursive-simple/sum_10x0-2.yml                           unknown                      0.88    0.72
+20:00:36   recursive-simple/sum_15x0-1.yml                           true                         0.87    0.71
+20:00:37   recursive-simple/sum_15x0-2.yml                           unknown                      0.87    0.73
+20:00:38   recursive-simple/sum_20x0-1.yml                           unknown                      0.87    0.71
+20:00:39   recursive-simple/sum_20x0-2.yml                           true                         0.87    0.72
+20:00:39   recursive-simple/sum_25x0-1.yml                           true                         0.87    0.71
+20:00:40   recursive-simple/sum_25x0-2.yml                           unknown                      0.87    0.72
+20:00:41   recursive-simple/sum_2x3-1.yml                            unknown                      0.87    0.71
+20:00:42   recursive-simple/sum_2x3-2.yml                            true                         0.87    0.71
+20:00:43   recursive-simple/sum_non_eq-2.yml                         true                         0.89    0.73
+20:00:44   recursive-simple/sum_non_eq-3.yml                         unknown                      0.89    0.73
+
+Statistics:            312 Files
+  correct:             149
+    correct true:      149
+    correct false:       0
+  incorrect:             0
+    incorrect true:      0
+    incorrect false:     0
+  unknown:             163
+  Score:               298 (max: 545)
+
+In order to get HTML and CSV tables, run
+table-generator results/CRA.2023-04-17_19-05-32.results.thesis-all.xml.bz2
+

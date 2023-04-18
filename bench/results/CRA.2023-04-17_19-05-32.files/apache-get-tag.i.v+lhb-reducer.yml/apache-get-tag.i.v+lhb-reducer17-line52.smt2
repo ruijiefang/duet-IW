@@ -1,0 +1,6 @@
+(declare-const havoc Int)
+(declare-const |havoc:3:62:1324| Int)
+(assert (and (<= (+ (- havoc) 1) 0) (not (= (+ (- havoc) 1) 0))
+               (not (= |havoc:3:62:1324| 0))
+               (= (ite (<= (+ (- havoc) 1) 0) 1 0) 0)))
+(check-sat)

@@ -1,0 +1,5 @@
+(declare-const |return':230| Int)
+(declare-const |param0':231| Int)
+(assert (and (= (+ |return':230| -5) 0) (= |param0':231| 0)
+               (or (< (+ |return':230| -5) 0) (< (+ (- |return':230|) 5) 0))))
+(check-sat)
