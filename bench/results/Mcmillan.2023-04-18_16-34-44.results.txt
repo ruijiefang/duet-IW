@@ -1,0 +1,79 @@
+   BENCHMARK INFORMATION
+Mcmillan
+benchmark definition:    benchmark-defs/Mcmillan.xml
+name:                    Mcmillan
+run sets:                , accel
+date:                    Tue, 2023-04-18 16:34:44 EDT
+tool:                    Mcmillan
+tool executable:         ~/fast/duet-IW/duet.exe
+options:
+resource limits:
+- time:                  900 s
+hardware requirements:
+------------------------------------------------------------
+
+   SYSTEM INFORMATION
+host:                    louvre
+os:                      Linux-5.4.0-146-generic-x86_64-with-glibc2.29
+cpu:                     Intel Xeon CPU E5-1607 v3 @ 3.10GHz
+- cores:                 4
+- max frequency:         3100.0 MHz
+ram:                     33594.343424000006 MB
+------------------------------------------------------------
+
+
+
+Run set 1 of 2: skipped because it has no files
+
+
+accel
+Run set 2 of 2 with options '-mcl-plain' and propertyfile 'None'
+
+inputfile                    status                       cpu time   wall time        host
+------------------------------------------------------------------------------------------
+const_1-1.yml                TIMEOUT                        180.90      181.02        None
+const_1-2.yml                TIMEOUT                        180.94      181.02        None
+const_1-2_abstracted.yml     false                            0.30        0.29        None
+diamond_1-1.yml              TIMEOUT                        180.84      181.02        None
+diamond_1-2.yml              TIMEOUT                        181.06      181.01        None
+diamond_2-2.yml              TIMEOUT                        181.06      181.02        None
+functions_1-1.yml            TIMEOUT                        180.90      181.02        None
+functions_1-2.yml            TIMEOUT                        180.86      181.02        None
+multivar_1-1.yml             true                             0.37        0.34        None
+multivar_1-2.yml             false                            0.32        0.26        None
+nested_1-1.yml               unknown                          0.49        0.43        None
+nested_1-2.yml               unknown                          0.49        0.44        None
+overflow_1-1.yml             true                             0.37        0.31        None
+phases_1-1.yml               TIMEOUT                        180.82      181.02        None
+phases_1-2.yml               TIMEOUT                        181.02      181.02        None
+phases_2-1.yml               false                            0.38        0.32        None
+phases_2-2.yml               unknown                          0.42        0.36        None
+simple_1-1.yml               TIMEOUT                        180.88      181.02        None
+simple_1-1_abstracted.yml    false                            0.29        0.22        None
+simple_1-2.yml               TIMEOUT                        180.84      181.02        None
+simple_1-2_abstracted.yml    true                             0.31        0.25        None
+simple_2-1.yml               true                             0.34        0.28        None
+simple_2-1_abstracted.yml    true                             0.30        0.25        None
+simple_2-2.yml               false                            0.32        0.27        None
+simple_3-1.yml               false                            0.58        0.45        None
+simple_3-2.yml               true                             0.63        0.49        None
+simple_4-1.yml               TIMEOUT                        180.75      181.02        None
+simple_4-1_abstracted.yml    false                            0.29        0.23        None
+simple_4-2.yml               TIMEOUT                        180.95      181.02        None
+simple_4-2_abstracted.yml    true                             0.31        0.25        None
+underapprox_1-1.yml          false                            0.61        0.55        None
+underapprox_1-2.yml          true                             0.81        0.75        None
+underapprox_2-1.yml          false                            0.62        0.55        None
+underapprox_2-2.yml          true                             0.80        0.73        None
+------------------------------------------------------------------------------------------
+Run set 2                    done                          2361.28     2382.63           -
+
+Statistics:             34 Files
+  correct:              18
+    correct true:        9
+    correct false:       9
+  incorrect:             0
+    incorrect true:      0
+    incorrect false:     0
+  unknown:              16
+  Score:                27 (max: 52)

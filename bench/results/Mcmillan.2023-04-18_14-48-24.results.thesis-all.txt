@@ -1,0 +1,224 @@
+   BENCHMARK INFORMATION
+Mcmillan
+benchmark definition:    benchmark-defs/Mcmillan.xml
+name:                    Mcmillan
+run sets:                thesis-all
+date:                    Tue, 2023-04-18 14:48:24 EDT
+tool:                    Mcmillan
+tool executable:         ~/fast/duet-IW/duet.exe
+options:
+resource limits:
+- time:                  900 s
+hardware requirements:
+------------------------------------------------------------
+
+   SYSTEM INFORMATION
+host:                    louvre
+os:                      Linux-5.4.0-146-generic-x86_64-with-glibc2.29
+cpu:                     Intel Xeon CPU E5-1607 v3 @ 3.10GHz
+- cores:                 4
+- max frequency:         3100.0 MHz
+ram:                     33594.343424000006 MB
+------------------------------------------------------------
+
+
+
+thesis-all
+Run set 1 of 1 with options '-mcl-plain' and propertyfile 'None'
+
+inputfile                                                 status                       cpu time   wall time        host
+-----------------------------------------------------------------------------------------------------------------------
+locks/test_locks_10.yml                                   true                             4.85        4.79        None
+locks/test_locks_11.yml                                   true                             6.11        6.05        None
+locks/test_locks_12.yml                                   true                             7.42        7.36        None
+locks/test_locks_13.yml                                   true                             8.76        8.69        None
+locks/test_locks_14-1.yml                                 true                            10.13       10.06        None
+locks/test_locks_14-2.yml                                 false                            1.54        1.47        None
+locks/test_locks_15-1.yml                                 false                            1.74        1.68        None
+locks/test_locks_15-2.yml                                 true                            11.92       11.87        None
+locks/test_locks_5.yml                                    true                             1.24        1.17        None
+locks/test_locks_6.yml                                    true                             1.75        1.69        None
+locks/test_locks_7.yml                                    true                             2.40        2.34        None
+locks/test_locks_8.yml                                    true                             3.13        3.07        None
+locks/test_locks_9.yml                                    true                             4.03        3.97        None
+loops/count_up_down-1.yml                                 TIMEOUT                        180.95      181.02        None
+loops/count_up_down-2.yml                                 false                            0.34        0.26        None
+loops/for_bounded_loop1.yml                               true                             0.62        0.54        None
+loops/for_infinite_loop_1.yml                             true                             0.39        0.32        None
+loops/for_infinite_loop_2.yml                             true                             0.39        0.31        None
+loops/sum01-2.yml                                         TIMEOUT                        180.98      181.02        None
+loops/sum01_bug02.yml                                     false                            1.93        1.86        None
+loops/sum03-1.yml                                         false                           17.79       17.73        None
+loops/sum03-2.yml                                         true                             0.39        0.32        None
+loops/sum04-1.yml                                         false                            0.82        0.75        None
+loops/sum04-2.yml                                         true                             1.09        1.02        None
+loops/terminator_02-2.yml                                 unknown                          0.86        0.72        None
+loops/terminator_02-2_abstracted.yml                      false                            0.39        0.32        None
+loops/terminator_03-2.yml                                 true                             0.42        0.35        None
+loops/terminator_03-2_abstracted.yml                      true                             0.34        0.27        None
+loops/trex01-1.yml                                        true                             0.98        0.84        None
+loops/trex01-2.yml                                        true                             1.09        0.95        None
+loops/trex02-1.yml                                        true                             0.63        0.48        None
+loops/trex02-2.yml                                        false                            0.62        0.48        None
+loops/trex03-1.yml                                        false                            0.65        0.51        None
+loops/trex03-2.yml                                        true                             0.92        0.78        None
+loops/trex03-2_abstracted.yml                             false                            0.59        0.45        None
+loops/trex04.yml                                          true                             0.78        0.64        None
+loops/trex04_abstracted.yml                               true                             0.75        0.61        None
+loops/while_infinite_loop_1.yml                           true                             0.33        0.26        None
+loops/while_infinite_loop_2.yml                           true                             0.34        0.27        None
+loops/while_infinite_loop_3.yml                           true                             0.56        0.42        None
+loops/while_infinite_loop_4.yml                           false                            0.55        0.41        None
+loop-crafted/simple_vardep_1.yml                          true                             0.39        0.33        None
+loop-crafted/simple_vardep_2.yml                          true                             0.40        0.33        None
+loop-invgen/MADWiFi-encode_ie_ok.yml                      TIMEOUT                        180.99      181.04        None
+loop-invgen/NetBSD_loop.yml                               TIMEOUT                        180.93      181.03        None
+loop-invgen/SpamAssassin-loop.i.v+cfa-reducer.yml         true                             1.84        1.77        None
+loop-invgen/SpamAssassin-loop.yml                         true                             1.66        1.59        None
+loop-invgen/apache-escape-absolute.i.v+cfa-reducer.yml    true                             2.21        2.14        None
+loop-invgen/apache-escape-absolute.yml                    unknown                          1.49        1.42        None
+loop-invgen/apache-get-tag.i.p+lhb-reducer.yml            true                             7.16        7.08        None
+loop-invgen/apache-get-tag.i.p+nlh-reducer.yml            TIMEOUT                        181.31      181.22        None
+loop-invgen/apache-get-tag.i.p+sep-reducer.yml            TIMEOUT                        181.42      181.31        None
+loop-invgen/apache-get-tag.i.v+lhb-reducer.yml            true                             1.87        1.79        None
+loop-invgen/apache-get-tag.i.v+nlh-reducer.yml            true                             2.10        2.02        None
+loop-invgen/apache-get-tag.yml                            unknown                          0.92        0.85        None
+loop-invgen/down.yml                                      true                             0.46        0.39        None
+loop-invgen/fragtest_simple.yml                           TIMEOUT                        180.97      181.04        None
+loop-invgen/half_2.yml                                    true                             0.49        0.42        None
+loop-invgen/heapsort.yml                                  true                             2.51        2.44        None
+loop-invgen/id_build.i.p+nlh-reducer.yml                  true                            46.66       46.56        None
+loop-invgen/id_build.i.p+sep-reducer.yml                  true                            46.80       46.70        None
+loop-invgen/id_build.i.v+lhb-reducer.yml                  true                             1.51        1.44        None
+loop-invgen/id_build.yml                                  true                             0.58        0.51        None
+loop-invgen/id_trans.yml                                  true                             0.69        0.62        None
+loop-invgen/large_const.yml                               true                             0.57        0.51        None
+loop-invgen/nest-if3.yml                                  true                             0.56        0.49        None
+loop-invgen/nested6.yml                                   unknown                          0.88        0.80        None
+loop-invgen/nested9.yml                                   true                             0.73        0.66        None
+loop-invgen/sendmail-close-angle.yml                      TIMEOUT                        181.01      181.04        None
+loop-invgen/seq-3.yml                                     true                             0.62        0.56        None
+loop-invgen/string_concat-noarr.yml                       TIMEOUT                        180.99      181.03        None
+loop-invgen/up.yml                                        true                             0.46        0.38        None
+loop-lit/afnp2014.yml                                     TIMEOUT                        180.98      181.02        None
+loop-lit/bhmr2007.yml                                     true                             0.45        0.38        None
+loop-lit/cggmp2005.yml                                    true                             0.60        0.53        None
+loop-lit/cggmp2005_variant.yml                            TIMEOUT                        180.99      181.02        None
+loop-lit/cggmp2005b.yml                                   unknown                          0.63        0.56        None
+loop-lit/css2003.yml                                      true                             0.49        0.42        None
+loop-lit/ddlm2013.yml                                     true                             0.72        0.65        None
+loop-lit/gcnr2008.yml                                     false                            0.45        0.38        None
+loop-lit/gj2007.c.i.p+lhb-reducer.yml                     TIMEOUT                        180.98      181.04        None
+loop-lit/gj2007.c.i.p+nlh-reducer.yml                     TIMEOUT                        181.16      181.11        None
+loop-lit/gj2007.yml                                       TIMEOUT                        180.96      181.02        None
+loop-lit/gj2007b.yml                                      true                             0.48        0.41        None
+loop-lit/gr2006.yml                                       TIMEOUT                        181.02      181.02        None
+loop-lit/gsv2008.c.i.p+cfa-reducer.yml                    true                             0.51        0.45        None
+loop-lit/gsv2008.c.i.v+cfa-reducer.yml                    true                             0.52        0.44        None
+loop-lit/gsv2008.c.i.v+lhb-reducer.yml                    true                             0.50        0.43        None
+loop-lit/gsv2008.yml                                      true                             0.48        0.41        None
+loop-lit/hhk2008.yml                                      TIMEOUT                        180.98      181.03        None
+loop-lit/jm2006.c.i.v+cfa-reducer.yml                     TIMEOUT                        180.98      181.03        None
+loop-lit/jm2006.yml                                       TIMEOUT                        180.98      181.03        None
+loop-lit/jm2006_variant.yml                               TIMEOUT                        181.01      181.03        None
+loop-new/count_by_1.yml                                   TIMEOUT                        180.94      181.02        None
+loop-new/count_by_1_variant.yml                           TIMEOUT                        180.96      181.02        None
+loop-new/count_by_2.yml                                   TIMEOUT                        180.94      181.02        None
+loop-new/count_by_k.yml                                   TIMEOUT                        181.25      181.02        None
+loop-new/count_by_nondet.yml                              TIMEOUT                        180.96      181.03        None
+loop-new/gauss_sum.i.p+cfa-reducer.yml                    unknown                          0.46        0.40        None
+loop-new/gauss_sum.i.p+lhb-reducer.yml                    unknown                          0.53        0.46        None
+loop-new/gauss_sum.i.v+cfa-reducer.yml                    unknown                          0.46        0.39        None
+loop-new/gauss_sum.yml                                    unknown                          0.43        0.36        None
+loop-new/half.yml                                         TIMEOUT                        181.02      181.02        None
+loop-new/nested-1.yml                                     unknown                          0.60        0.53        None
+loop-industry-pattern/mod3.c.v+cfa-reducer.yml            true                             0.49        0.42        None
+loop-industry-pattern/mod3.c.v+lhb-reducer.yml            unknown                          0.79        0.71        None
+loop-industry-pattern/mod3.c.v+sep-reducer.yml            unknown                          0.77        0.70        None
+loop-industry-pattern/mod3.yml                            true                             0.46        0.39        None
+loop-invariants/bin-suffix-5.yml                          false                            0.34        0.27        None
+loop-invariants/const.yml                                 unknown                          0.45        0.39        None
+loop-invariants/eq1.yml                                   true                             0.39        0.32        None
+loop-invariants/eq2.yml                                   true                             0.36        0.30        None
+loop-invariants/even.yml                                  true                             0.38        0.31        None
+loop-invariants/linear-inequality-inv-a.yml               false                            0.80        0.67        None
+loop-invariants/linear-inequality-inv-b.yml               false                            0.80        0.66        None
+loop-invariants/mod4.yml                                  true                             0.38        0.31        None
+loop-invariants/odd.yml                                   true                             0.37        0.31        None
+loop-simple/deep-nested.yml                               unknown                          1.57        1.50        None
+loop-simple/nested_1.yml                                  true                             0.82        0.75        None
+loop-simple/nested_1b.yml                                 false                            0.63        0.57        None
+loop-simple/nested_2.yml                                  unknown                          0.56        0.49        None
+loop-simple/nested_3.yml                                  unknown                          0.70        0.64        None
+loop-simple/nested_4.yml                                  unknown                          0.87        0.80        None
+loop-simple/nested_5.yml                                  unknown                          1.07        1.00        None
+loop-simple/nested_6.yml                                  unknown                          1.30        1.23        None
+loop-zilu/benchmark02_linear.yml                          true                             0.40        0.34        None
+loop-zilu/benchmark02_linear_abstracted.yml               true                             0.33        0.26        None
+loop-zilu/benchmark04_conjunctive.yml                     TIMEOUT                        180.96      181.03        None
+loop-zilu/benchmark05_conjunctive.yml                     TIMEOUT                        181.07      181.02        None
+loop-zilu/benchmark09_conjunctive.yml                     TIMEOUT                        180.98      181.03        None
+loop-zilu/benchmark10_conjunctive.yml                     true                             0.47        0.40        None
+loop-zilu/benchmark11_linear.yml                          true                             0.47        0.40        None
+loop-zilu/benchmark11_linear_abstracted.yml               true                             0.35        0.28        None
+loop-zilu/benchmark14_linear.yml                          true                             0.40        0.33        None
+loop-zilu/benchmark17_conjunctive.yml                     true                             0.40        0.33        None
+loop-zilu/benchmark18_conjunctive.yml                     true                             0.51        0.45        None
+loop-zilu/benchmark19_conjunctive.yml                     true                             0.55        0.49        None
+loop-zilu/benchmark20_conjunctive.yml                     true                             0.45        0.38        None
+loop-zilu/benchmark23_conjunctive.yml                     TIMEOUT                        180.97      181.03        None
+loop-zilu/benchmark25_linear.yml                          true                             1.67        1.60        None
+loop-zilu/benchmark25_linear_abstracted.yml               true                             0.33        0.26        None
+loop-zilu/benchmark26_linear.yml                          true                             0.42        0.36        None
+loop-zilu/benchmark26_linear_abstracted.yml               true                             0.33        0.26        None
+loop-zilu/benchmark32_linear.yml                          true                             0.67        0.53        None
+loop-zilu/benchmark33_linear.yml                          true                             0.46        0.40        None
+loop-zilu/benchmark34_conjunctive.yml                     true                             0.56        0.50        None
+loop-zilu/benchmark35_linear.yml                          true                             0.43        0.36        None
+loop-zilu/benchmark37_conjunctive.yml                     true                             0.38        0.31        None
+loop-zilu/benchmark43_conjunctive.yml                     true                             0.62        0.55        None
+loop-zilu/benchmark43_conjunctive_abstracted.yml          false                            0.34        0.27        None
+loop-zilu/benchmark51_polynomial.yml                      true                             0.67        0.53        None
+loop-zilu/benchmark52_polynomial.yml                      unknown                          0.37        0.30        None
+nla-digbench/bresenham-ll.yml                             unknown                          0.40        0.33        None
+nla-digbench/cohencu-ll.yml                               unknown                          0.87        0.72        None
+nla-digbench/cohendiv-ll.yml                              unknown                          0.86        0.72        None
+nla-digbench/dijkstra-u.yml                               unknown                          0.88        0.74        None
+nla-digbench/divbin.yml                                   unknown                          0.67        0.53        None
+nla-digbench/divbin2.yml                                  unknown                          0.42        0.36        None
+nla-digbench/egcd-ll.yml                                  unknown                          0.77        0.62        None
+nla-digbench/egcd2-ll.yml                                 unknown                          0.95        0.82        None
+nla-digbench/egcd3-ll.yml                                 unknown                          1.08        0.94        None
+nla-digbench/fermat1-ll.yml                               unknown                          0.79        0.66        None
+nla-digbench/fermat2-ll.yml                               unknown                          0.63        0.49        None
+nla-digbench/geo1-ll.yml                                  unknown                          0.63        0.50        None
+nla-digbench/geo1-u.yml                                   unknown                          0.39        0.32        None
+nla-digbench/geo2-ll.yml                                  unknown                          0.41        0.34        None
+nla-digbench/geo3-ll.yml                                  unknown                          0.38        0.32        None
+nla-digbench/hard-ll.yml                                  true                             0.89        0.75        None
+nla-digbench/hard-u.yml                                   true                             0.88        0.74        None
+nla-digbench/hard2.yml                                    true                             0.63        0.56        None
+nla-digbench/lcm1.yml                                     true                             0.98        0.84        None
+nla-digbench/lcm2.yml                                     unknown                          0.69        0.55        None
+nla-digbench/mannadiv.yml                                 unknown                          0.66        0.51        None
+nla-digbench/prod4br-ll.yml                               unknown                          0.88        0.75        None
+nla-digbench/prodbin-ll.yml                               unknown                          0.64        0.50        None
+nla-digbench/ps2-ll.yml                                   unknown                          0.40        0.33        None
+nla-digbench/ps3-ll.yml                                   unknown                          0.61        0.48        None
+nla-digbench/ps4-ll.yml                                   unknown                          0.63        0.49        None
+nla-digbench/ps5-ll.yml                                   unknown                          0.63        0.49        None
+nla-digbench/ps6-ll.yml                                   unknown                          0.63        0.51        None
+nla-digbench/sqrt1-ll.yml                                 unknown                          0.48        0.41        None
+openssl-simplified/s3_srvr_1b.cil.yml                     unknown                          0.84        0.77        None
+-----------------------------------------------------------------------------------------------------------------------
+Run set 1                                                 done                          5528.04     5549.84           -
+
+Statistics:            182 Files
+  correct:              98
+    correct true:       86
+    correct false:      12
+  incorrect:             9
+    incorrect true:      4
+    incorrect false:     5
+  unknown:              75
+  Score:               -24 (max: 345)

@@ -1,5 +1,4 @@
 extern void abort(void);
-#include <assert.h>
 void reach_error() { assert(0); }
 extern void abort(void);
 void assume_abort_if_not(int cond) {

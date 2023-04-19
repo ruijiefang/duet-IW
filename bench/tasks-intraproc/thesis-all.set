@@ -1,0 +1,16 @@
+locks/*.yml
+loops/*.yml
+loop-acceleration/*.yml
+loop-crafted/*.yml
+loop-invgen/*.yml
+loop-lit/*.yml
+loop-new/*.yml
+loop-industry-pattern/*.yml
+loop-invariants/*.yml
+loop-simple/*.yml
+loop-zilu/*.yml
+nla-digbench/*.yml
+ntdrivers-simplified/*.yml
+openssl-simplified/*.yml
+recursive/*.yml
+recursive-simple/*.yml

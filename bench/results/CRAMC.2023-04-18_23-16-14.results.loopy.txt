@@ -1,0 +1,202 @@
+   BENCHMARK INFORMATION
+CRAMC
+benchmark definition:    benchmark-defs/CRAMC.xml
+name:                    CRAMC
+run sets:                loopy
+date:                    Tue, 2023-04-18 23:16:14 EDT
+tool:                    CRAMC
+tool executable:         ~/fast/duet-IW/duet.exe
+options:
+resource limits:
+- time:                  900 s
+hardware requirements:
+------------------------------------------------------------
+
+   SYSTEM INFORMATION
+host:                    louvre
+os:                      Linux-5.4.0-146-generic-x86_64-with-glibc2.29
+cpu:                     Intel Xeon CPU E5-1607 v3 @ 3.10GHz
+- cores:                 4
+- max frequency:         3100.0 MHz
+ram:                     33594.343424000006 MB
+------------------------------------------------------------
+
+
+
+loopy
+Run set 1 of 1 with options '-mcl-concolic' and propertyfile 'None'
+
+inputfile                                           status                       cpu time   wall time        host
+-----------------------------------------------------------------------------------------------------------------
+loops/count_up_down-1.yml                           true                             0.37        0.31        None
+loops/count_up_down-2.yml                           false                            0.37        0.31        None
+loops/for_bounded_loop1.yml                         true                             0.75        0.68        None
+loops/for_infinite_loop_1.yml                       true                             0.38        0.31        None
+loops/for_infinite_loop_2.yml                       true                             0.38        0.31        None
+loops/sum01-2.yml                                   true                             0.43        0.36        None
+loops/sum01_bug02.yml                               false                            2.12        2.05        None
+loops/sum03-1.yml                                   false                            0.42        0.35        None
+loops/sum03-2.yml                                   true                             0.36        0.30        None
+loops/sum04-1.yml                                   false                            0.42        0.35        None
+loops/sum04-2.yml                                   true                             0.38        0.31        None
+loops/terminator_02-2.yml                           true                             0.75        0.60        None
+loops/terminator_02-2_abstracted.yml                true                             0.39        0.33        None
+loops/terminator_03-2.yml                           true                             0.41        0.35        None
+loops/terminator_03-2_abstracted.yml                true                             0.33        0.27        None
+loops/trex02-1.yml                                  true                             0.65        0.51        None
+loops/trex02-2.yml                                  false                            0.66        0.52        None
+loops/trex03-1.yml                                  false                            0.84        0.70        None
+loops/trex03-2.yml                                  true                             0.81        0.67        None
+loops/trex03-2_abstracted.yml                       true                             0.66        0.52        None
+loops/trex04.yml                                    true                             0.78        0.63        None
+loops/trex04_abstracted.yml                         true                             0.73        0.59        None
+loops/while_infinite_loop_1.yml                     true                             0.32        0.26        None
+loops/while_infinite_loop_2.yml                     true                             0.32        0.25        None
+loops/while_infinite_loop_3.yml                     true                             0.57        0.43        None
+loops/while_infinite_loop_4.yml                     false                            0.57        0.43        None
+loop-zilu/benchmark02_linear.yml                    true                             0.39        0.33        None
+loop-zilu/benchmark02_linear_abstracted.yml         true                             0.32        0.25        None
+loop-zilu/benchmark04_conjunctive.yml               true                             0.45        0.39        None
+loop-zilu/benchmark05_conjunctive.yml               TIMEOUT                        181.06      181.02        None
+loop-zilu/benchmark09_conjunctive.yml               true                             0.45        0.38        None
+loop-zilu/benchmark10_conjunctive.yml               true                             0.47        0.41        None
+loop-zilu/benchmark11_linear.yml                    true                             0.41        0.34        None
+loop-zilu/benchmark11_linear_abstracted.yml         true                             0.34        0.27        None
+loop-zilu/benchmark14_linear.yml                    true                             0.39        0.32        None
+loop-zilu/benchmark17_conjunctive.yml               true                             0.42        0.37        None
+loop-zilu/benchmark18_conjunctive.yml               true                             0.44        0.38        None
+loop-zilu/benchmark19_conjunctive.yml               true                             0.48        0.41        None
+loop-zilu/benchmark20_conjunctive.yml               true                             0.47        0.40        None
+loop-zilu/benchmark23_conjunctive.yml               true                             0.42        0.35        None
+loop-zilu/benchmark25_linear.yml                    true                             0.40        0.35        None
+loop-zilu/benchmark25_linear_abstracted.yml         true                             0.32        0.26        None
+loop-zilu/benchmark26_linear.yml                    true                             0.37        0.31        None
+loop-zilu/benchmark26_linear_abstracted.yml         true                             0.32        0.25        None
+loop-zilu/benchmark32_linear.yml                    true                             0.79        0.64        None
+loop-zilu/benchmark33_linear.yml                    true                             0.39        0.33        None
+loop-zilu/benchmark34_conjunctive.yml               true                             0.48        0.42        None
+loop-zilu/benchmark35_linear.yml                    true                             0.40        0.33        None
+loop-zilu/benchmark37_conjunctive.yml               true                             0.40        0.33        None
+loop-zilu/benchmark43_conjunctive.yml               true                             0.42        0.37        None
+loop-zilu/benchmark43_conjunctive_abstracted.yml    true                             0.35        0.28        None
+loop-zilu/benchmark51_polynomial.yml                true                             0.79        0.65        None
+loop-zilu/benchmark52_polynomial.yml                true                             0.39        0.33        None
+loop-new/count_by_1.yml                             true                             0.37        0.31        None
+loop-new/count_by_1_variant.yml                     true                             0.38        0.31        None
+loop-new/count_by_2.yml                             true                             0.37        0.30        None
+loop-new/count_by_k.yml                             true                             0.46        0.39        None
+loop-new/count_by_nondet.yml                        true                             0.61        0.54        None
+loop-new/gauss_sum.i.p+cfa-reducer.yml              true                             0.47        0.40        None
+loop-new/gauss_sum.i.p+lhb-reducer.yml              true                             0.57        0.51        None
+loop-new/gauss_sum.i.v+cfa-reducer.yml              true                             0.47        0.41        None
+loop-new/gauss_sum.yml                              true                             0.45        0.38        None
+loop-new/half.yml                                   TIMEOUT                        180.99      181.03        None
+loop-new/nested-1.yml                               true                             0.58        0.50        None
+recursive/Ackermann01-2.yml                         true                             1.56        1.42        None
+recursive/Ackermann02.yml                           false                            1.37        1.23        None
+recursive/Ackermann03.yml                           false                           10.09        9.96        None
+recursive/Ackermann04.yml                           false                            2.26        2.12        None
+recursive/Addition01-2.yml                          true                             0.97        0.83        None
+recursive/Addition02.yml                            false                            1.01        0.86        None
+recursive/Addition03-1.yml                          true                             0.95        0.82        None
+recursive/BallRajamani-SPIN2000-Fig1.yml            false                            0.88        0.74        None
+recursive/EvenOdd01-1.yml                           unknown                          1.10        0.96        None
+recursive/EvenOdd03.yml                             unknown                          1.10        0.96        None
+recursive/Fibonacci01-1.yml                         false                            1.01        0.87        None
+recursive/Fibonacci02.yml                           false                            1.77        1.63        None
+recursive/Fibonacci03.yml                           false                            1.06        0.92        None
+recursive/Fibonacci04.yml                           false                            1.02        0.88        None
+recursive/Fibonacci05.yml                           false                            1.07        0.93        None
+recursive/McCarthy91-1.yml                          true                             0.89        0.76        None
+recursive/McCarthy91-2.yml                          true                             0.88        0.74        None
+recursive/MultCommutative-2.yml                     false                            1.12        0.97        None
+recursive/Primes.yml                                unknown                          2.67        2.52        None
+recursive/gcd01-1.yml                               TIMEOUT                        181.14      181.09        None
+recursive/gcd02.yml                                 true                             2.44        2.30        None
+recursive/recHanoi01.yml                            false                            2.13        1.98        None
+recursive/recHanoi02-2.yml                          true                             1.46        1.32        None
+recursive/recHanoi03-2.yml                          false                            1.08        0.94        None
+recursive-simple/afterrec-1.yml                     true                             0.70        0.57        None
+recursive-simple/afterrec-2.yml                     true                             0.70        0.56        None
+recursive-simple/afterrec_2calls-1.yml              true                             0.91        0.77        None
+recursive-simple/afterrec_2calls-2.yml              true                             0.90        0.77        None
+recursive-simple/fibo_10-1.yml                      TIMEOUT                        180.98      181.09        None
+recursive-simple/fibo_10-2.yml                      TIMEOUT                        181.05      181.09        None
+recursive-simple/fibo_15-1.yml                      TIMEOUT                        181.09      181.09        None
+recursive-simple/fibo_15-2.yml                      TIMEOUT                        180.98      181.09        None
+recursive-simple/fibo_20-1.yml                      TIMEOUT                        181.10      181.09        None
+recursive-simple/fibo_20-2.yml                      TIMEOUT                        181.08      181.09        None
+recursive-simple/fibo_25-1.yml                      TIMEOUT                        181.01      181.09        None
+recursive-simple/fibo_25-2.yml                      TIMEOUT                        181.08      181.09        None
+recursive-simple/fibo_2calls_10-1.yml               false                            3.29        3.14        None
+recursive-simple/fibo_2calls_10-2.yml               TIMEOUT                        181.09      181.10        None
+recursive-simple/fibo_2calls_15-1.yml               TIMEOUT                        181.10      181.10        None
+recursive-simple/fibo_2calls_15-2.yml               TIMEOUT                        181.07      181.10        None
+recursive-simple/fibo_2calls_2-1.yml                false                            1.26        1.12        None
+recursive-simple/fibo_2calls_2-2.yml                true                             1.26        1.13        None
+recursive-simple/fibo_2calls_20-1.yml               TIMEOUT                        181.08      181.10        None
+recursive-simple/fibo_2calls_20-2.yml               TIMEOUT                        181.13      181.10        None
+recursive-simple/fibo_2calls_25-1.yml               TIMEOUT                        181.10      181.10        None
+recursive-simple/fibo_2calls_25-2.yml               TIMEOUT                        181.07      181.10        None
+recursive-simple/fibo_2calls_4-1.yml                false                            1.32        1.17        None
+recursive-simple/fibo_2calls_4-2.yml                false                            1.30        1.16        None
+recursive-simple/fibo_2calls_5-1.yml                false                            1.37        1.22        None
+recursive-simple/fibo_2calls_5-2.yml                false                            1.37        1.22        None
+recursive-simple/fibo_2calls_6-1.yml                false                            1.51        1.37        None
+recursive-simple/fibo_2calls_6-2.yml                false                            1.47        1.32        None
+recursive-simple/fibo_2calls_8-1.yml                TIMEOUT                        181.07      181.10        None
+recursive-simple/fibo_2calls_8-2.yml                TIMEOUT                        181.11      181.10        None
+recursive-simple/fibo_5-1.yml                       TIMEOUT                        181.06      181.09        None
+recursive-simple/fibo_5-2.yml                       TIMEOUT                        181.04      181.09        None
+recursive-simple/fibo_7-1.yml                       TIMEOUT                        181.06      181.09        None
+recursive-simple/fibo_7-2.yml                       TIMEOUT                        181.07      181.09        None
+recursive-simple/id2_b2_o3.yml                      true                             0.98        0.84        None
+recursive-simple/id2_b3_o2.yml                      false                            0.96        0.84        None
+recursive-simple/id2_b3_o5.yml                      true                             0.98        0.84        None
+recursive-simple/id2_b5_o10.yml                     true                             0.98        0.83        None
+recursive-simple/id2_i5_o5-1.yml                    false                            0.88        0.73        None
+recursive-simple/id2_i5_o5-2.yml                    true                             0.84        0.70        None
+recursive-simple/id_b2_o3.yml                       true                             0.91        0.77        None
+recursive-simple/id_b3_o2-2.yml                     true                             0.91        0.77        None
+recursive-simple/id_b3_o5-2.yml                     true                             0.91        0.77        None
+recursive-simple/id_b5_o10-2.yml                    true                             0.90        0.76        None
+recursive-simple/id_i10_o10-1.yml                   false                            0.84        0.71        None
+recursive-simple/id_i10_o10-2.yml                   true                             0.78        0.65        None
+recursive-simple/id_i15_o15-1.yml                   true                             0.78        0.64        None
+recursive-simple/id_i15_o15-2.yml                   false                            0.87        0.73        None
+recursive-simple/id_i20_o20-1.yml                   true                             0.77        0.63        None
+recursive-simple/id_i20_o20-2.yml                   false                            0.90        0.76        None
+recursive-simple/id_i25_o25-1.yml                   true                             0.77        0.63        None
+recursive-simple/id_i25_o25-2.yml                   false                            0.94        0.80        None
+recursive-simple/id_i5_o5-1.yml                     false                            0.81        0.67        None
+recursive-simple/id_i5_o5-2.yml                     true                             0.77        0.63        None
+recursive-simple/id_o10.yml                         false                            0.85        0.71        None
+recursive-simple/id_o100.yml                        false                            1.96        1.82        None
+recursive-simple/id_o1000.yml                       false                          102.76      102.65        None
+recursive-simple/id_o20.yml                         false                            0.93        0.78        None
+recursive-simple/id_o200.yml                        false                            4.45        4.31        None
+recursive-simple/id_o3.yml                          false                            0.80        0.66        None
+recursive-simple/sum_10x0-1.yml                     true                             0.83        0.69        None
+recursive-simple/sum_10x0-2.yml                     false                            0.91        0.77        None
+recursive-simple/sum_15x0-1.yml                     true                             0.83        0.69        None
+recursive-simple/sum_15x0-2.yml                     false                            0.95        0.81        None
+recursive-simple/sum_20x0-1.yml                     false                            0.99        0.85        None
+recursive-simple/sum_20x0-2.yml                     true                             0.83        0.69        None
+recursive-simple/sum_25x0-1.yml                     true                             0.83        0.69        None
+recursive-simple/sum_25x0-2.yml                     false                            1.02        0.89        None
+recursive-simple/sum_2x3-1.yml                      false                            0.85        0.70        None
+recursive-simple/sum_2x3-2.yml                      true                             0.83        0.69        None
+recursive-simple/sum_non_eq-2.yml                   true                             0.85        0.71        None
+recursive-simple/sum_non_eq-3.yml                   false                            0.86        0.72        None
+-----------------------------------------------------------------------------------------------------------------
+Run set 1                                           done                          4574.37     4609.50           -
+
+Statistics:            160 Files
+  correct:             116
+    correct true:       81
+    correct false:      35
+  incorrect:            17
+    incorrect true:      5
+    incorrect false:    12
+  unknown:              27
+  Score:              -155 (max: 268)

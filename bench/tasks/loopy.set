@@ -1,0 +1,6 @@
+loops/*.yml
+loop-industry-pattern/*.yml
+loop-zilu/*.yml
+loop-new/*.yml
+recursive/*.yml
+recursive-simple/*.yml

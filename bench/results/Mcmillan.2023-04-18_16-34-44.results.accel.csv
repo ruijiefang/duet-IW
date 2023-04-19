@@ -1,0 +1,37 @@
+tool		Mcmillan 	Mcmillan 	Mcmillan 	Mcmillan 	Mcmillan 
+run set		accel	accel	accel	accel	accel
+tasks/loop-acceleration/		status	cputime (s)	walltime (s)	memory (MB)	cpuenergy (J)
+const_1-1.yml	true	TIMEOUT	180.901131611	181.01797484500275	327.835648	5753.428101
+const_1-2.yml	false	TIMEOUT	180.941337063	181.02138788798766	327.938048	5409.015686
+const_1-2_abstracted.yml	false	false	0.296366497	0.288275719009107	88.100864	12.241943
+diamond_1-1.yml	true	TIMEOUT	180.835571323	181.0180357789941	1934.184448	5571.761841
+diamond_1-2.yml	false					
+diamond_2-2.yml	true					
+functions_1-1.yml	true					
+functions_1-2.yml	false					
+multivar_1-1.yml	true					
+multivar_1-2.yml	false					
+nested_1-1.yml	true					
+nested_1-2.yml	false					
+overflow_1-1.yml	true					
+phases_1-1.yml	true					
+phases_1-2.yml	false					
+phases_2-1.yml	false					
+phases_2-2.yml	true					
+simple_1-1.yml	false					
+simple_1-1_abstracted.yml	false					
+simple_1-2.yml	true					
+simple_1-2_abstracted.yml	true					
+simple_2-1.yml	true					
+simple_2-1_abstracted.yml	true					
+simple_2-2.yml	false					
+simple_3-1.yml	false					
+simple_3-2.yml	true					
+simple_4-1.yml	false					
+simple_4-1_abstracted.yml	false					
+simple_4-2.yml	true					
+simple_4-2_abstracted.yml	true					
+underapprox_1-1.yml	false					
+underapprox_1-2.yml	true					
+underapprox_2-1.yml	false					
+underapprox_2-2.yml	true					

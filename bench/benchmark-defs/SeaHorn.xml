@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.18//EN" "https://www.sosy-lab.org/benchexec/benchmark-1.18.dtd">
+<benchmark tool="tools.seahorn"
+           displayName="SeaHorn"
+           timelimit="15min">
+  <rundefinition>
+    <tasks name="thesis-all">
+      <includesfile>../tasks/thesis-all.set</includesfile>
+      <propertyfile>../tasks/properties/unreach-call.prp</propertyfile>
+    </tasks>
+  </rundefinition>
+
+</benchmark>
