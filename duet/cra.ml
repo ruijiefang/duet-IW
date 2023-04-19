@@ -839,6 +839,9 @@ module ReachTree = struct
       interproc = interproc
     }
 
+  (** dummy interproc err node because we don't manually add an edge-to-error-state to interproc calls *)
+  let interproc_err_node = -2
+
   let print_tree (art: t ref) indent v = 
     let rec print_tree_ (art: t ref) indent v = 
       logf ~level:`always "%s|" indent;
@@ -848,6 +851,7 @@ module ReachTree = struct
 
   (* blow up subtree at v *)
   let rec blowup ?(indent="") (art : t ref) (v : int) =
+    if v = interproc_err_node then () else 
     let _ = logf ~level:`always "%sblowup: tree node %d \n" indent v in 
     let _ = print_tree art indent v in 
     let t = !art in  
@@ -890,10 +894,13 @@ module ReachTree = struct
 
 
   (*  [t %^ i]: get parent of node i in tree t.  *)
-  let parent (art : t ref) (i : int) = IntMap.find i !art.parents 
+  let parent (art : t ref) (i : int) = 
+    IntMap.find i !art.parents 
 
   (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
-  let maps_to (art : t ref) (i : int) = IntMap.find i !art.cfg_vertex 
+  let maps_to (art : t ref) (i : int) = 
+    if i = interproc_err_node then !art.err_loc else 
+    IntMap.find i !art.cfg_vertex 
 
   (* [cfg_edge_weight t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
   (* ruijie: note that u, v refer to control-flow graph vertices but not art nodes. this may seem like
@@ -924,15 +931,18 @@ module ReachTree = struct
 
   (* [children t v] returns children of tree node v in tree t. *)
   let children (art : t ref) v = 
+    if v = interproc_err_node then [] else 
     IntMap.find v !art.children 
 
   (* [descendants t v] returns descendants of tree node v in tree t in DFS order. *)
   let rec descendants (art : t ref) v = 
+    if v = interproc_err_node then [] else 
     let v_children = children art v in 
     v :: (List.fold_left (fun l ch -> (descendants art ch) @ l) [] v_children)
 
   (* return leaves of subtree rooted at v. *)  
   let rec leaves (art: t ref) v = 
+    if v = interproc_err_node then [] else 
     let chs = children art v in 
     if List.length chs == 0 then [ v ]
     else 
@@ -940,19 +950,25 @@ module ReachTree = struct
 
   (* is a vertex in tree a leaf? *)
   let is_leaf (art: t ref) v = 
+    if v = interproc_err_node then true else 
     let chs = children art v in 
       List.length chs == 0
 
   (* [label t v] returns the node label of tree node v in tree t. *)
-  let label (art : t ref) v = IntMap.find v !art.labels
+  let label (art : t ref) v =
+    if v = interproc_err_node then mk_true () else 
+    IntMap.find v !art.labels
 
   (* (replaces) sets a label at v *)
   let set_label (art: t ref) v lbl = 
+    if v = interproc_err_node then () else 
     !art.labels <- IntMap.add v lbl !art.labels
 
   
   (* see if a vertex hasn't been deleted *)
-  let find_opt (art: t ref) (v: int) = IntMap.find_opt v !art.parents 
+  let find_opt (art: t ref) (v: int) = 
+    if v = interproc_err_node then None else 
+    IntMap.find_opt v !art.parents 
 
   let substitute_edge_weight (art: t ref) ((u, v) : int * int) w = 
     !art.edge_weight_substitutes <- ProcMap.add (u, v) w !art.edge_weight_substitutes
@@ -1098,6 +1114,21 @@ module ReachTree = struct
       !new_concolic_nodes, !new_frontier_nodes
   
 
+    (** "pseudo-expansion" of a leaf node mapping to error loc in a recursion level > 0. 
+        Use this when recursively model-checking until the return location of a procedure call
+        to expand one-"pseudo-edge" past the return vertex and verify that post-state is reached. *)
+    let expand_pseudo solver (art : t ref) (v: int) = 
+      if not (maps_to art v = !art.err_loc) then 
+        failwith "err: expand_pseudo: must be called on a leaf node mapping to error location"
+      else begin 
+        match IntMap.find_opt v !art.models with 
+        | Some m -> 
+          begin match K.get_post_model ~solver:solver m (K.assume !art.post_state) with 
+          | Some _ -> `Error
+          | None -> `Refine
+          end
+        | None -> `Refine
+      end
 end
 
 (** Algebraic formulation of McMillan's algorithm. *)
@@ -1156,12 +1187,21 @@ module McMillanChecker = struct
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
     let oracle = 
       if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in 
+    let is_inter_err_loc = (recurse_level > 0) && ((ReachTree.maps_to art src) = !art.err_loc) in 
     let post_path_summary = oracle !art.interproc (ReachTree.maps_to art src) sink in 
-    let err_state =  !art.post_state in
+    let err_state =  
+      if recurse_level = 0 then K.guard post_path_summary |> Syntax.mk_not srk
+      else 
+        begin if is_inter_err_loc then 
+          Syntax.mk_not srk !art.post_state 
+        else (K.guard (K.mul post_path_summary (K.assume (!art.post_state)))) |> Syntax.mk_not srk 
+      end
+    in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_weights "interpolate: abstract suffix formula: " [post_path_summary];
-    K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver initial_path_weights (K.guard (K.mul post_path_summary (K.assume err_state)))
+    log_formulas "interpolate: post_state: " [!art.post_state];
+    K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver initial_path_weights err_state
     (*match K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver (initial_path_weights @ [post_path_summary]) err_state with 
     | `Invalid m -> `Invalid m
     | `Valid itps -> 
@@ -1497,19 +1537,36 @@ module McMillanChecker = struct
         Safe
     end
 
-  let concolic_phase (ctx: intra_context ref) = 
+  (* concolic phase of our model checking algorithm *)
+  let concolic_phase (ctx: intra_context ref) (recursion_level: int) = 
     match DQ.front (!ctx.execlist) with 
     | Some (u, w) -> 
       log_art ctx;
       begin match ReachTree.find_opt !ctx.art u with 
-        | Some _ -> logf ~level:`always " visit %d (%d)\n" u (ReachTree.maps_to !ctx.art u);
+        | Some _ -> 
+        logf ~level:`always " visit %d (%d)\n" u (ReachTree.maps_to !ctx.art u);
+        !ctx.execlist <- w;
         if (ReachTree.maps_to !ctx.art u) = !(!ctx.art).err_loc then 
           begin 
-            (**TODO: backsolving of recursive interproc calls *)
-            `ErrorReached u
+            (** if an error is reached , see if it is a call from the first recursive level or non-first. *)
+            (** a non-first recursion level requires an additional step of concolic execution past edge (K.assume !art.post). *)
+            if recursion_level = 0 then 
+              `ErrorReached u
+            else begin 
+              logf ~level:`always "inter-procedural return-loc reached. trying expand_pseudo...\n";
+              (** if we can successfully expand past the assertion of !art.post_state, then we can report error and exit. *)
+              (** otherwise, we shall refine the current, exit node. *)
+              match ReachTree.expand_pseudo (get_solver ctx) !ctx.art u with 
+              | `Refine -> 
+                logf ~level:`always "     ... expand_pseudo failed, adding %d to refinement worklist...\n" u;
+                !ctx.worklist <- worklist_push u !ctx.worklist; 
+                `Continue 
+              | `Error -> 
+                logf ~level:`always "       ... expand_pseudo succeeded\n";
+                `ErrorReached u 
+            end
           end
         else begin
-          !ctx.execlist <- w;
           let u_model = IntMap.find u !(!ctx.art).models in 
             logf ~level:`always "model of %d: \n" u;
             log_model "" u_model;
@@ -1525,6 +1582,7 @@ module McMillanChecker = struct
       end
     | None -> failwith "err: concolic_phase is reading from empty execution worklist" (* cannot happen *)
 
+  (* refinement phase of our model checking algorithm *)
   let refinement_phase (ctx: intra_context ref) (recurse_level: int) = 
     match DQ.front (!ctx.worklist) with 
     | Some (u, w) -> 
@@ -1597,10 +1655,12 @@ module McMillanChecker = struct
               logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
               ReachTree.cfg_edge_weight art (ReachTree.maps_to art w) (ReachTree.maps_to art z) in 
             (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
-            let refine_summary () = 
-              let pre_cond = prefix |> to_formula in 
-              let post_cond = suffix |> to_formula in 
-                Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond
+            (* let refine_summary_specific () = 
+              let pre_cond = K.guard prefix in 
+              let post_cond = K.guard suffix in 
+                Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond in *)
+            let refine_summary_with_extrapolants e1 e2 = 
+              Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
             in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
@@ -1611,7 +1671,7 @@ module McMillanChecker = struct
                     logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute failed. refining\n";
                     (* concretization of error trace failed. do refine *)
                       (* declare failure *)
-                      refine_summary ();
+                      refine_summary_with_extrapolants e1 e2;
                       (* return the dst vertex of the call-edge (w,z) as frontier node for refinement. *)
                       (* a frontier node is a node that cannot be reached by means of concrete execution from its parent, 
                          and here our interprocedural definition is the same. *)
@@ -1624,7 +1684,7 @@ module McMillanChecker = struct
               | `Unsat -> 
                 logf ~level:`always "--- handle_path_to_error : extrapolate failed; performing refine_summary () \n";
                 (* extrapolate failure; do refine *)
-                refine_summary (); 
+                (* refine_summary_specific (); *)
                 `Failure w
             end
          end else result (* some call-edge failed in the middle. go down without trying further. *)
@@ -1641,7 +1701,7 @@ module McMillanChecker = struct
   (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
   and concolic_mcmillan_execute (ctx: intra_context ref) (recurse_level: int) : mc_result = 
     logf ~level:`always " *********************************************** recurse_level: %d\n" recurse_level;
-    if recurse_level > 3 then failwith "failing because recursive level > 1";
+    (*if recurse_level > 3 then failwith "failing because recursive level > 1"; *)
     let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
     let continue = ref true in 
     let state = ref `Continue in
@@ -1650,7 +1710,7 @@ module McMillanChecker = struct
         logf ~level:`always "starting a single mcmillan round [execlist size=%d; worklist size=%d]\n" (DQ.size (!ctx.execlist)) @@ DQ.size (!ctx.worklist);
         if DQ.size (!ctx.execlist) > 0 then begin 
           (* concolic phase *)
-          begin match concolic_phase ctx with 
+          begin match concolic_phase ctx recurse_level with 
           | `ErrorReached w -> 
             logf ~level:`always "--- concolic_mcmillan_execute: found path-to-error at vertex %d \n" w;
             begin match handle_path_to_error ctx recurse_level w with 
