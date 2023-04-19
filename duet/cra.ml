@@ -1081,7 +1081,7 @@ module ReachTree = struct
         WG.iter_succ_e (fun (_, weight, y) -> 
           let weight =
             match weight with 
-            | Weight w -> w
+            | Weight w -> w(*K.mul w (K.assume (K.guard (K.mul (Summarizer.path_weight_inter !art.interproc y !art.err_loc) (K.assume (!art.post_state)))))*)
             | Call (u, v) -> Summarizer.proc_summary !art.interproc (u, v)  in 
           begin match K.get_post_model ~solver:(solver) m weight with 
           | Some y_model -> 
@@ -1157,18 +1157,19 @@ module McMillanChecker = struct
     let oracle = 
       if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in 
     let post_path_summary = oracle !art.interproc (ReachTree.maps_to art src) sink in 
-    let err_state = Syntax.mk_not srk !art.post_state in
+    let err_state =  !art.post_state in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_weights "interpolate: abstract suffix formula: " [post_path_summary];
-    match K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver (initial_path_weights @ [post_path_summary]) err_state with 
+    K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver initial_path_weights (K.guard (K.mul post_path_summary (K.assume err_state)))
+    (*match K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver (initial_path_weights @ [post_path_summary]) err_state with 
     | `Invalid m -> `Invalid m
     | `Valid itps -> 
       begin match List.rev itps with 
       | _ :: rest -> `Valid (List.rev rest)
       | _ -> failwith "err: interpolant sequence has length 0" 
       end
-    | `Unknown -> `Unknown
+    | `Unknown -> `Unknown*)
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
   let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
@@ -1571,9 +1572,13 @@ module McMillanChecker = struct
   let rec handle_path_to_error (ctx: intra_context ref) (recurse_level: int) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
     let art = !ctx.art in 
     let _ = reset_solver ctx in 
-    let _ = ReachTree.reset_substitute_map art in 
+    let _ = 
+      logf ~level:`always "interpretation at node %d(%d): %a\n" 
+        err_leaf (ReachTree.maps_to art err_leaf) (Interpretation.pp) (IntMap.find err_leaf !art.models)
+
+    in let _ = ReachTree.reset_substitute_map art in 
     let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in 
-    let seq = List.fold_left (fun x y -> K.mul y x) K.one in 
+    let seq = List.fold_left K.mul K.one in 
     let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in 
     let _ = 
       logf ~level:`always "handle_path_to_error called (err_leaf = %d)\n" err_leaf ;
