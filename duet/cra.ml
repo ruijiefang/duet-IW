@@ -1635,7 +1635,7 @@ module McMillanChecker = struct
         err_leaf (ReachTree.maps_to art err_leaf) (Interpretation.pp) (IntMap.find err_leaf !art.models)
 
     in let _ = ReachTree.reset_substitute_map art in 
-    let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in 
+    (*let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in *)
     let seq = List.fold_left K.mul K.one in 
     let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in 
     let _ = 
