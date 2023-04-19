@@ -839,9 +839,6 @@ module ReachTree = struct
       interproc = interproc
     }
 
-  (** dummy interproc err node because we don't manually add an edge-to-error-state to interproc calls *)
-  let interproc_err_node = -2
-
   let print_tree (art: t ref) indent v = 
     let rec print_tree_ (art: t ref) indent v = 
       logf ~level:`always "%s|" indent;
@@ -851,7 +848,6 @@ module ReachTree = struct
 
   (* blow up subtree at v *)
   let rec blowup ?(indent="") (art : t ref) (v : int) =
-    if v = interproc_err_node then () else 
     let _ = logf ~level:`always "%sblowup: tree node %d \n" indent v in 
     let _ = print_tree art indent v in 
     let t = !art in  
@@ -899,7 +895,6 @@ module ReachTree = struct
 
   (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
   let maps_to (art : t ref) (i : int) = 
-    if i = interproc_err_node then !art.err_loc else 
     IntMap.find i !art.cfg_vertex 
 
   (* [cfg_edge_weight t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
@@ -931,18 +926,15 @@ module ReachTree = struct
 
   (* [children t v] returns children of tree node v in tree t. *)
   let children (art : t ref) v = 
-    if v = interproc_err_node then [] else 
     IntMap.find v !art.children 
 
   (* [descendants t v] returns descendants of tree node v in tree t in DFS order. *)
   let rec descendants (art : t ref) v = 
-    if v = interproc_err_node then [] else 
     let v_children = children art v in 
     v :: (List.fold_left (fun l ch -> (descendants art ch) @ l) [] v_children)
 
   (* return leaves of subtree rooted at v. *)  
   let rec leaves (art: t ref) v = 
-    if v = interproc_err_node then [] else 
     let chs = children art v in 
     if List.length chs == 0 then [ v ]
     else 
@@ -950,24 +942,20 @@ module ReachTree = struct
 
   (* is a vertex in tree a leaf? *)
   let is_leaf (art: t ref) v = 
-    if v = interproc_err_node then true else 
     let chs = children art v in 
       List.length chs == 0
 
   (* [label t v] returns the node label of tree node v in tree t. *)
   let label (art : t ref) v =
-    if v = interproc_err_node then mk_true () else 
     IntMap.find v !art.labels
 
   (* (replaces) sets a label at v *)
   let set_label (art: t ref) v lbl = 
-    if v = interproc_err_node then () else 
     !art.labels <- IntMap.add v lbl !art.labels
 
   
   (* see if a vertex hasn't been deleted *)
   let find_opt (art: t ref) (v: int) = 
-    if v = interproc_err_node then None else 
     IntMap.find_opt v !art.parents 
 
   let substitute_edge_weight (art: t ref) ((u, v) : int * int) w = 
