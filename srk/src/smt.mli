@@ -23,7 +23,7 @@ module Solver : sig
   val get_unsat_core : 'a t ->
     ('a formula) list ->
     [ `Sat | `Unsat of ('a formula) list | `Unknown ]
-  val get_unsat_core_or_concrete_model : 'a t -> ('a formula) list -> symbol list -> 
+  val get_unsat_core_or_model : ?symbols:symbol list -> 'a t -> ('a formula) list -> 
     [ `Sat of 'a interpretation 
       | `Unsat of ('a formula) list 
       | `Unknown ]

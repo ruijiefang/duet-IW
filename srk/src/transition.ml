@@ -367,6 +367,19 @@ struct
     | `And xs -> List.concat_map (destruct_and srk) xs
     | _ -> [phi]
 
+  (* helper method for interpolate/extrapolate procedures. creates fresh copies of skolem variables in tr *)
+  let rename_skolems tr =
+    let fresh_skolem =
+      Memo.memo (fun sym ->
+          match Var.of_symbol sym with
+          | Some _ -> mk_const srk sym
+          | None ->
+              let name = show_symbol srk sym in
+              let typ = typ_symbol srk sym in
+              mk_const srk (mk_symbol srk ~name typ))
+    in
+    { transform = M.map (substitute_const srk fresh_skolem) tr.transform;
+      guard = substitute_const srk fresh_skolem tr.guard }
 
 
   let interpolate_unsat_core solver' trs post guards core = 
@@ -413,20 +426,6 @@ struct
 
   let interpolate_query ?(solver=Smt.mk_solver C.context) trs post sat_callback unsat_callback = 
     let _ = Smt.Solver.reset solver in 
-    let trs =
-      trs |> List.map (fun tr ->
-                 let fresh_skolem =
-                   Memo.memo (fun sym ->
-                       match Var.of_symbol sym with
-                       | Some _ -> mk_const srk sym
-                       | None ->
-                          let name = show_symbol srk sym in
-                          let typ = typ_symbol srk sym in
-                          mk_const srk (mk_symbol srk ~name typ))
-                 in
-                 { transform = M.map (substitute_const srk fresh_skolem) tr.transform;
-                   guard = substitute_const srk fresh_skolem tr.guard })
-    in
     (* Break guards into conjunctions, associate each conjunct with an indicator *)
     let guards =
       List.map (fun tr ->
@@ -440,6 +439,7 @@ struct
     in
     let subscript_tbl = Hashtbl.create 991 in
     let ss_inv = Hashtbl.create 991 in 
+    let sst = Hashtbl.create 991 in 
     let subscript sym =
       try
         Hashtbl.find subscript_tbl sym
@@ -468,32 +468,74 @@ struct
       in
       List.iter (fun (k, l, v) -> 
         Hashtbl.add subscript_tbl k v;
-        Hashtbl.add ss_inv l k) ss;
+        Hashtbl.add ss_inv l k;
+        Hashtbl.add sst k l) ss;
       mk_and srk phis
     in
-    let target = substitute_const srk subscript (mk_not srk post) in 
+    (* subscript the symbols in the `post` formula, as well *)
+    let target = substitute_const srk subscript (mk_not srk post) in
+    (* gather all symbols into a list, while adding formulas to the solver object *) 
     let symbols = List.fold_left 
       (fun symbols (tr, guard) ->
         let f = to_ss_formula tr guard in 
           Smt.Solver.add solver [f];
-          (Syntax.symbols f |> Symbol.Set.elements) @ symbols)
-       (Syntax.symbols target |> Symbol.Set.elements) (List.combine trs guards) in 
+          (Syntax.symbols f) :: symbols)
+       [] (List.combine trs guards) 
+      |> List.rev (* ensure left-to-right order for forward execution in sat_callback *) in 
     Smt.Solver.add solver [target];
-    match Smt.Solver.get_unsat_core_or_concrete_model solver indicators symbols with 
-      | `Sat m -> (sat_callback m ss_inv)
+    match Smt.Solver.get_unsat_core_or_model solver indicators with 
+      | `Sat m ->  
+        (sat_callback m symbols ss_inv)
       | `Unsat core -> (unsat_callback trs post guards core)
       | `Unknown -> `Unknown 
 
 
 
+  let call_cnt = ref 0
+
   let interpolate ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post =
     Smt.Solver.reset solver;
-    interpolate_query ~solver:solver trs post (fun _ _ -> `Invalid) @@ interpolate_unsat_core qflia_solver
+    let trs = List.map rename_skolems trs in 
+    interpolate_query ~solver:solver trs post (fun _ _ _ -> `Invalid) @@ interpolate_unsat_core qflia_solver
 
   let interpolate_or_concrete_model ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post = 
     (* subst_model: rename skolem constants back to their appropriate names using reverse subscript table *)
     Smt.Solver.reset solver;
-    let sat_model model ss_inv = 
+    let trs = List.map rename_skolems trs in 
+    let sat_model model (symbols: Symbol.Set.t list) ss_inv = 
+
+    
+      let _ = Printf.printf "----- interpolate:  symbols: "; 
+              List.iter (fun x -> Syntax.show_symbol srk x |> Printf.printf "symbol: %s\n") (List.map Symbol.Set.elements symbols |> List.flatten) in         
+        let m = 
+          List.fold_left (fun m' symbols -> 
+            let _ = Printf.printf "---*********** symbols: "; Symbol.Set.iter (fun x -> Printf.printf "%s \n" (Syntax.show_symbol srk x)) symbols in 
+            Symbol.Set.fold (fun s m -> 
+              (* the provided model is over both subscripted vocabulary and original vocabulary *)
+              begin match Hashtbl.find_opt ss_inv s with 
+              | Some s' -> (* subscripted variable *)
+                Interpretation.add s' (Interpretation.value model s) m
+              |  None -> (* non-subscripted; query directly *)
+                Interpretation.add s (Interpretation.value model s)  m 
+              end) symbols m'
+          ) (Interpretation.empty srk) symbols in 
+          (*Hashtbl.fold (fun s s' m -> 
+            Printf.printf "adding value for symbol %s\n" (Syntax.show_symbol srk s);
+            Printf.printf "value is: %f\n" @@ ((Interpretation.real model s') |> Mpqf.to_float);
+            Interpretation.add s (Interpretation.value model s') m) ss (Interpretation.empty srk) in *)
+          Printf.printf "hashtable length: %d\n" (Hashtbl.length ss_inv);
+          Interpretation.pp Format.std_formatter m; 
+          Format.print_flush ();
+      (* symbols is a list of subscripted symbols arranged in left-to-right order. 
+         folding over this in left-to-right order amounts to forward concrete execution. *)
+         if !call_cnt >= 2 then 
+          begin 
+            Printf.printf "call_cnt %d\n" (!call_cnt); 
+            failwith "more than 2 calls to interpolate. terminating...\n"
+          end;
+        call_cnt := !call_cnt + 1;
+        `Invalid m
+    (* in let sat_model model ss_inv = 
       let e = Interpretation.enum model in 
       let m' = BatEnum.fold 
         (fun m (s, v) -> 
@@ -510,25 +552,11 @@ struct
       in 
       logf ~level:`always "interpolate: got model, model is: %a\n" (Interpretation.pp) m';
       `Invalid m'
-    in interpolate_query ~solver:solver trs post sat_model @@ interpolate_unsat_core qflia_solver
+    *) in interpolate_query ~solver:solver trs post sat_model @@ interpolate_unsat_core qflia_solver
 
 
   let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
-    Printf.printf "at extrapolate\n";
-    let t1, t2, t3 =
-      let refresh = (fun tr ->
-                 let fresh_skolem =
-                   Memo.memo (fun sym ->
-                       match Var.of_symbol sym with
-                       | Some _ -> mk_const srk sym
-                       | None ->
-                          let name = show_symbol srk sym in
-                          let typ = typ_symbol srk sym in
-                          mk_const srk (mk_symbol srk ~name typ))
-                 in
-                 { transform = M.map (substitute_const srk fresh_skolem) tr.transform;
-                   guard = substitute_const srk fresh_skolem tr.guard }) 
-    in refresh t1, refresh t2, refresh t3 
+    let t1, t2, t3 = rename_skolems t1, rename_skolems t2, rename_skolems t3 
     in let subscript_tbl = Hashtbl.create 991 in
     let reverse_subscript_tbl = Hashtbl.create 991 in 
     let subscript sym =
