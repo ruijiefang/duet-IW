@@ -12,7 +12,9 @@ type 'a interpretation =
 
 let empty srk =
   { srk = srk;
-    default = (fun _ -> raise Not_found);
+    default = (fun x -> 
+      Printf.printf "err---------------symbol: %s" (Syntax.show_symbol srk x);
+      raise Not_found);
     map = SM.empty }
 
 let wrap ?(symbols=[]) srk f =

@@ -276,13 +276,19 @@ let extrapolate1 () =
     mk_block [
       T.havoc ["x"];
       T.assume ((int 0) < x);
-      T.assign "y" x
+      T.assign "y" x;
+      T.assign "n" (int 100);
+      T.assign "i" (int 103);
+      T.assign "j" ((int 105));
+      T.assign "k" j;
     ]
   in let tr2 = 
     mk_block [
       T.assume ((int 0 ) < z);
       T.assign "z" (x + (int 1));
-      T.assign "w" (z + (int 3))
+      T.assign "w" (z + (int 3));
+      T.assign "n" (n + (int 1)); 
+      T.assign "k" (i + k + (int 1));
     ]
   in let tr3 = 
     mk_block [
@@ -290,7 +296,9 @@ let extrapolate1 () =
       T.assume ((int 0) < k);
       T.assign "k" (w + (int 4));
     ]
-  in check_extrapolate "extrapolate1" tr1 tr2 tr3
+  in 
+    Printf.printf "extrapolate1--------------------------------------------\n";
+    check_extrapolate "extrapolate1" tr1 tr2 tr3
 
 let extrapolate2 () = 
   let open Infix in 
@@ -313,7 +321,9 @@ let extrapolate2 () =
       T.assume (y < z);
       T.assign "k" (x + (int 10))
     ]
-  in check_extrapolate "extrapolate2" tr1 tr2 tr3
+  in 
+  Printf.printf "extrapolate2-------------------------------------------\n";
+  check_extrapolate "extrapolate2" tr1 tr2 tr3
 
 let extrapolate3 () = 
   let open Infix in 
@@ -337,7 +347,9 @@ let extrapolate3 () =
       T.assign "y" ((int 1) + y);
       T.assume ((int 0) < y)
     ]
-  in check_extrapolate "extrapolate3" tr1 tr2 tr3
+  in 
+  Printf.printf "extrapolate3-----------------------------\n";
+  check_extrapolate "extrapolate3" tr1 tr2 tr3
 
 let equal1 () =
   (*let open Infix in *)
@@ -470,28 +482,6 @@ program:
 let print_model m = 
   Interpretation.pp Format.std_formatter m 
 
-let verify_model m =
-  let m = Interpretation.enum m in 
-  if BatEnum.count m <> 2 then assert_failure "incorrect number of atoms in interpretation"
-
-let interpolate_fail () = 
-  let _ = Printf.printf " -------------------------- interpolate_fail ------------------ \n" in 
-  let path = 
-    let open Infix in
-    [T.assign "x" (int 0);
-     T.assign "y" (int 0);
-     T.assume ((int 0) <= x);
-     T.assume ((int 0) <= y)
-    ]
-  in
-  let post = Ctx.mk_false in 
-  begin match T.interpolate_or_concrete_model path post with 
-  | `Invalid m -> 
-    print_model m ; verify_model m
-  | _ ->  
-    assert_failure "Invalid post-condition; got interpolant when should be sat"
-  end 
-
 let interpolate_havoc3 () =
   let _ = Printf.printf " -------------------------- interpolate_havoc3 ------------------ \n" in
   let path =
@@ -544,6 +534,103 @@ let interpolate_havoc2 () =
   | _ -> assert_failure "Error: got unknown answer"
 
 
+let check_model test_name m expected_cnt expected_valuations = 
+  let fail s = 
+    assert_failure @@
+      Printf.sprintf "check_model error: test %s: %s\n" test_name s in 
+  let e = Interpretation.enum m in 
+  if BatEnum.count e < expected_cnt then 
+    let m_str = Format.asprintf "%a" Interpretation.pp m in 
+    fail @@
+      Printf.sprintf "expected %d entires in model but got %d\nmodel:%s\n" 
+        expected_cnt (BatEnum.count e) m_str 
+  else   
+    BatEnum.iter  
+      (fun (sym, v) ->
+        match Hashtbl.find_opt expected_valuations sym with 
+        | Some (predicate, expected) -> 
+          begin match v with 
+          | `Real r -> 
+            if not @@ predicate (Mpqf.to_float r) then 
+              fail @@
+                Printf.sprintf "symbol %s, expected value %s but got %f\n"
+                  (Syntax.show_symbol srk sym) expected (Mpqf.to_float r)
+          | _ -> 
+              fail @@ 
+                Printf.sprintf "symbol %s, unknown value\n"
+                  (Syntax.show_symbol srk sym) 
+          end
+        | None -> (** we currently allow havoc symbols in returned models*) ()) e
+
+let form_valuation l = 
+  let tbl = Hashtbl.create 991 in 
+  List.iter (fun (k,v) -> Hashtbl.add tbl k v) l; 
+  tbl 
+
+let interpolate_fail () = 
+  let path = 
+    let open Infix in
+    [T.assign "x" (int 0);
+      T.assign "y" (int 0);
+      T.assign "z" (int 999);
+      T.assign "y" (z + (int 1));
+      T.assign "y" (int 0);
+      T.assign "y" (y + (int 1));
+      T.assign "x" (x + (int 1));
+      T.assign "y" (y - (int 1));
+      T.assign "x" y;
+      T.assume ((int 0) <= x);
+      T.assume ((int 0) <= y)
+    ]
+  in
+  let post = let open Infix in mk_not srk ((int 0) <= x) in 
+  begin match T.interpolate_or_concrete_model path post with 
+  | `Invalid m -> 
+    check_model "interpolate_fail" m 3 
+      (form_valuation 
+        [(V.symbol_of "x", ((fun x -> x = 0.0), "0"));
+          (V.symbol_of "y", ((fun y -> y = 0.0), "0"));
+          (V.symbol_of "z", ((fun z -> z = 999.0), "999"))])
+  | _ ->  
+    assert_failure "interpolate_fail: got interpolant when should be sat" 
+  end 
+  
+
+let interpolate_fail1 () = 
+    let path = 
+      let open Infix in 
+      [T.havoc ["x"]; 
+        T.assign "y" ((int 10) + x); 
+        T.assign "z" ((int 100));
+        T.assign "y" ((int 10) + z);
+
+        T.assume ((int 0) < y)] 
+    in let post = let open Infix in Syntax.mk_not srk ((int 100) <= y) in 
+    match T.interpolate_or_concrete_model path post with 
+    | `Invalid m -> 
+      check_model "interpolate_fail1" m 3 
+        (form_valuation 
+          [(V.symbol_of "x"), ((fun x -> x = 0.0), "0");
+           (V.symbol_of "y"), ((fun y -> y = 110.0), "110");
+           (V.symbol_of "z"), ((fun z -> z = 100.0), "100")])
+    | _ -> 
+      assert_failure "interpolate_fail1: got interpolant when should be sat"
+
+let interpolate_fail2 () = 
+    let prefix = [T.havoc ["x"] ] 
+    in let suffix =
+      let open Infix in 
+       T.mul (T.assume ((int 10) < x)) (T.assign "x" ((int 10) + x))
+    in let post =
+      let open Infix in
+        T.guard (T.mul suffix (T.assume ((int 1000) < x))) |> Syntax.mk_not srk 
+    in match T.interpolate_or_concrete_model prefix post with 
+    | `Invalid m -> 
+      check_model "interpolate_fail2" m 1 
+        (form_valuation [V.symbol_of "x", ((fun x -> x > 990.0), "value greater than 990")])
+    | _ -> 
+      assert_failure "interpolate_fail1: got interpolant when should be sat"
+
 let negative_eigenvalue () =
   let tr =
     let open Infix in
@@ -578,9 +665,11 @@ let suite = "Transition" >::: [
     "interpolate_havoc" >:: interpolate_havoc;
     "interpolate_havoc2" >:: interpolate_havoc2;
     "interpolate_havoc3" >:: interpolate_havoc3;
-    "interpolate_fail" >:: interpolate_fail;
     "negative_eigenvalue" >:: negative_eigenvalue;
     "extrapolate1" >:: extrapolate1;
     "extrapolate2" >:: extrapolate2;
     "extrapolate3" >:: extrapolate3;
+    "interpolate_fail" >:: interpolate_fail;
+    "interpolate_fail1" >:: interpolate_fail1;
+    "interpolate_fail2" >:: interpolate_fail2;
   ]
