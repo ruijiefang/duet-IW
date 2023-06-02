@@ -1,0 +1,132 @@
+[weight] ******* retrieving summary for 73,80 *****
+(0): {return := return':497
+                                                          param0 := param0':498
+                                                          param1 := param1':499
+                                                          return@pos := 
+                                                          return@pos':500
+                                                          param0@pos := 
+                                                          param0@pos':501
+                                                          param1@pos := 
+                                                          param1@pos':502
+                                                          return@width := 
+                                                          return@width':503
+                                                          param0@width := 
+                                                          param0@width':504
+                                                          param1@width := 
+                                                          param1@width':505
+                                                          when (((-3
+                                                                    * param1:44)
+                                                                   + (
+                                                                   3
+                                                                    * param1':499)
+                                                                   + return':497) = 0
+                                                                  /\ 
+                                                                  0 <= (
+                                                                  -1
+                                                                    + -param0':498)
+                                                                  /\ 
+                                                                  0 <= (
+                                                                  param1:44
+                                                                    + -param1':499))}
+
+associating variable param1@width:52 with K:612
+associating variable param0@width:50 with K:611
+associating variable param1@pos:48 with K:610
+associating variable param0@pos:46 with K:609
+associating variable param1:44 with K:608
+associating variable param0:42 with K:607
+associating variable b:5 with K:606
+associating variable a:2 with K:605
+associating variable param1@width:52 with K:621
+associating variable param0@width:50 with K:620
+associating variable return@width:13 with K:619
+associating variable param1@pos:48 with K:618
+associating variable param0@pos:46 with K:617
+associating variable return@pos:14 with K:616
+associating variable param1:44 with K:615
+associating variable param0:42 with K:614
+associating variable return:15 with K:613
+associating variable r:7 with K:622
+extrapolate: before SMT query 
+extrapolate: ss_t1: (K:612 = type_err:20:23:28:589:595 /\ K:611 = type_err:16:19:26:588:594
+   /\ K:610 = type_err:21:22:27:587:593 /\ K:609 = type_err:17:18:25:586:592
+   /\ K:608 = havoc:3:24:585:591 /\ K:607 = havoc:0:590
+   /\ K:606 = havoc:3:24:585:591 /\ K:605 = havoc:0:590 /\ 3 <= havoc:0:590
+   /\ havoc:0:590 <= 9 /\ 5 <= havoc:3:24:585:591 /\ havoc:3:24:585:591 <= 13)
+
+extrapolate: ss_t2: (K:621 = param1@width':505:604 /\ K:620 = param0@width':504:603
+   /\ K:619 = return@width':503:602 /\ K:618 = param1@pos':502:601
+   /\ K:617 = param0@pos':501:600 /\ K:616 = return@pos':500:599
+   /\ K:615 = param1':499:596 /\ K:614 = param0':498:598
+   /\ K:613 = return':497:597
+   /\ ((-3 * K:608) + (3 * param1':499:596) + return':497:597) = 0
+   /\ 0 <= (-1 + -param0':498:598) /\ 0 <= (K:608 + -param1':499:596))
+
+extrapolate: ss_t3: (K:622 = K:613 /\ !(0 < K:613))
+
+extrapolate: ss_t1 symbols:  havoc:0:590 (= NONE); havoc:3:24:585:591 (= NONE); type_err:17:18:25:586:592 (= NONE); type_err:21:22:27:587:593 (= NONE); type_err:16:19:26:588:594 (= NONE); type_err:20:23:28:589:595 (= NONE); K:605 (= a:2); K:606 (= b:5); K:607 (= param0:42); K:608 (= param1:44); K:609 (= param0@pos:46); K:610 (= param1@pos:48); K:611 (= param0@width:50); K:612 (= param1@width:52);
+
+extrapolate: ss_t2 symbols:  param1':499:596 (= NONE); return':497:597 (= NONE); param0':498:598 (= NONE); return@pos':500:599 (= NONE); param0@pos':501:600 (= NONE); param1@pos':502:601 (= NONE); return@width':503:602 (= NONE); param0@width':504:603 (= NONE); param1@width':505:604 (= NONE); K:608 (= param1:44); K:613 (= return:15); K:614 (= param0:42); K:615 (= param1:44); K:616 (= return@pos:14); K:617 (= param0@pos:46); K:618 (= param1@pos:48); K:619 (= return@width:13); K:620 (= param0@width:50); K:621 (= param1@width:52);
+
+extrapolate: ss_t3 symbols:  K:613 (= return:15); K:622 (= r:7);
+
+extrapolate: ss_conj symbols:  havoc:0:590 (= NONE); havoc:3:24:585:591 (= NONE); type_err:17:18:25:586:592 (= NONE); type_err:21:22:27:587:593 (= NONE); type_err:16:19:26:588:594 (= NONE); type_err:20:23:28:589:595 (= NONE); param1':499:596 (= NONE); return':497:597 (= NONE); param0':498:598 (= NONE); return@pos':500:599 (= NONE); param0@pos':501:600 (= NONE); param1@pos':502:601 (= NONE); return@width':503:602 (= NONE); param0@width':504:603 (= NONE); param1@width':505:604 (= NONE); K:605 (= a:2); K:606 (= b:5); K:607 (= param0:42); K:608 (= param1:44); K:609 (= param0@pos:46); K:610 (= param1@pos:48); K:611 (= param0@width:50); K:612 (= param1@width:52); K:613 (= return:15); K:614 (= param0:42); K:615 (= param1:44); K:616 (= return@pos:14); K:617 (= param0@pos:46); K:618 (= param1@pos:48); K:619 (= return@width:13); K:620 (= param0@width:50); K:621 (= param1@width:52); K:622 (= r:7);
+
+extrapolate: symbol t1 - t2:  havoc:0:590 (= NONE); havoc:3:24:585:591 (= NONE); type_err:17:18:25:586:592 (= NONE); type_err:21:22:27:587:593 (= NONE); type_err:16:19:26:588:594 (= NONE); type_err:20:23:28:589:595 (= NONE); K:605 (= a:2); K:606 (= b:5); K:607 (= param0:42); K:609 (= param0@pos:46); K:610 (= param1@pos:48); K:611 (= param0@width:50); K:612 (= param1@width:52);
+
+extrapolate: symbol t2 - t1:  param1':499:596 (= NONE); return':497:597 (= NONE); param0':498:598 (= NONE); return@pos':500:599 (= NONE); param0@pos':501:600 (= NONE); param1@pos':502:601 (= NONE); return@width':503:602 (= NONE); param0@width':504:603 (= NONE); param1@width':505:604 (= NONE); K:613 (= return:15); K:614 (= param0:42); K:615 (= param1:44); K:616 (= return@pos:14); K:617 (= param0@pos:46); K:618 (= param1@pos:48); K:619 (= return@width:13); K:620 (= param0@width:50); K:621 (= param1@width:52);
+
+extrapolate: symbol t3 t2:  K:622 (= r:7);
+------------ SMT query in extrapolate ------------
+extrapolate: result is SAT, got model
+[havoc:0:590 => 3,
+ havoc:3:24:585:591 => 5,
+ type_err:17:18:25:586:592 => 7,
+ type_err:21:22:27:587:593 => 6,
+ type_err:16:19:26:588:594 => 4,
+ type_err:20:23:28:589:595 => 2,
+ param1':499:596 => 5,
+ return':497:597 => 0,
+ param0':498:598 => -1,
+ return@pos':500:599 => 13,
+ param0@pos':501:600 => 12,
+ param1@pos':502:601 => 11,
+ return@width':503:602 => 10,
+ param0@width':504:603 => 9,
+ param1@width':505:604 => 8,
+ K:605 => 3,
+ K:606 => 5,
+ K:607 => 3,
+ K:608 => 5,
+ K:609 => 7,
+ K:610 => 6,
+ K:611 => 4,
+ K:612 => 2,
+ K:613 => 0,
+ K:614 => -1,
+ K:615 => 5,
+ K:616 => 13,
+ K:617 => 12,
+ K:618 => 11,
+ K:619 => 10,
+ K:620 => 9,
+ K:621 => 8,
+ K:622 => 0]
+pre extrapolant: (0 <= (13 + -K:608) /\ 0 <= (-5 + K:608))
+post extrapolant: 0 <= -K:613
+--------------------------
+
+pre extrapolant after renaming: (0 <= (13 + -param1:44) /\ 0 <= (-5 + param1:44))
+post extrapolant after renaming: 0 <= -return:15
+--------------------------
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(0): (
+0 <= (13 + -param1) /\ 0 <= (-5 + param1))
+
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(1): 
+0 <= -return
+
+ *********************************************** recurse_level: 1
+
+

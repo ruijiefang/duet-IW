@@ -518,10 +518,13 @@ struct
               |  None -> (* non-subscripted; query directly *)
                 Interpretation.add s (Interpretation.value model s)  m 
               end) symbols m'
-          ) (*(Interpretation.wrap srk (fun s -> 
+          ) (Interpretation.wrap srk (fun s -> 
+              match Hashtbl.find_opt ss s with 
+              | Some sss -> Interpretation.value model sss 
+              | None -> `Real (Mpqf.of_int 47))) (*(Interpretation.wrap srk (fun s -> 
                 match Hashtbl.find_opt ss s with 
                 | Some sss -> Interpretation.value model sss 
-                | None -> Interpretation.value model s))*) (Interpretation.empty srk) symbols in 
+                | None -> Interpretation.value model s))*) (*(Interpretation.empty srk)*) symbols in 
           (*Hashtbl.fold (fun s s' m -> 
             Printf.printf "adding value for symbol %s\n" (Syntax.show_symbol srk s);
             Printf.printf "value is: %f\n" @@ ((Interpretation.real model s') |> Mpqf.to_float);
@@ -559,7 +562,9 @@ struct
 
 
   let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
-    let t1, t2, t3 = rename_skolems t1, rename_skolems t2, rename_skolems t3 
+    let t1 = rename_skolems t1
+    in let t2 = rename_skolems t2 
+    in let t3 = rename_skolems t3 
     in let subscript_tbl = Hashtbl.create 991 in
     let reverse_subscript_tbl = Hashtbl.create 991 in 
     let subscript sym =
@@ -610,13 +615,13 @@ struct
     in
      Printf.printf "extrapolate: before SMT query \n";
      Printf.printf "extrapolate: ss_t1: ";
-     Syntax.pp_expr_unnumbered srk Format.std_formatter ss_t1;
+     Syntax.pp_expr srk Format.std_formatter ss_t1;
      Format.print_flush ();
      Printf.printf "\n\nextrapolate: ss_t2: ";
-     Syntax.pp_expr_unnumbered srk Format.std_formatter ss_t2;
+     Syntax.pp_expr srk Format.std_formatter ss_t2;
           Format.print_flush ();
      Printf.printf "\n\nextrapolate: ss_t3: ";
-     Syntax.pp_expr_unnumbered srk Format.std_formatter ss_t3;
+     Syntax.pp_expr srk Format.std_formatter ss_t3;
           Format.print_flush ();
      Printf.printf "\n\nextrapolate: ss_t1 symbols: ";
      symbols_printer symbols_t1 ;
@@ -646,10 +651,10 @@ struct
         Format.print_flush ();
         let pre_, post_ = Polyhedron.extrapolate_project srk ss_t1 ss_t3 symbols_t1_t2 symbols_t3_t2 m in 
         Printf.printf "\npre extrapolant: ";
-        Syntax.pp_expr_unnumbered srk Format.std_formatter pre_;
+        Syntax.pp_expr srk Format.std_formatter pre_;
         Format.print_flush();
         Printf.printf "\npost extrapolant: ";
-        Syntax.pp_expr_unnumbered srk Format.std_formatter post_;
+        Syntax.pp_expr srk Format.std_formatter post_;
         Format.print_flush();
         Printf.printf "\n--------------------------\n";
           (* reverse-rename *)
@@ -663,10 +668,10 @@ struct
           let ex1 = (substitute_const srk (reverse_substitute) pre_) in 
           let ex2 = (substitute_const srk (reverse_substitute) post_) in 
           Printf.printf "\npre extrapolant after renaming: ";
-          Syntax.pp_expr_unnumbered srk Format.std_formatter ex1;
+          Syntax.pp_expr srk Format.std_formatter ex1;
           Format.print_flush();
           Printf.printf "\npost extrapolant after renaming: ";
-          Syntax.pp_expr_unnumbered srk Format.std_formatter ex2;
+          Syntax.pp_expr srk Format.std_formatter ex2;
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
           `Sat (ex1, ex2) 
