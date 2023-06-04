@@ -11,6 +11,7 @@ module type Var = sig
   val compare : t -> t -> int
   val symbol_of : t -> symbol
   val of_symbol : symbol -> t option
+  val is_global : t -> bool
 end
 
 module Make
@@ -569,12 +570,19 @@ struct
     let reverse_subscript_tbl = Hashtbl.create 991 in 
     let subscript sym =
       try
-        Hashtbl.find subscript_tbl sym
-      with Not_found -> mk_const srk sym
+        let const = Hashtbl.find subscript_tbl sym in 
+        Printf.printf "   | found for symbol %s:\n" (Syntax.show_symbol srk sym); 
+        Syntax.pp_expr srk Format.std_formatter const;
+        Format.print_flush ();
+        const
+      with Not_found -> 
+        Printf.printf "  | not_found: %s\n" (Syntax.show_symbol srk sym);
+        mk_const srk sym
     in
     (* Convert tr into a formula, and simultaneously update the subscript
        table *)
     let to_ss_formula tr =
+      let _ = Printf.printf "to_ss_formulat called-----\n" in 
       let ss_guard = substitute_const srk subscript (guard tr)
       in let (ss, phis) =
         M.fold (fun var term (ss, phis) ->
@@ -595,19 +603,23 @@ struct
     in let ss_t2 = to_ss_formula t2 
     in let ss_t3 = to_ss_formula t3 
     in let conj = mk_and srk [ss_t1; ss_t2; ss_t3]
-    in let symbols_t1 = Syntax.symbols ss_t1 |> Symbol.Set.elements  
-    in let symbols_t1_t2 = 
-      let symbt1 = Syntax.symbols ss_t1 in 
-      let symbt2 = Syntax.symbols ss_t2 in 
-      let symbt1t2 = Symbol.Set.diff symbt1 symbt2 in 
-      symbt1t2 |> Symbol.Set.elements 
-    in let symbols_t3 = Syntax.symbols ss_t3 |> Symbol.Set.elements 
+    in let is_global x = 
+      match Var.of_symbol x with 
+      | None -> false 
+      | Some v -> Var.is_global v
+    in let symbols_t1 = Syntax.symbols ss_t1  
+    in let symbols_t1_t2 =
+      let symbols_t2 = Syntax.symbols ss_t2 in  
+      Syntax.symbols ss_t1 
+        |> Symbol.Set.filter 
+            (fun x -> (Symbol.Set.mem x symbols_t2) || (is_global x))
+        |> Symbol.Set.diff symbols_t1 
+    in let symbols_t3 = Syntax.symbols ss_t3  
     in let symbols_t3_t2 = 
-      let symbt3 = Syntax.symbols ss_t3 in 
-      let symbt2 = Syntax.symbols ss_t2 in 
-      let symbt3t2 = Symbol.Set.diff symbt3 symbt2 in 
-      symbt3t2 |> Symbol.Set.elements 
-    in let symbols_conj = Syntax.symbols conj |> Symbol.Set.elements 
+        symbols_t3 
+        |> Symbol.Set.filter (fun x -> (is_global x) || (Symbol.Set.mem x symbols_t3))
+        |> Symbol.Set.diff symbols_t3
+    in let symbols_conj = Syntax.symbols conj  
     in let symbols_printer symbs = 
       List.iter (fun x -> 
         Printf.printf " %s (= %s);" 
@@ -624,32 +636,32 @@ struct
      Syntax.pp_expr srk Format.std_formatter ss_t3;
           Format.print_flush ();
      Printf.printf "\n\nextrapolate: ss_t1 symbols: ";
-     symbols_printer symbols_t1 ;
+     symbols_printer (symbols_t1 |> Symbol.Set.elements) ;
           Format.print_flush ();
          Printf.printf "\n\nextrapolate: ss_t2 symbols: ";
       Syntax.symbols ss_t2 |> Symbol.Set.elements |> symbols_printer; 
       Format.print_flush();
      Printf.printf "\n\nextrapolate: ss_t3 symbols: ";
-     symbols_printer symbols_t3;
+     symbols_printer (symbols_t3 |> Symbol.Set.elements);
           Format.print_flush ();
      Printf.printf "\n\nextrapolate: ss_conj symbols: ";
-     symbols_printer symbols_conj;
+     symbols_printer (symbols_conj |> Symbol.Set.elements);
           Format.print_flush();
      Printf.printf "\n\nextrapolate: symbol t1 - t2: ";
-     symbols_printer symbols_t1_t2;
+     symbols_printer (symbols_t1_t2 |> Symbol.Set.elements);
           Format.print_flush();
      Printf.printf "\n\nextrapolate: symbol t2 - t1: ";
      symbols_printer (Symbol.Set.diff (Syntax.symbols ss_t2) (Syntax.symbols ss_t1) |> Symbol.Set.elements);
       Printf.printf "\n\nextrapolate: symbol t3 t2: ";
-      symbols_printer symbols_t3_t2;
+      symbols_printer (symbols_t3_t2 |> Symbol.Set.elements);
           Format.print_flush();
      Printf.printf "\n------------ SMT query in extrapolate ------------\n";
-     match Smt.get_model ~solver:solver ~symbols:symbols_conj srk conj with 
+     match Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk conj with 
       | `Sat m -> 
         Printf.printf "extrapolate: result is SAT, got model\n";
         Interpretation.pp Format.std_formatter m ;
         Format.print_flush ();
-        let pre_, post_ = Polyhedron.extrapolate_project srk ss_t1 ss_t3 symbols_t1_t2 symbols_t3_t2 m in 
+        let pre_, post_ = Polyhedron.extrapolate_project srk ss_t1 ss_t3 (symbols_t1_t2 |> Symbol.Set.elements) (symbols_t3_t2 |> Symbol.Set.elements) m in 
         Printf.printf "\npre extrapolant: ";
         Syntax.pp_expr srk Format.std_formatter pre_;
         Format.print_flush();
