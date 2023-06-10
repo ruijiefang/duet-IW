@@ -125,8 +125,6 @@ module V = struct
       None
 
   let is_global = Var.is_global % var_of_value
-
-
 end
 
 module K = struct
@@ -767,16 +765,17 @@ module Summarizer =
           TS.set_summary q (u, v) w
       
       let refine (ctx: t ref) ((u, v): int * int) (pre: state_formula) (post: state_formula) =
-        let augment orig_pre orig_post summary = 
-          let new_pre = Syntax.mk_and srk [orig_pre; pre] in 
-          let new_post = Syntax.mk_and srk [orig_post; post] in 
+        let augment new_pre new_post summary = 
           let s_pre = K.mul (K.assume (Syntax.mk_not srk new_pre)) summary in 
           let s_post = K.mul summary (K.assume (Syntax.mk_not srk new_post)) in 
           K.add s_pre s_post |> set_proc_summary ctx (u, v)
         in 
         match ProcMap.find_opt (u, v) !ctx.conditions with 
         | Some (orig_pre, orig_post, summary) -> 
-          augment orig_pre orig_post summary
+          let new_pre = Syntax.mk_and srk [orig_pre; pre] in 
+          let new_post = Syntax.mk_and srk [orig_post; post] in 
+          !ctx.conditions <- ProcMap.add (u, v) (new_pre, new_post, summary) !ctx.conditions;
+          augment new_pre new_post summary
         | None -> 
           (* if None, then proc is unrefined, so we first store its original CRA-computed summary. *)
           let summary = proc_summary ctx (u, v) in 
@@ -1172,7 +1171,8 @@ module McMillanChecker = struct
   let worklist_push  (i : int) (q : idq_t) = DQ.cons i q 
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
-  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
+  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) 
+    (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
     let oracle = 
       if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in 
     let is_inter_err_loc = (recurse_level > 0) && ((ReachTree.maps_to art src) = !art.err_loc) in 
@@ -1186,6 +1186,7 @@ module McMillanChecker = struct
       end
     in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
+    log_formulas (Printf.sprintf "interpolate: pre_state@recurse_level %d: " recurse_level) [!art.pre_state];
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_weights "interpolate: abstract suffix formula: " [post_path_summary];
     log_formulas "interpolate: post_state: " [!art.post_state];
@@ -1619,7 +1620,7 @@ module McMillanChecker = struct
     let art = !ctx.art in 
     let _ = reset_solver ctx in 
     let _ = 
-      logf ~level:`always "interpretation at node %d(%d): %a\n" 
+      logf ~level:`always "interpretation at node %d(%d) handle_path_to_error: %a\n" 
         err_leaf (ReachTree.maps_to art err_leaf) (Interpretation.pp) (IntMap.find err_leaf !art.models)
 
     in let _ = ReachTree.reset_substitute_map art in 
