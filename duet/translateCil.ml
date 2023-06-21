@@ -395,8 +395,11 @@ let verifier_builtins =
    "__assert_fail"; "malloc"; "xmalloc"; "calloc"; "realloc"; "xrealloc"; "__builtin_alloca";
    "pthread_mutex_lock"; "pthread_mutex_unlock"; "spin_lock"; "spin_unlock";
    "pthread_create"; "pthread_create"; "exit"; "abort";
-   "rand"; "__VERIFIER_nondet_char"; "__VERIFIER_nondet_int"; "__VERIFIER_nondet_long";
-   "__VERIFIER_nondet_pointer"; "__VERIFIER_nondet_uint";
+   "rand"; "__VERIFIER_nondet_char"; "__VERIFIER_nondet_uchar";
+   "__VERIFIER_nondet_short"; "__VERIFIER_nondet_ushort";
+   "__VERIFIER_nondet_int"; "__VERIFIER_nondet_uint"; 
+   "__VERIFIER_nondet_long"; "__VERIFIER_nondet_ulong";
+   "__VERIFIER_nondet_pointer";
    "__CPROVER_atomic_begin"; "__CPROVER_atomic_end";
    "__VERIFIER_atomic_begin"; "__VERIFIER_atomic_end"; "reach_error" ]
 
@@ -476,6 +479,20 @@ let tr_instr ctx instr =
 
       | ("__VERIFIER_nondet_char", Some (Variable v), []) ->
         mk_def (Assign (v, Havoc (Concrete (Int 1))))
+      | ("__VERIFIER_nondet_uchar", Some (Variable v), []) ->
+        let havoc = mk_def (Assign (v, Havoc (Concrete (Int 1)))) in 
+        let assume = 
+          mk_def (Assume (Atom (Le, Aexpr.zero, AccessPath (Variable v))))
+        in mk_seq havoc assume
+      | ("__VERIFIER_nondet_short", Some (Variable v), [])  ->
+        let sz = type_size (Cil.TInt (Cil.IShort, [])) in  
+        mk_def (Assign (v, Havoc (Concrete (Int (sz)))))
+      | ("__VERIFIER_nondet_ushort", Some (Variable v), []) ->
+        let sz = type_size (Cil.TInt (Cil.IShort, [])) in 
+        let havoc = mk_def (Assign (v, Havoc (Concrete (Int (sz))))) in
+        let assume = 
+          mk_def (Assume (Atom (Le, Aexpr.zero, AccessPath (Variable v)))) 
+        in mk_seq havoc assume 
       | ("__VERIFIER_nondet_int", Some (Variable v), []) ->
         mk_def (Assign (v, Havoc (Concrete (Int machine_int_width))))
       | ("__VERIFIER_nondet_long", Some (Variable v), []) ->
@@ -489,7 +506,13 @@ let tr_instr ctx instr =
           mk_def (Assume (Atom (Le, Aexpr.zero, AccessPath (Variable v))))
         in
         mk_seq havoc assume
-
+      | ("__VERIFIER_nondet_ulong", Some (Variable v), []) ->
+        let sz = type_size (Cil.TInt (Cil.ILong, [])) in 
+        let havoc = mk_def (Assign (v, Havoc (Concrete (Int sz)))) in 
+        let assume = 
+          mk_def (Assume (Atom (Le, Aexpr.zero, AccessPath (Variable v)))) 
+        in 
+        mk_seq havoc assume 
       (* CPROVER builtins *)
       | ("__CPROVER_atomic_begin", None, []) -> mk_def (Builtin AtomicBegin)
       | ("__CPROVER_atomic_end", None, []) -> mk_def (Builtin AtomicEnd)

@@ -37,6 +37,8 @@ module IV = struct
 
     let equal x y = compare x y = 0
     let hash (v, i) = Hashtbl.hash (Var.hash v, i)
+
+    let is_global _ = false 
   end
   include I
 

@@ -746,15 +746,11 @@ module Summarizer =
         graph: cfg_t;
         src: int;
         query: TS.query;
-        (* map for accumulating procedure summary refinements. *)
-        (* pre_state, post_state, original summary *)
-        mutable conditions: (state_formula * state_formula * K.t) ProcMap.t;
       }
 
       let init (graph: cfg_t) (src: int) =
         let q = mk_query graph src in  
-        ref { graph = graph; src = src; query = q; conditions = ProcMap.empty }
-
+        ref { graph = graph; src = src; query = q; }
 
       let proc_summary (ctx: t ref) ((u, v) : int * int) = 
         let q = !ctx.query in 
@@ -764,25 +760,14 @@ module Summarizer =
         let q = !ctx.query in 
           TS.set_summary q (u, v) w
       
-      let refine (ctx: t ref) ((u, v): int * int) (pre: state_formula) (post: state_formula) =
-        let augment new_pre new_post summary = 
-          let s_pre = K.mul (K.assume (Syntax.mk_not srk new_pre)) summary in 
-          let s_post = K.mul summary (K.assume (Syntax.mk_not srk new_post)) in 
-          K.add s_pre s_post |> set_proc_summary ctx (u, v)
-        in 
-        match ProcMap.find_opt (u, v) !ctx.conditions with 
-        | Some (orig_pre, orig_post, summary) -> 
-          let new_pre = Syntax.mk_and srk [orig_pre; pre] in 
-          let new_post = Syntax.mk_and srk [orig_post; post] in 
-          !ctx.conditions <- ProcMap.add (u, v) (new_pre, new_post, summary) !ctx.conditions;
-          augment new_pre new_post summary
-        | None -> 
-          (* if None, then proc is unrefined, so we first store its original CRA-computed summary. *)
-          let summary = proc_summary ctx (u, v) in 
-          !ctx.conditions <- ProcMap.add (u, v) (pre, post, summary) !ctx.conditions;
-          augment (mk_true ()) (mk_true ()) summary
-          
 
+      let refine (ctx: t ref) ((u, v): int * int) (pre: state_formula) (post: state_formula) =
+        let summary = proc_summary ctx (u, v) in 
+        let s_pre = K.mul (K.assume (Syntax.mk_not srk pre)) summary in 
+        let s_post = K.mul summary (K.assume (Syntax.mk_not srk post)) in 
+          K.add s_pre s_post |> set_proc_summary ctx (u, v);
+          assert (summary <> (proc_summary ctx (u,v)))
+          
       let path_weight_intra (ctx: t ref) (src: int) (dst: int) = 
         let q = !ctx.query in 
           TS.intra_path_summary q src dst
@@ -905,6 +890,7 @@ module ReachTree = struct
     let t = !art in 
     match ProcMap.find_opt (cfg_u, cfg_v) t.edge_weight_substitutes with 
     | Some w -> 
+      Printf.printf "cfg_edge_weight: edge weight substitute found for (%d,%d)\n" cfg_u cfg_v;
       w 
     | None -> 
       begin match WG.edge_weight t.graph cfg_u cfg_v with  
@@ -1628,8 +1614,10 @@ module McMillanChecker = struct
     let seq = List.fold_left K.mul K.one in 
     let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in 
     let _ = 
-      logf ~level:`always "handle_path_to_error called (err_leaf = %d)\n" err_leaf ;
-      logf ~level:`always "call_edges size: %d\n" (List.length call_edges) in
+      logf ~level:`always "handle_path_to_error called (err_leaf = %d, rec level %d)\n" err_leaf recurse_level;
+      logf ~level:`always "call_edges size: %d for %d rec_level %d\n" (List.length call_edges) err_leaf recurse_level;
+      List.fold_left (fun _ (x, (_,_), y) -> Printf.printf " call_edges (%d %d)\n" (ReachTree.maps_to art x) (ReachTree.maps_to art y)) () call_edges;
+      Printf.printf "\n" in
     let status = List.fold_left 
       (fun result curr_call ->
         if result = `Unconcretized then 
@@ -1638,8 +1626,14 @@ module McMillanChecker = struct
                and (call_entry, call_exit) refer to cfg vertex locations delineating the procedure entry/exit in the 
                recursive control flow graph. *)
             let (w, (call_entry, call_exit), z) = curr_call in 
-            let prefix = K.assume (!art.pre_state) :: ReachTree.path_condition art w |> seq in 
+            let _ = Printf.printf " --- calculating prefix\n" in 
+            let prefix = K.assume (!art.pre_state) :: ReachTree.path_condition art w |> seq in
+            let _ = Printf.printf " --- calculating suffix\n" in  
             let suffix = ((ReachTree.path_condition art ~cutoff:z err_leaf) @ [K.assume (!art.post_state)]) |> seq in 
+            let _ = 
+              log_weights "extrapolate: suffix without postcondition" [(ReachTree.path_condition art ~cutoff:z err_leaf) |> seq]; 
+              log_weights "extrapolate: postcondition: " [K.assume (!art.post_state)];
+              log_weights "extrapolate: suffix with postcondition: " [suffix] in
             let summary = 
               logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
               ReachTree.cfg_edge_weight art (ReachTree.maps_to art w) (ReachTree.maps_to art z) in 
@@ -1650,6 +1644,7 @@ module McMillanChecker = struct
                 Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond in *)
             let refine_summary_with_extrapolants e1 e2 = 
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
+            in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d)\n" call_entry, call_exit 
             in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
@@ -1667,14 +1662,13 @@ module McMillanChecker = struct
                       `Failure z (* z is the dst vertex of call-edge (w, (call_entry, call_exit), z) *)
                   | Unsafe tr -> 
                     logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path\n";
-                       ReachTree.substitute_edge_weight art (w, z) (tr |> seq); 
+                    Printf.printf "concrete path is %d,%d for path from entry to tree node %d(%d) err %d level %d\n" 
+                      (ReachTree.maps_to art w) (ReachTree.maps_to art z) err_leaf (ReachTree.maps_to art err_leaf) err_leaf recurse_level;
+                       ReachTree.substitute_edge_weight art (ReachTree.maps_to art w, ReachTree.maps_to art z) (tr |> seq);
                       `Unconcretized
                 end
               | `Unsat -> 
-                logf ~level:`always "--- handle_path_to_error : extrapolate failed; performing refine_summary () \n";
-                (* extrapolate failure; do refine *)
-                (* refine_summary_specific (); *)
-                `Failure w
+                failwith "--- handle_path_to_error : extrapolate failed"
             end
          end else result (* some call-edge failed in the middle. go down without trying further. *)
         ) `Unconcretized call_edges in 
