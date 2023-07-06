@@ -493,9 +493,6 @@ struct
         | `Unknown -> `Unknown 
 
 
-
-  let call_cnt = ref 0
-
   let interpolate ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post =
     Smt.Solver.reset solver;
     let trs = List.map rename_skolems trs in 
@@ -563,12 +560,14 @@ struct
 
 
   let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
-    let t1 = rename_skolems t1
+    let log_weights prefix weights = 
+      List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i pp f) weights
+    in 
+    let _ = log_weights "extrapolate: t1, t2, t3: \n" [t1;t2;t3] in
+    let t1 = rename_skolems t1 
     in let t2 = rename_skolems t2 
     in let t3 = rename_skolems t3 
-    in let subscript_tbl = Hashtbl.create 991 in
-    let reverse_subscript_tbl = Hashtbl.create 991 in 
-    let subscript sym =
+    in let subscript subscript_tbl sym =
       try
         let const = Hashtbl.find subscript_tbl sym in 
         Printf.printf "   | found for symbol %s:\n" (Syntax.show_symbol srk sym); 
@@ -581,15 +580,14 @@ struct
     in
     (* Convert tr into a formula, and simultaneously update the subscript
        table *)
-    let to_ss_formula tr =
-      let _ = Printf.printf "to_ss_formulat called-----\n" in 
-      let ss_guard = substitute_const srk subscript (guard tr)
+    let to_ss_formula tr subscript_tbl reverse_subscript_tbl =
+      let ss_guard = substitute_const srk (subscript subscript_tbl) (guard tr)
       in let (ss, phis) =
         M.fold (fun var term (ss, phis) ->
             let var_sym = Var.symbol_of var in
             let var_ss_sym = mk_symbol srk (Var.typ var :> typ) in
             let var_ss_term = mk_const srk var_ss_sym in
-            let term_ss = substitute_const srk subscript term in
+            let term_ss = substitute_const srk (subscript subscript_tbl) term in
             ((var_sym, var_ss_term, var_ss_sym)::ss,
              (mk_eq srk var_ss_term term_ss)::phis))
           tr.transform
@@ -598,34 +596,82 @@ struct
       List.iter (fun (k, v, l) -> 
         Printf.printf "associating variable %s with %s\n" (Syntax.show_symbol srk k) (Syntax.show_symbol srk l);
         Hashtbl.add subscript_tbl k v; Hashtbl.add reverse_subscript_tbl l k) ss;
-      mk_and srk phis
-    in let ss_t1 = to_ss_formula t1 
-    in let ss_t2 = to_ss_formula t2 
-    in let ss_t3 = to_ss_formula t3 
+      mk_and srk phis, Hashtbl.copy reverse_subscript_tbl
+    in let subscript_tbl = Hashtbl.create 991 
+    in let reverse_subscript_tbl = Hashtbl.create 991 
+    in let ss_t1, reverse_subscript_tbl1 = to_ss_formula t1 subscript_tbl reverse_subscript_tbl 
+    in let ss_t2, reverse_subscript_tbl2 = to_ss_formula t2 subscript_tbl reverse_subscript_tbl
+    in let ss_t3, _ = to_ss_formula t3 subscript_tbl reverse_subscript_tbl
     in let conj = mk_and srk [ss_t1; ss_t2; ss_t3]
-    in let is_global x = 
-      match Var.of_symbol x with 
-      | None -> false 
-      | Some v -> Var.is_global v
-    in let symbols_t1 = Syntax.symbols ss_t1  
-    in let symbols_t1_t2 =
-      let symbols_t2 = Syntax.symbols ss_t2 in  
-      Syntax.symbols ss_t1 
-        |> Symbol.Set.filter 
-            (fun x -> (Symbol.Set.mem x symbols_t2) || (is_global x))
-        |> Symbol.Set.diff symbols_t1 
+    in let is_global t x = 
+      try 
+        begin match Var.of_symbol (Hashtbl.find t x) with 
+        | None -> false 
+        | Some v -> 
+          if Var.is_global v then begin 
+            Printf.printf "symbol %s is global\n" (Syntax.show_symbol srk (Hashtbl.find reverse_subscript_tbl x)); true 
+          end else false
+        end
+      with Not_found -> false  
+    in let symbols_t1 = Syntax.symbols ss_t1
+    in let symbols_t2 = Syntax.symbols ss_t2
     in let symbols_t3 = Syntax.symbols ss_t3  
+    in let symbols_t1_t2 =
+      Syntax.symbols ss_t1 (* symbols in t1 that are either globals _and_ in t2 are preserved during projection *)
+        |> Symbol.Set.filter 
+            (fun x -> (is_global reverse_subscript_tbl1 x))
     in let symbols_t3_t2 = 
-        symbols_t3 
-        |> Symbol.Set.filter (fun x -> (is_global x) || (Symbol.Set.mem x symbols_t3))
-        |> Symbol.Set.diff symbols_t3
-    in let symbols_conj = Syntax.symbols conj  
+        symbols_t3 (* symbols in t3 that are globals _and_ in t2, t1 are preserved during projection *)
+        |> Symbol.Set.filter (fun x -> (is_global reverse_subscript_tbl2 x) && (Symbol.Set.mem x symbols_t2))
+    in let _ = 
+      Printf.printf "extrapolate: preserved symbols for t1,t2: ";
+      let f x = x 
+      |> Symbol.Set.elements 
+      |> List.iter (fun s -> 
+        try 
+          Hashtbl.find reverse_subscript_tbl s 
+          |> Syntax.show_symbol srk 
+          |> Printf.printf " %s " 
+        with Not_found -> ()); Printf.printf "\n" in 
+      symbols_t1_t2  |> f; 
+      Printf.printf "extrapolate: presreved symbols for t2,t3: ";
+      symbols_t3_t2 |> f
+    in let symbols_conj = Symbol.Set.union symbols_t1 (Symbol.Set.union symbols_t2 symbols_t3)
     in let symbols_printer symbs = 
       List.iter (fun x -> 
         Printf.printf " %s (= %s);" 
         (Syntax.show_symbol srk x) (let s = try Hashtbl.find reverse_subscript_tbl x |> Syntax.show_symbol srk with Not_found -> "NONE" in s)) symbs 
     in
-     Printf.printf "extrapolate: before SMT query \n";
+    let extrapolate_project srk (f1: 'a formula) (f3: 'a formula) symbols_f1 symbols_f3 all_symbols model = 
+      let open Polyhedron in 
+      (* first do NNF conversion on f1, f3 before computing their implicants *)
+      let nnf_rewriter = Syntax.nnf_rewriter srk in
+      let f1 = Syntax.rewrite srk ~down:(nnf_rewriter) f1 in 
+      let f3 = Syntax.rewrite srk ~down:(nnf_rewriter) f3 in 
+      let implicant_o1 = Interpretation.select_implicant model f1 in
+      let implicant_o2 = Interpretation.select_implicant model f3 in 
+        match implicant_o1, implicant_o2 with 
+        | Some f1, Some f2 ->
+          let cube = of_cube srk (f1@f2) in
+          let value_of_coord = (* coord (int) -> x (symbol) -> m[x] (value in R) *)
+            fun coord ->
+              Syntax.symbol_of_int coord 
+              |> Interpretation.real model
+          in let xs_f1 = 
+            Symbol.Set.diff all_symbols symbols_f1 
+            |> Symbol.Set.elements 
+            |> List.map Syntax.int_of_symbol  
+          in let xs_f3 = 
+            Symbol.Set.diff all_symbols symbols_f3 
+            |> Symbol.Set.elements 
+            |> List.map Syntax.int_of_symbol 
+          in let f1_projected = local_project value_of_coord xs_f1 cube
+          in let f3_projected = local_project value_of_coord xs_f3 cube
+          in
+            (cube_of srk f1_projected |> Syntax.mk_and srk, cube_of srk f3_projected |> Syntax.mk_and srk)
+        | _ -> failwith "error extrapolating: select_implicant returned None"
+        in 
+    Printf.printf "extrapolate: before SMT query \n";
      Printf.printf "extrapolate: ss_t1: ";
      Syntax.pp_expr srk Format.std_formatter ss_t1;
      Format.print_flush ();
@@ -635,24 +681,13 @@ struct
      Printf.printf "\n\nextrapolate: ss_t3: ";
      Syntax.pp_expr srk Format.std_formatter ss_t3;
           Format.print_flush ();
-     Printf.printf "\n\nextrapolate: ss_t1 symbols: ";
-     symbols_printer (symbols_t1 |> Symbol.Set.elements) ;
-          Format.print_flush ();
-         Printf.printf "\n\nextrapolate: ss_t2 symbols: ";
-      Syntax.symbols ss_t2 |> Symbol.Set.elements |> symbols_printer; 
-      Format.print_flush();
-     Printf.printf "\n\nextrapolate: ss_t3 symbols: ";
-     symbols_printer (symbols_t3 |> Symbol.Set.elements);
-          Format.print_flush ();
      Printf.printf "\n\nextrapolate: ss_conj symbols: ";
      symbols_printer (symbols_conj |> Symbol.Set.elements);
           Format.print_flush();
      Printf.printf "\n\nextrapolate: symbol t1 - t2: ";
      symbols_printer (symbols_t1_t2 |> Symbol.Set.elements);
           Format.print_flush();
-     Printf.printf "\n\nextrapolate: symbol t2 - t1: ";
-     symbols_printer (Symbol.Set.diff (Syntax.symbols ss_t2) (Syntax.symbols ss_t1) |> Symbol.Set.elements);
-      Printf.printf "\n\nextrapolate: symbol t3 t2: ";
+     Printf.printf "\n\nextrapolate: symbol t3 - t2: ";
       symbols_printer (symbols_t3_t2 |> Symbol.Set.elements);
           Format.print_flush();
      Printf.printf "\n------------ SMT query in extrapolate ------------\n";
@@ -661,7 +696,7 @@ struct
         Printf.printf "extrapolate: result is SAT, got model\n";
         Interpretation.pp Format.std_formatter m ;
         Format.print_flush ();
-        let pre_, post_ = Polyhedron.extrapolate_project srk ss_t1 ss_t3 (symbols_t1_t2 |> Symbol.Set.elements) (symbols_t3_t2 |> Symbol.Set.elements) m in 
+        let pre_, post_ = extrapolate_project srk ss_t1 ss_t3 symbols_t1_t2 symbols_t3_t2 symbols_conj m in 
         Printf.printf "\npre extrapolant: ";
         Syntax.pp_expr srk Format.std_formatter pre_;
         Format.print_flush();
@@ -686,8 +721,23 @@ struct
           Syntax.pp_expr srk Format.std_formatter ex2;
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
+          (*if Smt.entails srk (Syntax.mk_true srk) ex2 = `Yes then 
+            failwith "error: post extrapolant is true"
+          ;*)
           `Sat (ex1, ex2) 
-      | _ -> `Unsat (*failwith "extrapolate failed!!!" *)(* `Unsat *)
+      | `Unknown -> failwith "extrapolate status unknown"
+      | `Unsat -> 
+       (* let s1,s2,s3 = 
+          Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk ss_t1, 
+          Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk ss_t2,
+          Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk ss_t3 in 
+        let show = function 
+          | `Unsat -> "unsat" 
+          | `Sat _ -> "sat"
+          | _ -> "unknown"
+        in
+        Printf.printf "status: t1: %s, t2: %S, T3: %S\n" (show s1) (show s2) (show s3); *)
+        `Unsat 
 
   let valid_triple phi path post =
     let path_not_post = List.fold_right mul path (assume (mk_not srk post)) in

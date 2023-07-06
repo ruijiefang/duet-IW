@@ -255,28 +255,6 @@ let local_project m xs polyhedron =
   in
   List.fold_left project_one polyhedron xs
 
-let extrapolate_project srk (f1: 'a formula) (f3: 'a formula) symbols_f1 symbols_f3 model = 
-  (* first do NNF conversion on f1, f3 before computing their implicants *)
-  let nnf_rewriter = Syntax.nnf_rewriter srk in
-  let f1 = Syntax.rewrite srk ~down:(nnf_rewriter) f1 in 
-  let f3 = Syntax.rewrite srk ~down:(nnf_rewriter) f3 in 
-  let implicant_f1_o = Interpretation.select_implicant model f1 in 
-  let implicant_f3_o = Interpretation.select_implicant model f3 in 
-    match implicant_f1_o, implicant_f3_o with 
-    | Some if1, Some if3 ->
-      let cube_f1 = of_cube srk if1 in 
-      let cube_f3 = of_cube srk if3 in 
-      let value_of_coord = (* coord (int) -> x (symbol) -> m[x] (value in R) *)
-        fun coord ->
-          Syntax.symbol_of_int coord 
-          |> Interpretation.real model
-      in let xs_f1 = List.map Syntax.int_of_symbol symbols_f1 
-      in let xs_f3 = List.map Syntax.int_of_symbol symbols_f3
-      in let f1_projected = local_project value_of_coord xs_f1 cube_f1
-      in let f3_projected = local_project value_of_coord xs_f3 cube_f3
-      in
-        (cube_of srk f1_projected |> Syntax.mk_and srk, cube_of srk f3_projected |> Syntax.mk_and srk)
-    | _ -> failwith "error extrapolating: select_implicant returned None"
 
 
 (* Project a single variable, as long as the number of added constraints does

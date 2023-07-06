@@ -55,11 +55,6 @@ val of_cube : 'a context -> ('a formula) list -> t
     [Interpretation.select_implicant]). *)
 val cube_of : 'a context -> t -> ('a formula) list
 
-(** extrapolate_project receives a triple of formulas over four distinct vocabularies and returns a pair of formulas *)
-val extrapolate_project : 'a context -> ('a formula) -> ('a formula) 
-                        -> (symbol list) -> (symbol list) 
-                        -> ('a Interpretation.interpretation) -> ('a formula * 'a formula)
-
 val to_apron : 'a CoordinateSystem.t -> 'a SrkApron.Env.t -> 'abs Apron.Manager.t -> t -> ('a,'abs) SrkApron.property
 
 (** Test whether a point, representing as a map from symbols to rationals, is

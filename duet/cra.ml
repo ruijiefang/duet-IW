@@ -854,9 +854,9 @@ module ReachTree = struct
       t.precedent_nodes <- IntMap.add v_mapsto (ISet.remove v precedents) t.precedent_nodes;
     (* handle deletion coverings. Check if (v, x) in t.covers. If so, remove v from t.reverse_covers[x]. *)
     match IntMap.find_opt v t.covers  with 
-    | Some x -> 
+    | Some x -> (* v covers x *)
       let x_coverers = IntMap.find x t.reverse_covers in 
-        t.reverse_covers <- IntMap.add x (ISet.remove x x_coverers) t.reverse_covers;
+        t.reverse_covers <- IntMap.add x (ISet.remove v x_coverers) t.reverse_covers;
         (* remove (v, x) from t.covers as well *)
         t.covers <- IntMap.remove v t.covers   
     | None -> ();
@@ -881,22 +881,18 @@ module ReachTree = struct
   let maps_to (art : t ref) (i : int) = 
     IntMap.find i !art.cfg_vertex 
 
-  (* [cfg_edge_weight t u v] returns the CFG edge weight of edge (u, v) for vertices u, v in the CFG. *) 
-  (* ruijie: note that u, v refer to control-flow graph vertices but not art nodes. this may seem like
-     bad API design (I admit), but this was a legacy convention retained elsewhere in code, so we avoid
-     refactoring it for now as we don't want additional trouble. We also sometimes only have CFG locations
-     but not tree nodes, so weight-querying CFG locations is also more flexible. *)
-  let cfg_edge_weight (art : t ref) cfg_u cfg_v = 
+  (* [cfg_edge_weight t u v] returns the edge weight of edge (u, v) in ART t. *)
+  let edge_weight (art : t ref) u v = 
     let t = !art in 
-    match ProcMap.find_opt (cfg_u, cfg_v) t.edge_weight_substitutes with 
+    match ProcMap.find_opt (u, v) t.edge_weight_substitutes with 
     | Some w -> 
-      Printf.printf "cfg_edge_weight: edge weight substitute found for (%d,%d)\n" cfg_u cfg_v;
+      Printf.printf "cfg_edge_weight: edge weight substitute found for (%d,%d)\n" u v;
       w 
     | None -> 
-      begin match WG.edge_weight t.graph cfg_u cfg_v with  
+      begin match WG.edge_weight t.graph (maps_to art u) (maps_to art v) with  
       | Weight w -> w
-      | Call (u, v) ->
-        let w = Summarizer.proc_summary (t.interproc) (u, v) in
+      | Call (a, b) ->
+        let w = Summarizer.proc_summary (t.interproc) (a, b) in
         log_weights (Printf.sprintf "******* retrieving summary for %d,%d *****\n" u v) [w];
         w
       end 
@@ -949,6 +945,14 @@ module ReachTree = struct
   let reset_substitute_map (t: t ref) = 
     !t.edge_weight_substitutes <- ProcMap.empty 
 
+  let path_to (art: t ref) u = 
+    let rec p (art: t ref) u = 
+    match u with
+    | 0 -> [ 0 ]
+    | _ -> 
+      u :: (p art (parent art u)) 
+    in p art u |> List.rev 
+  
   (* returns a list of call-edges (from shallow to deep) along path from root-to-node v*)
   (* call-edges are represented as 4-tuples: (tree node into call edge) -> callsite start -> callsite end -> (tree node out of call edge) *)
   let calls_in_path (art: t ref) v = 
@@ -965,8 +969,7 @@ module ReachTree = struct
           | Call (a, b) -> (n, (a, b), u) :: (f p)
           | _ -> f p 
           end
-    in 
-      if v = 0 then [] else f v |> List.rev 
+    in f v |> List.rev
 
   (* [get_precedent_nodes t v] retrieves a sequence of precedent nodes of tree node vin preorder in tree t. *)
   (* the list of precedent nodes for a cfg vertex is a list of tree nodes which map to the same cfg location, ordered by < on integers. *)
@@ -980,25 +983,21 @@ module ReachTree = struct
   (* [t %-*> u] returns a list of edge weights that form the path condition from root of t to tree node u.  *)
   (* if `cutoff` is specified to a non-zero value, then [path_condition] will try to stop at intermediate ancestor `cutoff`. *)
   let path_condition (art: t ref) ?(cutoff = 0) (u : int) = 
-    if u == 0 then 
+    if u == 0 || cutoff = u then 
       [ ]
     else 
-      let rec (%<*-) (art: t ref) (u : int) =
+      let rec visit (art: t ref) (u : int) =
         let v = parent art u in 
         begin if (v = 0) then begin 
-          logf ~level:`always "path_condition: v = 0 case triggered \n";
-          [ cfg_edge_weight art (maps_to art 0) (maps_to art u)  ]
+          [ edge_weight art 0 u  ]
         end else 
           begin if (v = cutoff) then (* v=0 case is already handled above *)
-            [ cfg_edge_weight art (maps_to art cutoff) (maps_to art u) ]
+            [ edge_weight art cutoff u]
           else 
-            cfg_edge_weight art (maps_to art v) (maps_to art u) :: (art %<*- v) 
+            edge_weight art v u :: (visit art v) 
           end 
         end 
-      in let ews = List.rev (art %<*- u) 
-      in 
-      logf ~level:`always "path_condition call terminated [%d, maps_to %d, err_loc %d]\n" u (maps_to art u) (!art.err_loc);
-      ews 
+      in List.rev (visit art u)  
 
   let get_id (art : t ref) = 
     match DQ.front !art.free_ids with 
@@ -1612,15 +1611,18 @@ module McMillanChecker = struct
     in let _ = ReachTree.reset_substitute_map art in 
     (*let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in *)
     let seq = List.fold_left K.mul K.one in 
-    let call_edges = ReachTree.calls_in_path art err_leaf |> List.rev in 
-    let _ = 
+    let project tr = (* existentially quantify over all locals, leaving out only globals *)
+      K.exists (fun v -> V.is_global v) tr in
+    let call_edges = ReachTree.calls_in_path art err_leaf in 
+    (*let _ = 
       logf ~level:`always "handle_path_to_error called (err_leaf = %d, rec level %d)\n" err_leaf recurse_level;
       logf ~level:`always "call_edges size: %d for %d rec_level %d\n" (List.length call_edges) err_leaf recurse_level;
       List.fold_left (fun _ (x, (_,_), y) -> Printf.printf " call_edges (%d %d)\n" (ReachTree.maps_to art x) (ReachTree.maps_to art y)) () call_edges;
-      Printf.printf "\n" in
+      Printf.printf "\n" in*)
     let status = List.fold_left 
       (fun result curr_call ->
-        if result = `Unconcretized then 
+        match result with 
+        | `Unconcretized nnn ->  
           begin
             (* w, z are tree nodes such that (art.maps_to w, art.maps_to z) is a call-edge to (call_entry, call_exit)
                and (call_entry, call_exit) refer to cfg vertex locations delineating the procedure entry/exit in the 
@@ -1636,7 +1638,7 @@ module McMillanChecker = struct
               log_weights "extrapolate: suffix with postcondition: " [suffix] in
             let summary = 
               logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
-              ReachTree.cfg_edge_weight art (ReachTree.maps_to art w) (ReachTree.maps_to art z) in 
+              ReachTree.edge_weight art w z in 
             (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
             (* let refine_summary_specific () = 
               let pre_cond = K.guard prefix in 
@@ -1644,7 +1646,7 @@ module McMillanChecker = struct
                 Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond in *)
             let refine_summary_with_extrapolants e1 e2 = 
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
-            in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d)\n" call_entry, call_exit 
+            in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  
             in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
@@ -1664,16 +1666,17 @@ module McMillanChecker = struct
                     logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path\n";
                     Printf.printf "concrete path is %d,%d for path from entry to tree node %d(%d) err %d level %d\n" 
                       (ReachTree.maps_to art w) (ReachTree.maps_to art z) err_leaf (ReachTree.maps_to art err_leaf) err_leaf recurse_level;
-                       ReachTree.substitute_edge_weight art (ReachTree.maps_to art w, ReachTree.maps_to art z) (tr |> seq);
-                      `Unconcretized
+                       ReachTree.substitute_edge_weight art (w, z) (tr |> seq |> project);
+                      `Unconcretized (nnn+1)
                 end
               | `Unsat -> 
                 failwith "--- handle_path_to_error : extrapolate failed"
             end
-         end else result (* some call-edge failed in the middle. go down without trying further. *)
-        ) `Unconcretized call_edges in 
+         end
+         | _ -> result (* some call-edge failed in the middle. go down without trying further. *)
+        ) (`Unconcretized 0) call_edges in 
       match status with 
-      | `Unconcretized -> 
+      | `Unconcretized _ -> 
         let path_cond = 
           ReachTree.path_condition art err_leaf in 
         `Concretized path_cond (* by the end, we've concretized ourselves *)
