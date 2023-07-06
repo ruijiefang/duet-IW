@@ -1060,7 +1060,9 @@ module ReachTree = struct
      a post-state model from its parent by means of symbol substitution. It is deemed 
      a _frontier node_ if concrete execution cannot reach it from its parent node. A 
      frontier node does not have a model associated with it and is in need of refinement. *)
-  let expand_concolic solver (art : t ref) (v: int) = 
+  let expand_concolic solver recurse_level (art : t ref) (v: int) = 
+    let oracle = 
+      if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in
     let vg = maps_to art v in 
     let new_concolic_nodes, new_frontier_nodes = ref [], ref [] in 
       (* visit out neighbors of v *)
@@ -1069,7 +1071,12 @@ module ReachTree = struct
         WG.iter_succ_e (fun (_, weight, y) -> 
           let weight =
             match weight with 
-            | Weight w -> w(*K.mul w (K.assume (K.guard (K.mul (Summarizer.path_weight_inter !art.interproc y !art.err_loc) (K.assume (!art.post_state)))))*)
+            | Weight w -> 
+              if K.contains_havoc w then begin 
+                (* w /\ guard (summary from y -> error location) *)
+                K.mul w (K.assume @@ K.guard (K.mul (oracle !art.interproc y !art.err_loc) (K.assume !art.post_state)))
+              end else 
+                w
             | Call (u, v) -> Summarizer.proc_summary !art.interproc (u, v)  in 
           begin match K.get_post_model ~solver:(solver) m weight with 
           | Some y_model -> 
@@ -1176,14 +1183,6 @@ module McMillanChecker = struct
     log_weights "interpolate: abstract suffix formula: " [post_path_summary];
     log_formulas "interpolate: post_state: " [!art.post_state];
     K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver initial_path_weights err_state
-    (*match K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver (initial_path_weights @ [post_path_summary]) err_state with 
-    | `Invalid m -> `Invalid m
-    | `Valid itps -> 
-      begin match List.rev itps with 
-      | _ :: rest -> `Valid (List.rev rest)
-      | _ -> failwith "err: interpolant sequence has length 0" 
-      end
-    | `Unknown -> `Unknown*)
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
   let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
@@ -1544,7 +1543,7 @@ module McMillanChecker = struct
           let u_model = IntMap.find u !(!ctx.art).models in 
             logf ~level:`always "model of %d: \n" u;
             log_model "" u_model;
-            let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) !ctx.art u in 
+            let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) recursion_level !ctx.art u in 
               List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
               List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
               `Continue
@@ -1609,16 +1608,10 @@ module McMillanChecker = struct
         err_leaf (ReachTree.maps_to art err_leaf) (Interpretation.pp) (IntMap.find err_leaf !art.models)
 
     in let _ = ReachTree.reset_substitute_map art in 
-    (*let to_formula = fun w -> w |> K.to_transition_formula |> TransitionFormula.formula in *)
     let seq = List.fold_left K.mul K.one in 
     let project tr = (* existentially quantify over all locals, leaving out only globals *)
       K.exists (fun v -> V.is_global v) tr in
     let call_edges = ReachTree.calls_in_path art err_leaf in 
-    (*let _ = 
-      logf ~level:`always "handle_path_to_error called (err_leaf = %d, rec level %d)\n" err_leaf recurse_level;
-      logf ~level:`always "call_edges size: %d for %d rec_level %d\n" (List.length call_edges) err_leaf recurse_level;
-      List.fold_left (fun _ (x, (_,_), y) -> Printf.printf " call_edges (%d %d)\n" (ReachTree.maps_to art x) (ReachTree.maps_to art y)) () call_edges;
-      Printf.printf "\n" in*)
     let status = List.fold_left 
       (fun result curr_call ->
         match result with 
@@ -1628,22 +1621,12 @@ module McMillanChecker = struct
                and (call_entry, call_exit) refer to cfg vertex locations delineating the procedure entry/exit in the 
                recursive control flow graph. *)
             let (w, (call_entry, call_exit), z) = curr_call in 
-            let _ = Printf.printf " --- calculating prefix\n" in 
             let prefix = K.assume (!art.pre_state) :: ReachTree.path_condition art w |> seq in
-            let _ = Printf.printf " --- calculating suffix\n" in  
             let suffix = ((ReachTree.path_condition art ~cutoff:z err_leaf) @ [K.assume (!art.post_state)]) |> seq in 
-            let _ = 
-              log_weights "extrapolate: suffix without postcondition" [(ReachTree.path_condition art ~cutoff:z err_leaf) |> seq]; 
-              log_weights "extrapolate: postcondition: " [K.assume (!art.post_state)];
-              log_weights "extrapolate: suffix with postcondition: " [suffix] in
             let summary = 
               logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
               ReachTree.edge_weight art w z in 
             (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
-            (* let refine_summary_specific () = 
-              let pre_cond = K.guard prefix in 
-              let post_cond = K.guard suffix in 
-                Summarizer.refine (!art.interproc) (call_entry, call_exit) pre_cond post_cond in *)
             let refine_summary_with_extrapolants e1 e2 = 
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
             in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  

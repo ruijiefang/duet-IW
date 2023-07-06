@@ -156,6 +156,8 @@ module Make
   (** Compute a representation of a transition as a transition formula. *)
   val to_transition_formula : t -> C.t TransitionFormula.t
 
+  val contains_havoc : t -> bool
+
   val domain : (module Iteration.PreDomain) ref
   val star : t -> t
   val linearize : t -> t

@@ -187,12 +187,27 @@ struct
       | None -> Symbol.Set.mem x post_symbols
     in
     TransitionFormula.make ~exists body tr_symbols
-(*
-  let make_transition_formula_without_post tr = 
-    let body = mk_and tr.guard in 
-    let tr_symbols = M.fold (fun var _ l -> var :: l) tr.transform [] in 
-    let exists x = match Var.of_symbol x with | Some _ -> true | None -> Symbol.Set.mem x tr.transform 
-*)
+
+  let contains_havoc tr = 
+    let contains needle haystack = (* test if needle is in haystack *)
+      let re = Str.regexp_string needle in
+      try 
+         ignore (Str.search_forward re haystack 0); 
+         true
+      with Not_found -> false in 
+    tr 
+    |> to_transition_formula 
+    |> TransitionFormula.formula 
+    |> Syntax.symbols  
+    |> Symbol.Set.filter (fun s -> 
+      s 
+      |> Syntax.show_symbol srk
+      |> contains "havoc")
+    |> Symbol.Set.cardinal
+    |> (<>) 0
+
+
+
   let domain =
     let open Iteration in
     let open SolvablePolynomial in
@@ -503,11 +518,8 @@ struct
     Smt.Solver.reset solver;
     let trs = List.map rename_skolems trs in 
     let sat_model model (symbols: Symbol.Set.t list) ss ss_inv = 
-      let _ = Printf.printf "----- interpolate:  symbols: "; 
-              List.iter (fun x -> Syntax.show_symbol srk x |> Printf.printf "symbol: %s\n") (List.map Symbol.Set.elements symbols |> List.flatten) in         
         let m = 
           List.fold_left (fun m' symbols -> 
-            let _ = Printf.printf "---*********** symbols: "; Symbol.Set.iter (fun x -> Printf.printf "%s \n" (Syntax.show_symbol srk x)) symbols in 
             Symbol.Set.fold (fun s m -> 
               (* the provided model is over both subscripted vocabulary and original vocabulary *)
               begin match Hashtbl.find_opt ss_inv s with 
@@ -523,22 +535,12 @@ struct
                 match Hashtbl.find_opt ss s with 
                 | Some sss -> Interpretation.value model sss 
                 | None -> Interpretation.value model s))*) (*(Interpretation.empty srk)*) symbols in 
-          (*Hashtbl.fold (fun s s' m -> 
-            Printf.printf "adding value for symbol %s\n" (Syntax.show_symbol srk s);
-            Printf.printf "value is: %f\n" @@ ((Interpretation.real model s') |> Mpqf.to_float);
-            Interpretation.add s (Interpretation.value model s') m) ss (Interpretation.empty srk) in *)
           Printf.printf "hashtable length: %d\n" (Hashtbl.length ss_inv);
           Interpretation.pp Format.std_formatter m; 
           Format.print_flush ();
       (* symbols is a list of subscripted symbols arranged in left-to-right order. 
          folding over this in left-to-right order amounts to forward concrete execution. *)
-      (*   if !call_cnt >= 10 then 
-          begin 
-            Printf.printf "call_cnt %d\n" (!call_cnt); 
-            failwith "more than 2 calls to interpolate. terminating...\n"
-          end;
-        call_cnt := !call_cnt + 1;
-        *)`Invalid m
+      `Invalid m
    (* let sat_model model ss_inv = 
       let e = Interpretation.enum model in 
       let m' = BatEnum.fold 
@@ -560,22 +562,13 @@ struct
 
 
   let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
-    let log_weights prefix weights = 
-      List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i pp f) weights
-    in 
-    let _ = log_weights "extrapolate: t1, t2, t3: \n" [t1;t2;t3] in
     let t1 = rename_skolems t1 
     in let t2 = rename_skolems t2 
     in let t3 = rename_skolems t3 
     in let subscript subscript_tbl sym =
       try
-        let const = Hashtbl.find subscript_tbl sym in 
-        Printf.printf "   | found for symbol %s:\n" (Syntax.show_symbol srk sym); 
-        Syntax.pp_expr srk Format.std_formatter const;
-        Format.print_flush ();
-        const
+        Hashtbl.find subscript_tbl sym
       with Not_found -> 
-        Printf.printf "  | not_found: %s\n" (Syntax.show_symbol srk sym);
         mk_const srk sym
     in
     (* Convert tr into a formula, and simultaneously update the subscript
@@ -594,7 +587,6 @@ struct
           ([], [ ss_guard ])
       in
       List.iter (fun (k, v, l) -> 
-        Printf.printf "associating variable %s with %s\n" (Syntax.show_symbol srk k) (Syntax.show_symbol srk l);
         Hashtbl.add subscript_tbl k v; Hashtbl.add reverse_subscript_tbl l k) ss;
       mk_and srk phis, Hashtbl.copy reverse_subscript_tbl
     in let subscript_tbl = Hashtbl.create 991 
@@ -709,8 +701,7 @@ struct
             try 
               let sym = Hashtbl.find reverse_subscript_tbl symb in 
                 mk_const srk sym 
-            with Not_found -> 
-                Printf.printf  " not found symbol %s\n" (Syntax.show_symbol srk symb); mk_const srk symb
+            with Not_found -> mk_const srk symb
           in 
           let ex1 = (substitute_const srk (reverse_substitute) pre_) in 
           let ex2 = (substitute_const srk (reverse_substitute) post_) in 
@@ -721,23 +712,9 @@ struct
           Syntax.pp_expr srk Format.std_formatter ex2;
           Format.print_flush();
           Printf.printf "\n--------------------------\n";  
-          (*if Smt.entails srk (Syntax.mk_true srk) ex2 = `Yes then 
-            failwith "error: post extrapolant is true"
-          ;*)
           `Sat (ex1, ex2) 
       | `Unknown -> failwith "extrapolate status unknown"
-      | `Unsat -> 
-       (* let s1,s2,s3 = 
-          Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk ss_t1, 
-          Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk ss_t2,
-          Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk ss_t3 in 
-        let show = function 
-          | `Unsat -> "unsat" 
-          | `Sat _ -> "sat"
-          | _ -> "unknown"
-        in
-        Printf.printf "status: t1: %s, t2: %S, T3: %S\n" (show s1) (show s2) (show s3); *)
-        `Unsat 
+      | `Unsat ->  `Unsat 
 
   let valid_triple phi path post =
     let path_not_post = List.fold_right mul path (assume (mk_not srk post)) in
