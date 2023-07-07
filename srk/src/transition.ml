@@ -189,24 +189,16 @@ struct
     TransitionFormula.make ~exists body tr_symbols
 
   let contains_havoc tr = 
-    let contains needle haystack = (* test if needle is in haystack *)
-      let re = Str.regexp_string needle in
-      try 
-         ignore (Str.search_forward re haystack 0); 
-         true
-      with Not_found -> false in 
-    tr 
-    |> to_transition_formula 
-    |> TransitionFormula.formula 
-    |> Syntax.symbols  
-    |> Symbol.Set.filter (fun s -> 
-      s 
-      |> Syntax.show_symbol srk
-      |> contains "havoc")
-    |> Symbol.Set.cardinal
-    |> (<>) 0
-
-
+    M.fold (fun _ rhs acc -> 
+      if acc then acc 
+      else begin 
+        Symbol.Set.fold 
+          (fun s acc -> 
+            match Var.of_symbol s with 
+            | Some _ -> acc 
+            | None -> true || acc) (Syntax.symbols rhs) false
+      end
+      ) tr.transform false    
 
   let domain =
     let open Iteration in
