@@ -399,6 +399,7 @@ let verifier_builtins =
    "__VERIFIER_nondet_short"; "__VERIFIER_nondet_ushort";
    "__VERIFIER_nondet_int"; "__VERIFIER_nondet_uint"; 
    "__VERIFIER_nondet_long"; "__VERIFIER_nondet_ulong";
+   "__VERIFIER_nondet_bool";
    "__VERIFIER_nondet_pointer";
    "__CPROVER_atomic_begin"; "__CPROVER_atomic_end";
    "__VERIFIER_atomic_begin"; "__VERIFIER_atomic_end"; "reach_error" ]
@@ -477,6 +478,13 @@ let tr_instr ctx instr =
         (* todo: should be non-negative *)
         mk_def (Assign (v, Havoc (Concrete (Int unknown_width))))
 
+      | ("__VERIFIER_nondet_bool", Some (Variable v), []) -> 
+          let assume_lb = 
+            mk_def (Assume (Atom (Le, Aexpr.zero, AccessPath (Variable v)))) in 
+          let assume_ub = 
+            mk_def (Assume (Atom (Le, AccessPath (Variable v), Aexpr.one))) in 
+          let havoc = mk_def (Assign (v, Havoc (Concrete (Int 1)))) in 
+          mk_seq havoc @@ mk_seq assume_lb assume_ub 
       | ("__VERIFIER_nondet_char", Some (Variable v), []) ->
         mk_def (Assign (v, Havoc (Concrete (Int 1))))
       | ("__VERIFIER_nondet_uchar", Some (Variable v), []) ->

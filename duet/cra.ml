@@ -157,7 +157,7 @@ let int_binop op left right =
   | Minus -> Ctx.mk_sub left right
   | Mult -> Ctx.mk_mul [left; right]
   | Div -> Ctx.mk_idiv left right
-  | Mod -> Ctx.mk_mod left right
+  | Mod -> Ctx.mk_mod left right  
   | _ -> Ctx.mk_const (Ctx.mk_symbol ~name:"havoc" `TyInt)
 
 let term_binop op left right = match left, op, right with
@@ -753,8 +753,10 @@ module Summarizer =
         ref { graph = graph; src = src; query = q; }
 
       let proc_summary (ctx: t ref) ((u, v) : int * int) = 
+        let project tr = (* existentially quantify over all locals, leaving out only globals *)
+          K.exists (fun v -> V.is_global v) tr in
         let q = !ctx.query in 
-          TS.get_summary q (u, v)
+          TS.get_summary q (u, v) |> project
       
       let set_proc_summary (ctx: t ref) ((u, v): int * int) (w: K.t) = 
         let q = !ctx.query in 
@@ -879,7 +881,10 @@ module ReachTree = struct
 
   (*  [t %-> i]: get CFG vertex mapped by node i in tree t. *)
   let maps_to (art : t ref) (i : int) = 
-    IntMap.find i !art.cfg_vertex 
+    try 
+      IntMap.find i !art.cfg_vertex 
+    with _ -> 
+      failwith @@ Printf.sprintf "maps_to: not found tree node %d\n" i 
 
   (* [cfg_edge_weight t u v] returns the edge weight of edge (u, v) in ART t. *)
   let edge_weight (art : t ref) u v = 
@@ -959,7 +964,8 @@ module ReachTree = struct
     let rec f u = 
       let p = parent art u in 
         match p with 
-        | 0 -> 
+        | -1 -> []
+        | 0 -> (*caution: bug TODO*)
           begin match WG.edge_weight !art.graph (maps_to art 0) (maps_to art u) with 
           | Call (a, b) -> [ (0, (a, b), u) ]
           | _ -> []
@@ -1000,14 +1006,14 @@ module ReachTree = struct
       in List.rev (visit art u)  
 
   let get_id (art : t ref) = 
-    match DQ.front !art.free_ids with 
+    (*match DQ.front !art.free_ids with 
     | Some (new_id, free_ids') -> 
       begin (* there are some recycled ids; make use of them. *)
         !art.free_ids <- free_ids';
         new_id
       end
-    | None -> (* no more recycled ids; generate a new one. *)
-      begin 
+    | None -> (* no more recycled ids; generate a new one. *)*)
+      begin (**always generate a new ID*)
         let new_id = !art.vtxcnt in 
           !art.vtxcnt <- !art.vtxcnt + 1; new_id
       end
@@ -1178,10 +1184,10 @@ module McMillanChecker = struct
       end
     in
     let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
-    log_formulas (Printf.sprintf "interpolate: pre_state@recurse_level %d: " recurse_level) [!art.pre_state];
+    (*log_formulas (Printf.sprintf "interpolate: pre_state@recurse_level %d: " recurse_level) [!art.pre_state];
     log_weights "interpolate: initial weight : " initial_path_weights;
     log_weights "interpolate: abstract suffix formula: " [post_path_summary];
-    log_formulas "interpolate: post_state: " [!art.post_state];
+    log_formulas "interpolate: post_state: " [!art.post_state];*)
     K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver initial_path_weights err_state
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
@@ -1345,9 +1351,7 @@ module McMillanChecker = struct
     let v_label = ReachTree.label art v in 
     let w_label = ReachTree.label art w in
     if (ReachTree.maps_to art v) <> (ReachTree.maps_to art w) then 
-      failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w)
-    else 
-      logf ~level:`always "cover: %d->%d and %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w);
+      failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w);
     reset_solver ctx;
     match Smt.entails Ctx.context ~solver:(get_solver ctx) v_label w_label with 
     | `Yes -> 
@@ -1541,7 +1545,7 @@ module McMillanChecker = struct
           end
         else begin
           let u_model = IntMap.find u !(!ctx.art).models in 
-            logf ~level:`always "model of %d: \n" u;
+            logf ~level:`always "model of %d (%d): \n" u (ReachTree.maps_to !ctx.art u);
             log_model "" u_model;
             let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) recursion_level !ctx.art u in 
               List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
@@ -1630,7 +1634,7 @@ module McMillanChecker = struct
             let refine_summary_with_extrapolants e1 e2 = 
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
             in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  
-            in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix with 
+            in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix recurse_level with 
               | `Sat (e1, e2) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
                 (* instantiate interprocedural reachability query *)
@@ -1641,6 +1645,8 @@ module McMillanChecker = struct
                     (* concretization of error trace failed. do refine *)
                       (* declare failure *)
                       refine_summary_with_extrapolants e1 e2;
+                      let summary' = ReachTree.edge_weight art w z in 
+                        log_weights "  --> new summary: " [summary'];
                       (* return the dst vertex of the call-edge (w,z) as frontier node for refinement. *)
                       (* a frontier node is a node that cannot be reached by means of concrete execution from its parent, 
                          and here our interprocedural definition is the same. *)
@@ -1676,7 +1682,6 @@ module McMillanChecker = struct
     let state = ref `Continue in
       !ctx.worklist <- worklist_push eps !ctx.worklist;
       while !continue && (DQ.size (!ctx.worklist) > 0 || DQ.size (!ctx.execlist) > 0) do
-        logf ~level:`always "starting a single mcmillan round [execlist size=%d; worklist size=%d]\n" (DQ.size (!ctx.execlist)) @@ DQ.size (!ctx.worklist);
         if DQ.size (!ctx.execlist) > 0 then begin 
           (* concolic phase *)
           begin match concolic_phase ctx recurse_level with 

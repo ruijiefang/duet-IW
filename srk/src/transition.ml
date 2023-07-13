@@ -349,8 +349,6 @@ struct
   let guard tr = tr.guard
 
   let get_post_model ?(solver=Smt.mk_solver C.context) m f = 
-    logf ~level:`always "pre_state model: \n";
-    logf ~level:`always "model is %a\n" Interpretation.pp m;
     let _ = Smt.Solver.reset solver in 
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
@@ -553,7 +551,7 @@ struct
     *) in interpolate_query ~solver:solver trs post sat_model @@ interpolate_unsat_core qflia_solver
 
 
-  let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
+  let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 level : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
     let t1 = rename_skolems t1 
     in let t2 = rename_skolems t2 
     in let t3 = rename_skolems t3 
@@ -607,7 +605,7 @@ struct
     in let symbols_t3_t2 = 
         symbols_t3 (* symbols in t3 that are globals _and_ in t2, t1 are preserved during projection *)
         |> Symbol.Set.filter (fun x -> (is_global reverse_subscript_tbl2 x) && (Symbol.Set.mem x symbols_t2))
-    in let _ = 
+    (*in let _ = 
       Printf.printf "extrapolate: preserved symbols for t1,t2: ";
       let f x = x 
       |> Symbol.Set.elements 
@@ -620,11 +618,12 @@ struct
       symbols_t1_t2  |> f; 
       Printf.printf "extrapolate: presreved symbols for t2,t3: ";
       symbols_t3_t2 |> f
-    in let symbols_conj = Symbol.Set.union symbols_t1 (Symbol.Set.union symbols_t2 symbols_t3)
-    in let symbols_printer symbs = 
+    *)in let symbols_conj = Symbol.Set.union symbols_t1 (Symbol.Set.union symbols_t2 symbols_t3)
+    (*in let symbols_printer symbs = 
       List.iter (fun x -> 
         Printf.printf " %s (= %s);" 
         (Syntax.show_symbol srk x) (let s = try Hashtbl.find reverse_subscript_tbl x |> Syntax.show_symbol srk with Not_found -> "NONE" in s)) symbs 
+    *)
     in
     let extrapolate_project srk (f1: 'a formula) (f3: 'a formula) symbols_f1 symbols_f3 all_symbols model = 
       let open Polyhedron in 
@@ -649,13 +648,19 @@ struct
             Symbol.Set.diff all_symbols symbols_f3 
             |> Symbol.Set.elements 
             |> List.map Syntax.int_of_symbol 
+          in let xs_f1f3 = 
+            Symbol.Set.diff all_symbols (Symbol.Set.union symbols_f1 symbols_f3)
+            |> Symbol.Set.elements 
+            |> List.map Syntax.int_of_symbol 
           in let f1_projected = local_project value_of_coord xs_f1 cube
           in let f3_projected = local_project value_of_coord xs_f3 cube
+          in let f1f3_projected = local_project value_of_coord xs_f1f3 cube 
           in
-            (cube_of srk f1_projected |> Syntax.mk_and srk, cube_of srk f3_projected |> Syntax.mk_and srk)
+            (cube_of srk f1_projected |> Syntax.mk_and srk, cube_of srk f3_projected |> Syntax.mk_and srk, 
+            cube_of srk f1f3_projected |> Syntax.mk_and srk)
         | _ -> failwith "error extrapolating: select_implicant returned None"
         in 
-    Printf.printf "extrapolate: before SMT query \n";
+    (*Printf.printf "extrapolate: before SMT query \n";
      Printf.printf "extrapolate: ss_t1: ";
      Syntax.pp_expr srk Format.std_formatter ss_t1;
      Format.print_flush ();
@@ -674,20 +679,20 @@ struct
      Printf.printf "\n\nextrapolate: symbol t3 - t2: ";
       symbols_printer (symbols_t3_t2 |> Symbol.Set.elements);
           Format.print_flush();
-     Printf.printf "\n------------ SMT query in extrapolate ------------\n";
+     Printf.printf "\n------------ SMT query in extrapolate ------------\n";*)
      match Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk conj with 
       | `Sat m -> 
-        Printf.printf "extrapolate: result is SAT, got model\n";
-        Interpretation.pp Format.std_formatter m ;
-        Format.print_flush ();
-        let pre_, post_ = extrapolate_project srk ss_t1 ss_t3 symbols_t1_t2 symbols_t3_t2 symbols_conj m in 
-        Printf.printf "\npre extrapolant: ";
+        (*Printf.printf "extrapolate: result is SAT, got model\n";*)
+        (*Interpretation.pp Format.std_formatter m ;
+        Format.print_flush ();*)
+        let pre_, post_, prepost = extrapolate_project srk ss_t1 ss_t3 symbols_t1_t2 symbols_t3_t2 symbols_conj m in 
+        (*Printf.printf "\npre extrapolant: ";
         Syntax.pp_expr srk Format.std_formatter pre_;
         Format.print_flush();
         Printf.printf "\npost extrapolant: ";
         Syntax.pp_expr srk Format.std_formatter post_;
         Format.print_flush();
-        Printf.printf "\n--------------------------\n";
+        Printf.printf "\n--------------------------\n";*)
           (* reverse-rename *)
           let reverse_substitute symb = 
             try 
@@ -697,13 +702,17 @@ struct
           in 
           let ex1 = (substitute_const srk (reverse_substitute) pre_) in 
           let ex2 = (substitute_const srk (reverse_substitute) post_) in 
-          Printf.printf "\npre extrapolant after renaming: ";
+          let ex13 = (substitute_const srk (reverse_substitute) prepost) in 
+          Printf.printf "\npre extrapolant after renaming (level %d): " level;
           Syntax.pp_expr srk Format.std_formatter ex1;
           Format.print_flush();
-          Printf.printf "\npost extrapolant after renaming: ";
+          Printf.printf "\npost extrapolant after renaming (level %d): " level;
           Syntax.pp_expr srk Format.std_formatter ex2;
           Format.print_flush();
-          Printf.printf "\n--------------------------\n";  
+          Printf.printf "\nfootprint extrapolant (level %d): \n" level;  
+          Syntax.pp_expr srk Format.std_formatter ex13;
+          Format.print_flush();
+          Printf.printf "\n--------------------------\n";
           `Sat (ex1, ex2) 
       | `Unknown -> failwith "extrapolate status unknown"
       | `Unsat ->  `Unsat 

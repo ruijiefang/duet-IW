@@ -243,7 +243,7 @@ let split2 () =
   assert_post tr post
 
 let check_extrapolate test_name tr1 tr2 tr3 = 
-  match T.extrapolate tr1 tr2 tr3 with 
+  match T.extrapolate tr1 tr2 tr3 0 with 
       | `Sat (f1, f2) -> 
         Printf.printf "extrapolate: SAT, formulas: \n";
         Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
