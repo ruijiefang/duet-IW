@@ -4,6 +4,8 @@
            displayName="CRA"
            timelimit="15min">
   <rundefinition>
+    <option name="-monotone">
+    <option name="-cra-split-loops" />
     <option name="-cra" />
     <tasks name="thesis-all">
       <includesfile>../tasks/thesis-all.set</includesfile>

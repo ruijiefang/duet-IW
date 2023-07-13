@@ -4,6 +4,8 @@
            displayName="CRAMC"
            timelimit="15min">
   <rundefinition>
+    <option name="-monotone" />
+    <option name="-cra-split-loops" />
     <option name="-mcl-concolic" />
     <tasks name="thesis-all">
       <includesfile>../tasks/thesis-all.set</includesfile>
@@ -13,7 +15,10 @@
       <includesfile>../tasks/loopy.set</includesfile>
       <propertyfile>../tasks/properties/unreach-call.prp</propertyfile>
     </tasks>
-
+    <tasks name="thesis-rec">
+      <includesfile>../tasks/thesis-rec.set</includesfile>
+      <propertyfile>../tasks/properties/unreach-call.prp</propertyfile>
+    </tasks>
   </rundefinition>
 
 </benchmark>

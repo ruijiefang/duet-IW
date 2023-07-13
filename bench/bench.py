@@ -9,8 +9,8 @@ import types
 import statistics
 
 # Configuration -- can be reconfigured via the command line
-tools = ['ComPACT','CPAchecker','UAutomizer','2ls','Termite']
-suites = ['Termination','bitprecise','recursive','polybench']
+tools = ['CRAMC','Ultimate','CRA']
+suites = ['thesis-all']
 timeout = 600
 cache = True
 replace_cached = False
@@ -31,16 +31,27 @@ def get_name(row):
     return row[0]
 
 def get_result(row, index):
-    return row[3 * index + 1]
+    return row[-3]
 
 def get_category(row, index):
-    return row[3 * index + 2]
+    return row[-2]
+    #print('get_category: ', row[-2])
+    #if row[-2] == 'correct' or row[-2] == 'wrong':
+    #    return 'correct'
+    #else: 
+    #    return row[-2]
+#        if row[-2] == 'TIMEOUT': 
+#            return row[-2]
+#        if row[-2] == 'unknown':
+#            return row[-2]
+#        print('wtf:', row[-2])
+#        exit(1)
 
 def get_time(row, index):
-    return float(row[3 * index + 3])
+    return float(row[-1])
 
 def has_result(tool, suite):
-    return len(glob.glob("results/%s.*.%s.xml.bz2" % (tool, suite))) > 0
+    return len(glob.glob("results/%s.*.%s.xml" % (tool, suite))) > 0
 
 def run():
     for suite in suites:
@@ -74,7 +85,7 @@ def run():
 
 
 def recent_result(tool, suite):
-    results = glob.glob("results/%s.*.%s.xml.bz2" % (tool, suite))
+    results = glob.glob("results/%s.*.%s.xml" % (tool, suite))
     results.sort()
     if len(results) == 0:
         print("No results for %s on suite %s" % (tool, suite))
@@ -94,11 +105,16 @@ def recent_result_data(tools, suites):
                                + list(map(lambda x: recent_result(x, suite), tools)))
             table = os.path.join(tmp_dir, "simplecsv.table.csv")
             # strip 3 rows of header info
+            with open(table) as fd:
+                w=fd.readlines()
+                with open('/home/rjf/fast/table.csv', 'w+') as fd2:
+                    fd2.writelines(w)
+            print('------------------')
             data += list(map(lambda row: row.rstrip().split('\t'),
                              open(table).readlines()))[3:]
     return data
     
-def summarize_result(tool, suite):
+def summarize_result(tool, suite, tp, present=set()):
     data = recent_result_data([tool],[suite])
     result = types.SimpleNamespace()
     result.total = 0
@@ -106,21 +122,81 @@ def summarize_result(tool, suite):
     result.correct = 0
     result.timeout = 0
     result.unknown = 0
+    result.safe = 0
+    result.safe_time = 0.0
+    result.unsafe_time = 0.0
+    result.unsafe = 0
+    result.actual_safe=0
+    result.actual_unsafe=0
     result.times_excluding_timeouts = []
-    for entry in data:
-        result.total += 1
-        result.time += get_time(entry, 0)
-        if (get_result(entry, 0) == "TIMEOUT"):
-            result.timeout += 1
-        elif (get_category(entry, 0) == "correct"):
-            result.correct += 1
-            result.times_excluding_timeouts.append(get_time(entry, 0))
-        elif (get_category(entry, 0) == "unknown"):
-            result.unknown += 1
-            result.times_excluding_timeouts.append(get_time(entry, 0))
-        else:
-            result.times_excluding_timeouts.append(get_time(entry, 0))
-    return result
+    nrecursive=0
+    self_present = set()
+    if tp=='Recursive':
+        for entry in data:
+            if ('recursive' in entry[0].split('/') or 'recursive-simple' in entry[0].split('/')):
+                print("data entry looks like: ", entry)
+                nrecursive+=1
+                result.total += 1
+                result.time += get_time(entry, 0)
+                
+                if (entry[1]=='true'):
+                    result.actual_safe+=1
+                else:
+                    result.actual_unsafe+=1
+
+                if (get_result(entry, 0) == "TIMEOUT"):
+                    result.timeout += 1
+                elif (get_category(entry, 0) == "correct"):
+                    result.correct += 1
+                    if (entry[1]=='true'):
+                        result.safe+=1
+                        result.safe_time += (get_time(entry, 0))
+                    elif (entry[1]=='false'):
+                        result.unsafe_time += (get_time(entry, 0))
+                        result.unsafe+=1
+                    else:
+                        print('errrrrr: ',entry)
+                        exit(1)
+                    result.times_excluding_timeouts.append(get_time(entry, 0))
+                elif (get_category(entry, 0) == "unknown"):
+                    result.unknown += 1
+                    result.times_excluding_timeouts.append(get_time(entry, 0))
+                else:
+                    result.times_excluding_timeouts.append(get_time(entry, 0))
+        print('total in Recursive suite: ', nrecursive)
+    if tp=='Loops':
+        for entry in data:
+            if (not ('recursive' in entry[0].split('/'))):
+                if present!=set():
+                    if not (entry[0] in present):
+                        continue
+#                print("data entry looks like: ", entry)
+                result.total += 1
+                result.time += get_time(entry, 0)
+                if (entry[1]=='true'):
+                    result.actual_safe+=1
+                else:
+                    result.actual_unsafe+=1
+
+                if (get_result(entry, 0) == "TIMEOUT"):
+                    result.timeout += 1
+                    self_present.add(entry[0])
+                elif (get_category(entry, 0) == "correct"):
+                    self_present.add(entry[0])
+                    result.correct += 1
+                    if (entry[1]=='true'):
+                        result.safe+=1
+                        result.safe_time += (get_time(entry, 0))
+                    elif (entry[1]=='false'):
+                        result.unsafe_time += (get_time(entry, 0))
+                        result.unsafe+=1
+                    result.times_excluding_timeouts.append(get_time(entry, 0))
+                elif (get_category(entry, 0) == "unknown"):
+                    result.unknown += 1
+                    #result.times_excluding_timeouts.append(get_time(entry, 0))
+                else:
+                    pass#result.times_excluding_timeouts.append(get_time(entry, 0))
+    return result, self_present
 
 def summary():
     matrix = {}
@@ -141,16 +217,29 @@ def summary():
         times_excluding_timeout[tool] = []
         num_timeout[tool] = 0
 
+    suites = ['Loops']
+    num_safe={}
+    num_unsafe={}
     for suite in suites:
         row = {}
         best_time_suite = 999999999.0
         best_correct_suite = 0
         num_suite = 0
+        num_suite_safe = 0
+        num_suite_unsafe = 0
+        firstRun = True 
+        present=set()
         for tool in tools:
-            r = summarize_result(tool, suite)
+            if firstRun == True:
+                r, present = summarize_result(tool, 'thesis-all', suite)
+                firstRun = False 
+            else: 
+                r, _ = summarize_result(tool, 'thesis-all', suite, present=present)
             best_time_suite = min(best_time_suite, r.time)
             best_correct_suite = max(best_correct_suite, r.correct)
             num_suite = r.total
+            num_suite_safe = r.actual_safe 
+            num_suite_unsafe = r.actual_unsafe 
             row[tool] = r
             total_correct[tool] += r.correct
             total_time[tool] += r.time
@@ -160,6 +249,8 @@ def summary():
         best_correct[suite] = best_correct_suite
         num[suite] = num_suite
         matrix[suite] = row
+        num_safe[suite]=num_suite_safe 
+        num_unsafe[suite]=num_suite_unsafe
 
     for tool in tools:
         mean_time_excluding_timeout[tool] = statistics.mean(times_excluding_timeout[tool])
@@ -175,18 +266,28 @@ def summary():
     print(" & \#tasks & %s\\\\\\midrule" % " & ".join(["\#correct & time"] * len(tools)))
 
     for suite in suites:
-        print("%s & %d" % (suite, num[suite]),end='')
+        print("\multicolumn{2}{c}{%s & %d}" % (suite, num[suite]),end='')
         for tool in tools:
             if (matrix[suite][tool].correct == best_correct[suite]):
-                print(" & \\textbf{%d}" % best_correct[suite],end='')
+                print(" & \\textbf{%d}" % (best_correct[suite]),end='')
             else:
-                print(" & %d" % matrix[suite][tool].correct,end='')
+                print(" & %d" % (matrix[suite][tool].correct),end='')
 
             if (matrix[suite][tool].time == best_time[suite]):
                 print(" & \\textbf{%.1f}" % best_time[suite],end='')
             else:
                 print(" & %.1f" % matrix[suite][tool].time,end='')
         print("\\\\")
+        print (" & safe & %d" % (num_safe[suite]))
+        for tool in tools:
+            print(" & %d " % (matrix[suite][tool].safe), end='')
+            print(" & %.1f" % matrix[suite][tool].safe_time, end='')
+        print("\\\\")
+        print(" & unsafe & %d"%(num_unsafe[suite]))
+        for tool in tools:
+            print(" & %d " % (matrix[suite][tool].unsafe), end='')
+            print(" & %.1f" % matrix[suite][tool].unsafe_time, end='')
+        print('\\\\')
     print("\\midrule")
 
     best_total_time = min(total_time.values())
@@ -286,8 +387,8 @@ def scatter_plot():
         print("For scatter plot, must supply exactly two tools to compare")
         exit(-1)
 
-    matrix = recent_result_data(tools, suites)
-
+    m1 = recent_result_data([tools[0]],[suites[0]])
+    m2 = recent_result_data([tools[1]],[suites[0]])
     # Don't include points where one tool gave a wrong answer
     ok_results = ["correct", "TIMEOUT", "unknown"]
 
@@ -298,86 +399,21 @@ def scatter_plot():
     filename_tt = "scatter_%s_%s_tt.dat" % (tools[0], tools[1])
     print ("Writing data to %s" % filename_tt)
     out = open(filename_tt, "w")
-    legendentry_tt = "%s %s both correct" % (tools[0], tools[1])
+    legendentry_tt = "%s vs %s" % (tools[0], tools[1])
 
-    for i in range(len(matrix)):
-        # if get_category(matrix[i],0) in ok_results and get_category(matrix[i],1) in ok_results:
-            if get_category(matrix[i],0) == "correct" and get_category(matrix[i],1) == "correct":
-                time1 = get_time(matrix[i],0)
-                time2 = get_time(matrix[i],1)
-                out.write("%f %f\n" % (time1, time2))
-
-                min_time = min(min_time,time1,time2)
-                max_time = max(max_time,time1,time2)
-
+    for i in range(len(m1)):
+        time1 = get_time(m1[i],0)
+        time2 = get_time(m2[i],0)
+        out.write("%f %f\n" % (time1,time2))
+        min_time = min(min_time,time1,time2)
+        max_time=max(max_time,time1,time2)
     out.close()
-
-    # first tool correct, second tool not correct
-    filename_tf = "scatter_%s_%s_tf.dat" % (tools[0], tools[1])
-    print ("Writing data to %s" % filename_tf)
-    out = open(filename_tf, "w")
-    legendentry_tf = "%s correct, %s not correct" % (tools[0], tools[1])
-
-    for i in range(len(matrix)):
-        # if get_category(matrix[i],0) in ok_results and get_category(matrix[i],1) in ok_results:
-            if get_category(matrix[i],0) == "correct" and get_category(matrix[i],1) != "correct":
-                time1 = get_time(matrix[i],0)
-                time2 = get_time(matrix[i],1)
-                out.write("%f %f\n" % (time1, time2))
-
-                min_time = min(min_time,time1,time2)
-                max_time = max(max_time,time1,time2)
-
-    out.close()
-
-    # first tool correct, second tool not correct
-    filename_ft = "scatter_%s_%s_ft.dat" % (tools[0], tools[1])
-    print ("Writing data to %s" % filename_ft)
-    out = open(filename_ft, "w")
-    legendentry_ft = "%s not correct, %s correct" % (tools[0], tools[1])
-
-    for i in range(len(matrix)):
-        # if get_category(matrix[i],0) in ok_results and get_category(matrix[i],1) in ok_results:
-            if get_category(matrix[i],0) != "correct" and get_category(matrix[i],1) == "correct":
-                time1 = get_time(matrix[i],0)
-                time2 = get_time(matrix[i],1)
-                out.write("%f %f\n" % (time1, time2))
-
-                min_time = min(min_time,time1,time2)
-                max_time = max(max_time,time1,time2)
-
-    out.close()
-
-    # first tool correct, second tool not correct
-    filename_ff = "scatter_%s_%s_ff.dat" % (tools[0], tools[1])
-    print ("Writing data to %s" % filename_ff)
-    out = open(filename_ff, "w")
-    legendentry_ff = "%s %s both not correct" % (tools[0], tools[1])
-
-    for i in range(len(matrix)):
-        # if get_category(matrix[i],0) in ok_results and get_category(matrix[i],1) in ok_results:
-            if get_category(matrix[i],0) != "correct" and get_category(matrix[i],1) != "correct":
-                time1 = get_time(matrix[i],0)
-                time2 = get_time(matrix[i],1)
-                out.write("%f %f\n" % (time1, time2))
-
-                min_time = min(min_time,time1,time2)
-                max_time = max(max_time,time1,time2)
-
-    out.close()
-    
     subst = dict(min = min_time,
                  max = max_time,
                  x = tools[0],
                  y = tools[1],
                  datatt = filename_tt,
-                 ttlegend = legendentry_tt,
-                 datatf = filename_tf,
-                 tflegend = legendentry_tf,
-                 dataft = filename_ft,
-                 ftlegend = legendentry_ft,
-                 dataff = filename_ff,
-                 fflegend = legendentry_ff,
+                 ttlegend = legendentry_tt
                  )
     print (Template(open("scatter.template").read()).substitute(subst))
 
