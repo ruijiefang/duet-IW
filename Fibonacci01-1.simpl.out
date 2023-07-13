@@ -1,0 +1,1545 @@
+forward inv gen...
+forward inv gen...
+[formula]  Adding assertion node 21 -> 69 for label (0): true
+
+digraph G {
+  "8";
+  "15";
+  "21";
+  "26";
+  "31";
+  "32";
+  "41";
+  "48";
+  "52";
+  "56";
+  "57";
+  "60";
+  "61";
+  "62";
+  "65";
+  "66";
+  "67";
+  "68";
+  "69";
+  
+  
+  "8" -> "31" [label="{__retres5 := 0\n when x:2 = -2147483648}", ];
+  "8" -> "66" [label="{param0 := x:2\n param0@pos := type_err:14:15:17\n param0@width := type_err:13:16:18\n when !(x:2 = -2147483648)}",
+               ];
+  "15" -> "8" [label="{when x:2 <= 46}", ];
+  "15" -> "31" [label="{__retres5 := 0\n when 46 < x:2}", ];
+  "21" -> "31" [label="{when false}", ];
+  "21" -> "69" [label="{}", ];
+  "26" -> "21" [label="{when result:4 < (x:2 + -1)}", ];
+  "26" -> "31" [label="{__retres5 := 0\n when (x:2 + -1) <= result:4}", ];
+  "31" -> "68" [label="{return := __retres5:5\n return@pos := type_err:7:8\n return@width := type_err:6:9}",
+                ];
+  "32" -> "15" [label="{x := havoc:0}", ];
+  "41" -> "52" [label="{__retres4 := 1\n when n:42 = 1}", ];
+  "41" -> "61" [label="{param0 := (n:42 + -1)\n param0@pos := type_err:53:54:58\n param0@width := type_err:52:55:59\n when !(n:42 = 1)}",
+                ];
+  "48" -> "41" [label="{when 1 <= n:42}", ];
+  "48" -> "52" [label="{__retres4 := 0\n when n:42 < 1}", ];
+  "52" -> "67" [label="{return := __retres4:43\n return@pos := type_err:45:46\n return@width := type_err:44:47}",
+                ];
+  "56" -> "52" [label="{__retres4 := (tmp:41 + return:12)}", ];
+  "57" -> "56" [label="call(62, 67)", ];
+  "60" -> "57" [label="{tmp := return:12\n param0 := (n:42 + -2)\n param0@pos := type_err:49:50:56\n param0@width := type_err:48:51:57}",
+                ];
+  "61" -> "60" [label="call(62, 67)", ];
+  "62" -> "48" [label="{n := param0:29}", ];
+  "65" -> "26" [label="{result := return:12}", ];
+  "66" -> "65" [label="call(62, 67)", ];
+  
+  }
+entry: 32
+testing reachability of location 69
+------------------------------
+executing concolic mcmillan's algorithm
+
+ *********************************************** recurse_level: 0
+
+ uncovered. try close
+
+hashtable length: 0
+[havoc:0 => -2147483649,
+ param0':231:236:242:248 => -2147483649,
+ return':230:237:243:249 => -2147483651]Unable to refine but got model
+
+ *********************** REFINEMENT FAILED *************************
+
+ visit 0 (32)
+
+ visit 1 (15)
+
+ visit 2 (8)
+
+ visit 5 (66)
+
+ visit 6 (65)
+
+ visit 7 (26)
+
+ visit 9 (31)
+
+ uncovered. try close
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := return':230
+                                                        param0 := param0':231
+                                                        return@pos := 
+                                                        return@pos':232
+                                                        param0@pos := 
+                                                        param0@pos':233
+                                                        return@width := 
+                                                        return@width':234
+                                                        param0@width := 
+                                                        param0@width':235
+                                                        when 0 <= (param0:29
+                                                                    + -param0':231)}
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := return':230
+                                                        param0 := param0':231
+                                                        return@pos := 
+                                                        return@pos':232
+                                                        param0@pos := 
+                                                        param0@pos':233
+                                                        return@width := 
+                                                        return@width':234
+                                                        param0@width := 
+                                                        param0@width':235
+                                                        when 0 <= (param0:29
+                                                                    + -param0':231)}
+
+--- mc_refine: interpolation succeeded. path length 8, interpolant length 8
+path length: 8
+
+interpolant length: 8
+
+[formula] [relabelling 0] to label: (0): true
+
+[formula] [relabelling 1] to label: (0): true
+
+[formula] [relabelling 2] to label: (0): true
+
+[formula] [relabelling 5] to label: (0): true
+
+[formula] [relabelling 6] to label: (0): true
+
+[formula] [relabelling 7] to label: (0): true
+
+[formula] [relabelling 9] to label: (0): true
+
+[formula] [relabelling 10] to label: (0): true
+
+refinement_phase: refinement succeeded
+
+   cover success (v=9, w=4). 
+
+[formula]         v label (0): true
+
+[formula]         w label (0): true
+
+ uncovered. try close
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := return':230
+                                                        param0 := param0':231
+                                                        return@pos := 
+                                                        return@pos':232
+                                                        param0@pos := 
+                                                        param0@pos':233
+                                                        return@width := 
+                                                        return@width':234
+                                                        param0@width := 
+                                                        param0@width':235
+                                                        when 0 <= (param0:29
+                                                                    + -param0':231)}
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := return':230
+                                                        param0 := param0':231
+                                                        return@pos := 
+                                                        return@pos':232
+                                                        param0@pos := 
+                                                        param0@pos':233
+                                                        return@width := 
+                                                        return@width':234
+                                                        param0@width := 
+                                                        param0@width':235
+                                                        when 0 <= (param0:29
+                                                                    + -param0':231)}
+
+hashtable length: 11
+[x:2 => -2147483649,
+ result:4 => -2147483651,
+ return@width:10 => 6,
+ return@pos:11 => 8,
+ return:12 => -2147483651,
+ param0:29 => -2147483649,
+ param0@pos:31 => 7,
+ param0@width:33 => 5,
+ havoc:0:293 => -2147483649,
+ type_err:14:15:17:294 => 4,
+ type_err:13:16:18:295 => 3,
+ param0':231:296 => -2147483649,
+ return':230:297 => -2147483651,
+ return@pos':232:298 => 8,
+ param0@pos':233:299 => 7,
+ return@width':234:300 => 6,
+ param0@width':235:301 => 5]Unable to refine but got model
+
+ *********************** REFINEMENT FAILED *************************
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := return':230
+                                                        param0 := param0':231
+                                                        return@pos := 
+                                                        return@pos':232
+                                                        param0@pos := 
+                                                        param0@pos':233
+                                                        return@width := 
+                                                        return@width':234
+                                                        param0@width := 
+                                                        param0@width':235
+                                                        when 0 <= (param0:29
+                                                                    + -param0':231)}
+
+ visit 8 (21)
+
+ visit 12 (69)
+
+--- concolic_mcmillan_execute: found path-to-error at vertex 12 
+
+interpretation at node 12(69) handle_path_to_error: [x:2 => -2147483649,
+                                                     result:4 => -2147483651,
+                                                     return@width:10 => 
+                                                     6,
+                                                     return@pos:11 => 
+                                                     8,
+                                                     return:12 => -2147483651,
+                                                     param0:29 => -2147483649,
+                                                     param0@pos:31 => 
+                                                     7,
+                                                     param0@width:33 => 
+                                                     5,
+                                                     havoc:0:293 => -2147483649,
+                                                     type_err:14:15:17:294 => 
+                                                     4,
+                                                     type_err:13:16:18:295 => 
+                                                     3,
+                                                     param0':231:296 => 
+                                                     -2147483649,
+                                                     return':230:297 => 
+                                                     -2147483651,
+                                                     return@pos':232:298 => 
+                                                     8,
+                                                     param0@pos':233:299 => 
+                                                     7,
+                                                     return@width':234:300 => 
+                                                     6,
+                                                     param0@width':235:301 => 
+                                                     5]
+
+get summary (art 5 mapsto 66, 6 mapsto 65)
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := return':230
+                                                        param0 := param0':231
+                                                        return@pos := 
+                                                        return@pos':232
+                                                        param0@pos := 
+                                                        param0@pos':233
+                                                        return@width := 
+                                                        return@width':234
+                                                        param0@width := 
+                                                        param0@width':235
+                                                        when 0 <= (param0:29
+                                                                    + -param0':231)}
+
+HERE HEREextrapolate at call site (62,67) @ call edge 0
+symbol param0:29 is global
+symbol param0@pos:31 is global
+symbol param0@width:33 is global
+symbol return:12 is global
+
+pre extrapolant after renaming: (0 < (-2147483648 + -param0:29) /\ 0 <= (46 + -param0:29))
+post extrapolant after renaming: (0 < (45 + -return:12) /\ 0 < (-2147483649 + -return:12))
+--------------------------
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(0): (
+0 < (-2147483648 + -param0) /\ 0 <= (46 + -param0))
+
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(1): (
+0 < (45 + -return) /\ 0 < (-2147483649 + -return))
+
+ *********************************************** recurse_level: 1
+
+ uncovered. try close
+
+--- mc_refine: interpolation succeeded. path length 1, interpolant length 1
+path length: 1
+
+interpolant length: 1
+
+[formula] [relabelling 0] to label: (0): (0 < (-2147483648 + -param0)
+                                            /\ 0 <= (46 + -param0)
+                                            /\ !((((1 <= param0
+                                                      /\ !(param0 = 1)
+                                                      /\ 0 <= ((param0 + -1)
+                                                                 + -param0':231:342:356)
+                                                      /\ 0 <= ((param0 + -2)
+                                                                 + -param0':231:350:357)
+                                                      /\ return':230:343:358 = phi_tmp:371
+                                                      /\ (return':230:343:358
+                                                            + return':230:351:359) = phi___retres4:370
+                                                      /\ return':230:351:359 = phi_return:369
+                                                      /\ param0':231:350:357 = phi_param0:368
+                                                      /\ return@pos':232:352:360 = phi_return@pos:367
+                                                      /\ param0@pos':233:353:361 = phi_param0@pos:366
+                                                      /\ return@width':234:354:362 = phi_return@width:365
+                                                      /\ param0@width':235:355:363 = phi_param0@width:364)
+                                                     \/ (((param0 < 1
+                                                             /\ 0 = phi___retres4:74)
+                                                            \/ (1 <= param0
+                                                                  /\ 
+                                                                  param0 = 1
+                                                                  /\ 
+                                                                  1 = phi___retres4:74))
+                                                           /\ tmp = phi_tmp:371
+                                                           /\ phi___retres4:74 = phi___retres4:370
+                                                           /\ return = phi_return:369
+                                                           /\ param0 = phi_param0:368
+                                                           /\ return@pos = phi_return@pos:367
+                                                           /\ param0@pos = phi_param0@pos:366
+                                                           /\ return@width = phi_return@width:365
+                                                           /\ param0@width = phi_param0@width:364))
+                                                    /\ 0 < (45
+                                                              + -phi___retres4:370)
+                                                    /\ 0 < (-2147483649
+                                                              + -phi___retres4:370))))
+
+refinement_phase: refinement succeeded
+
+--- handle_path_to_error: recursive call to concolic_mcmillan_execute failed. refining
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+[weight]   --> new summary: (0): {return := phi_return:404
+                                  param0 := phi_param0:403
+                                  return@pos := phi_return@pos:402
+                                  param0@pos := phi_param0@pos:401
+                                  return@width := phi_return@width:400
+                                  param0@width := phi_param0@width:399
+                                  when ((!((0 < (-2147483648 + -param0:29)
+                                              /\ 0 <= (46 + -param0:29)))
+                                           /\ 0 <= (param0:29
+                                                      + -param0':231:393)
+                                           /\ return':230:394 = phi_return:404
+                                           /\ param0':231:393 = phi_param0:403
+                                           /\ return@pos':232:395 = phi_return@pos:402
+                                           /\ param0@pos':233:396 = phi_param0@pos:401
+                                           /\ return@width':234:397 = phi_return@width:400
+                                           /\ param0@width':235:398 = phi_param0@width:399)
+                                          \/ (0 <= (param0:29 + -param0':231)
+                                                /\ !((0 < (45 + -return':230)
+                                                        /\ 0 < (-2147483649
+                                                                  + -return':230)))
+                                                /\ return':230 = phi_return:404
+                                                /\ param0':231 = phi_param0:403
+                                                /\ return@pos':232 = phi_return@pos:402
+                                                /\ param0@pos':233 = phi_param0@pos:401
+                                                /\ return@width':234 = phi_return@width:400
+                                                /\ param0@width':235 = phi_param0@width:399))}
+
+--- concolic_mcmillan_execute: frontier node is 6
+
+ --- concolic_mcmillan_execute: blowing away subtree at child node 7 
+
+blowup: tree node 7 
+
+*
+|
++-7(26)
+ |
+ +-9(31)
+  |
+  +-10(68)
+ |
+ +-8(21)
+  |
+  +-12(69)
+  |
+  +-11(31)
+ blowup: tree node 9 
+
+*
+ |
+ +-9(31)
+  |
+  +-10(68)
+ blowup: tree node 8 
+
+*
+ |
+ +-8(21)
+  |
+  +-12(69)
+  |
+  +-11(31)
+  blowup: tree node 12 
+
+*
+  |
+  +-12(69)
+  blowup: tree node 11 
+
+*
+  |
+  +-11(31)
+ uncovered. try close
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+hashtable length: 10
+[x:2 => 0,
+ return@width:10 => 6,
+ return@pos:11 => 8,
+ return:12 => -2,
+ param0:29 => 0,
+ param0@pos:31 => 7,
+ param0@width:33 => 5,
+ havoc:0:405 => 0,
+ type_err:14:15:17:406 => 4,
+ type_err:13:16:18:407 => 3,
+ param0':231:393:408 => 0,
+ return':230:394:409 => 0,
+ phi_return:404:410 => -2,
+ phi_param0:403:411 => 0,
+ return@pos':232:395:412 => 0,
+ phi_return@pos:402:413 => 8,
+ param0@pos':233:396:414 => 0,
+ phi_param0@pos:401:415 => 7,
+ return@width':234:397:416 => 0,
+ phi_return@width:400:417 => 6,
+ param0@width':235:398:418 => 0,
+ phi_param0@width:399:419 => 5,
+ param0':231:420 => 0,
+ return':230:421 => -2,
+ return@pos':232:422 => 8,
+ param0@pos':233:423 => 7,
+ return@width':234:424 => 6,
+ param0@width':235:425 => 5]Unable to refine but got model
+
+ *********************** REFINEMENT FAILED *************************
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+ visit 6 (65)
+
+ visit 13 (26)
+
+ visit 14 (21)
+
+ visit 17 (69)
+
+--- concolic_mcmillan_execute: found path-to-error at vertex 17 
+
+interpretation at node 17(69) handle_path_to_error: [x:2 => 0,
+                                                     result:4 => -2,
+                                                     return@width:10 => 
+                                                     6,
+                                                     return@pos:11 => 
+                                                     8,
+                                                     return:12 => -2,
+                                                     param0:29 => 0,
+                                                     param0@pos:31 => 
+                                                     7,
+                                                     param0@width:33 => 
+                                                     5,
+                                                     havoc:0:405 => 0,
+                                                     type_err:14:15:17:406 => 
+                                                     4,
+                                                     type_err:13:16:18:407 => 
+                                                     3,
+                                                     param0':231:393:408 => 
+                                                     0,
+                                                     return':230:394:409 => 
+                                                     0,
+                                                     phi_return:404:410 => 
+                                                     -2,
+                                                     phi_param0:403:411 => 
+                                                     0,
+                                                     return@pos':232:395:412 => 
+                                                     0,
+                                                     phi_return@pos:402:413 => 
+                                                     8,
+                                                     param0@pos':233:396:414 => 
+                                                     0,
+                                                     phi_param0@pos:401:415 => 
+                                                     7,
+                                                     return@width':234:397:416 => 
+                                                     0,
+                                                     phi_return@width:400:417 => 
+                                                     6,
+                                                     param0@width':235:398:418 => 
+                                                     0,
+                                                     phi_param0@width:399:419 => 
+                                                     5,
+                                                     param0':231:420 => 
+                                                     0,
+                                                     return':230:421 => 
+                                                     -2,
+                                                     return@pos':232:422 => 
+                                                     8,
+                                                     param0@pos':233:423 => 
+                                                     7,
+                                                     return@width':234:424 => 
+                                                     6,
+                                                     param0@width':235:425 => 
+                                                     5]
+
+get summary (art 5 mapsto 66, 6 mapsto 65)
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+HERE HEREextrapolate at call site (62,67) @ call edge 0
+symbol param0:29 is global
+symbol param0@pos:31 is global
+symbol param0@width:33 is global
+symbol return:12 is global
+
+pre extrapolant after renaming: (0 < (2147483648 + param0:29) /\ 0 <= (46 + -param0:29))
+post extrapolant after renaming: (0 < (45 + -return:12) /\ 0 <= (2147483649 + return:12))
+--------------------------
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(0): (
+0 < (2147483648 + param0) /\ 0 <= (46 + -param0))
+
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(1): (
+0 < (45 + -return) /\ 0 <= (2147483649 + return))
+
+ *********************************************** recurse_level: 1
+
+ uncovered. try close
+
+hashtable length: 0
+[return@width:10 => 0,
+ return@pos:11 => 0,
+ return:12 => 0,
+ param0:29 => 2,
+ param0@pos:31 => 0,
+ param0@width:33 => 0,
+ tmp:41 => 0,
+ param0':231:393:475:513:557 => 0,
+ return':230:394:476:514:558 => 0,
+ phi_return:404:477:515:559 => 0,
+ phi_param0:403:478:516:560 => 0,
+ return@pos':232:395:479:517:561 => 5,
+ phi_return@pos:402:480:518:562 => 5,
+ param0@pos':233:396:481:519:563 => 6,
+ phi_param0@pos:401:482:520:564 => 6,
+ return@width':234:397:483:521:565 => 4,
+ phi_return@width:400:484:522:566 => 4,
+ param0@width':235:398:485:523:567 => 3,
+ phi_param0@width:399:486:524:568 => 3,
+ param0':231:487:525:569 => 0,
+ return':230:488:526:570 => 0,
+ return@pos':232:489:527:571 => 0,
+ param0@pos':233:490:528:572 => 0,
+ return@width':234:491:529:573 => 0,
+ param0@width':235:492:530:574 => 0,
+ param0':231:393:495:531:575 => 0,
+ return':230:394:496:532:576 => 0,
+ phi_return:404:497:533:577 => 0,
+ phi_param0:403:498:534:578 => 0,
+ return@pos':232:395:499:535:579 => 0,
+ phi_return@pos:402:500:536:580 => 11,
+ param0@pos':233:396:501:537:581 => 0,
+ phi_param0@pos:401:502:538:582 => 12,
+ return@width':234:397:503:539:583 => 0,
+ phi_return@width:400:504:540:584 => 13,
+ param0@width':235:398:505:541:585 => 0,
+ phi_param0@width:399:506:542:586 => 14,
+ param0':231:507:543:587 => 0,
+ return':230:508:544:588 => 0,
+ return@pos':232:509:545:589 => 11,
+ param0@pos':233:510:546:590 => 12,
+ return@width':234:511:547:591 => 13,
+ param0@width':235:512:548:592 => 14,
+ phi_tmp:556:593 => 0,
+ phi___retres4:555:594 => 0,
+ phi_return:554:595 => 0,
+ phi_param0:553:596 => 0,
+ phi_return@pos:552:597 => 11,
+ phi_param0@pos:551:598 => 12,
+ phi_return@width:550:599 => 13,
+ phi_param0@width:549:600 => 14,
+ phi___retres4:74:601 => 0]Unable to refine but got model
+
+ *********************** REFINEMENT FAILED *************************
+
+ visit 0 (62)
+
+ visit 1 (48)
+
+ visit 2 (41)
+
+ visit 5 (61)
+
+ visit 6 (60)
+
+ visit 7 (57)
+
+ visit 8 (56)
+
+ visit 9 (52)
+
+ visit 10 (67)
+
+inter-procedural return-loc reached. trying expand_pseudo...
+
+       ... expand_pseudo succeeded
+
+--- concolic_mcmillan_execute: found path-to-error at vertex 10 
+
+interpretation at node 10(67) handle_path_to_error: [return@width:10 => 
+                                                     0,
+                                                     return@pos:11 => 
+                                                     0,
+                                                     return:12 => 9,
+                                                     param0:29 => 0,
+                                                     param0@pos:31 => 
+                                                     5,
+                                                     param0@width:33 => 
+                                                     6,
+                                                     tmp:41 => 6,
+                                                     n:42 => 2,
+                                                     __retres4:43 => 
+                                                     9,
+                                                     param0':231:393:475:513:557 => 
+                                                     0,
+                                                     return':230:394:476:514:558 => 
+                                                     0,
+                                                     phi_return:404:477:515:559 => 
+                                                     0,
+                                                     phi_param0:403:478:516:560 => 
+                                                     0,
+                                                     return@pos':232:395:479:517:561 => 
+                                                     5,
+                                                     phi_return@pos:402:480:518:562 => 
+                                                     5,
+                                                     param0@pos':233:396:481:519:563 => 
+                                                     6,
+                                                     phi_param0@pos:401:482:520:564 => 
+                                                     6,
+                                                     return@width':234:397:483:521:565 => 
+                                                     4,
+                                                     phi_return@width:400:484:522:566 => 
+                                                     4,
+                                                     param0@width':235:398:485:523:567 => 
+                                                     3,
+                                                     phi_param0@width:399:486:524:568 => 
+                                                     3,
+                                                     param0':231:487:525:569 => 
+                                                     0,
+                                                     return':230:488:526:570 => 
+                                                     0,
+                                                     return@pos':232:489:527:571 => 
+                                                     0,
+                                                     param0@pos':233:490:528:572 => 
+                                                     0,
+                                                     return@width':234:491:529:573 => 
+                                                     0,
+                                                     param0@width':235:492:530:574 => 
+                                                     0,
+                                                     param0':231:393:495:531:575 => 
+                                                     0,
+                                                     return':230:394:496:532:576 => 
+                                                     0,
+                                                     phi_return:404:497:533:577 => 
+                                                     0,
+                                                     phi_param0:403:498:534:578 => 
+                                                     0,
+                                                     return@pos':232:395:499:535:579 => 
+                                                     0,
+                                                     phi_return@pos:402:500:536:580 => 
+                                                     11,
+                                                     param0@pos':233:396:501:537:581 => 
+                                                     0,
+                                                     phi_param0@pos:401:502:538:582 => 
+                                                     12,
+                                                     return@width':234:397:503:539:583 => 
+                                                     0,
+                                                     phi_return@width:400:504:540:584 => 
+                                                     13,
+                                                     param0@width':235:398:505:541:585 => 
+                                                     0,
+                                                     phi_param0@width:399:506:542:586 => 
+                                                     14,
+                                                     param0':231:507:543:587 => 
+                                                     0,
+                                                     return':230:508:544:588 => 
+                                                     0,
+                                                     return@pos':232:509:545:589 => 
+                                                     11,
+                                                     param0@pos':233:510:546:590 => 
+                                                     12,
+                                                     return@width':234:511:547:591 => 
+                                                     13,
+                                                     param0@width':235:512:548:592 => 
+                                                     14,
+                                                     phi_tmp:556:593 => 
+                                                     0,
+                                                     phi___retres4:555:594 => 
+                                                     0,
+                                                     phi_return:554:595 => 
+                                                     0,
+                                                     phi_param0:553:596 => 
+                                                     0,
+                                                     phi_return@pos:552:597 => 
+                                                     11,
+                                                     phi_param0@pos:551:598 => 
+                                                     12,
+                                                     phi_return@width:550:599 => 
+                                                     13,
+                                                     phi_param0@width:549:600 => 
+                                                     14,
+                                                     phi___retres4:74:601 => 
+                                                     0]
+
+[weight] ******* retrieving summary for 7,8 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+get summary (art 5 mapsto 61, 6 mapsto 60)
+
+[weight] ******* retrieving summary for 5,6 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+HERE HEREextrapolate at call site (62,67) @ call edge 0
+symbol param0:29 is global
+symbol param0@pos:31 is global
+symbol param0@width:33 is global
+symbol return:12 is global
+
+pre extrapolant after renaming: (0 < param0:29 /\ 0 < (2147483649 + param0:29) /\ 0 <= param0:29
+   /\ 0 <= (2147483647 + param0:29) /\ 0 <= (45 + -param0:29))
+post extrapolant after renaming: true
+--------------------------
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(0): (
+0 < param0 /\ 0 < (2147483649 + param0) /\ 0 <= param0
+  /\ 0 <= (2147483647 + param0) /\ 0 <= (45 + -param0))
+
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(1): true
+
+ *********************************************** recurse_level: 2
+
+ uncovered. try close
+
+hashtable length: 0
+[return@width:10 => 2,
+ return@pos:11 => 5,
+ return:12 => 6,
+ param0:29 => 1,
+ param0@pos:31 => 3,
+ param0@width:33 => 4,
+ tmp:41 => 7,
+ param0':231:393:475:513:557 => 0,
+ return':230:394:476:514:558 => 0,
+ phi_return:404:477:515:559 => 0,
+ phi_param0:403:478:516:560 => 0,
+ return@pos':232:395:479:517:561 => 0,
+ phi_return@pos:402:480:518:562 => 0,
+ param0@pos':233:396:481:519:563 => 0,
+ phi_param0@pos:401:482:520:564 => 0,
+ return@width':234:397:483:521:565 => 0,
+ phi_return@width:400:484:522:566 => 0,
+ param0@width':235:398:485:523:567 => 0,
+ phi_param0@width:399:486:524:568 => 0,
+ param0':231:487:525:569 => 0,
+ return':230:488:526:570 => 0,
+ return@pos':232:489:527:571 => 0,
+ param0@pos':233:490:528:572 => 0,
+ return@width':234:491:529:573 => 0,
+ param0@width':235:492:530:574 => 0,
+ param0':231:393:495:531:575 => 0,
+ return':230:394:496:532:576 => 0,
+ phi_return:404:497:533:577 => 0,
+ phi_param0:403:498:534:578 => 0,
+ return@pos':232:395:499:535:579 => 0,
+ phi_return@pos:402:500:536:580 => 0,
+ param0@pos':233:396:501:537:581 => 0,
+ phi_param0@pos:401:502:538:582 => 0,
+ return@width':234:397:503:539:583 => 0,
+ phi_return@width:400:504:540:584 => 0,
+ param0@width':235:398:505:541:585 => 0,
+ phi_param0@width:399:506:542:586 => 0,
+ param0':231:507:543:587 => 0,
+ return':230:508:544:588 => 0,
+ return@pos':232:509:545:589 => 0,
+ param0@pos':233:510:546:590 => 0,
+ return@width':234:511:547:591 => 0,
+ param0@width':235:512:548:592 => 0,
+ phi_tmp:556:593 => 7,
+ phi___retres4:555:594 => 1,
+ phi_return:554:595 => 6,
+ phi_param0:553:596 => 1,
+ phi_return@pos:552:597 => 5,
+ phi_param0@pos:551:598 => 3,
+ phi_return@width:550:599 => 2,
+ phi_param0@width:549:600 => 4,
+ phi___retres4:74:601 => 1]Unable to refine but got model
+
+ *********************** REFINEMENT FAILED *************************
+
+ visit 0 (62)
+
+ visit 1 (48)
+
+ visit 2 (41)
+
+ visit 4 (52)
+
+ visit 6 (67)
+
+inter-procedural return-loc reached. trying expand_pseudo...
+
+       ... expand_pseudo succeeded
+
+--- concolic_mcmillan_execute: found path-to-error at vertex 6 
+
+interpretation at node 6(67) handle_path_to_error: [return@width:10 => 
+                                                    0,
+                                                    return@pos:11 => 
+                                                    0,
+                                                    return:12 => 1,
+                                                    param0:29 => 1,
+                                                    param0@pos:31 => 
+                                                    3,
+                                                    param0@width:33 => 
+                                                    4,
+                                                    tmp:41 => 7,
+                                                    n:42 => 1,
+                                                    __retres4:43 => 1,
+                                                    param0':231:393:475:513:557 => 
+                                                    0,
+                                                    return':230:394:476:514:558 => 
+                                                    0,
+                                                    phi_return:404:477:515:559 => 
+                                                    0,
+                                                    phi_param0:403:478:516:560 => 
+                                                    0,
+                                                    return@pos':232:395:479:517:561 => 
+                                                    0,
+                                                    phi_return@pos:402:480:518:562 => 
+                                                    0,
+                                                    param0@pos':233:396:481:519:563 => 
+                                                    0,
+                                                    phi_param0@pos:401:482:520:564 => 
+                                                    0,
+                                                    return@width':234:397:483:521:565 => 
+                                                    0,
+                                                    phi_return@width:400:484:522:566 => 
+                                                    0,
+                                                    param0@width':235:398:485:523:567 => 
+                                                    0,
+                                                    phi_param0@width:399:486:524:568 => 
+                                                    0,
+                                                    param0':231:487:525:569 => 
+                                                    0,
+                                                    return':230:488:526:570 => 
+                                                    0,
+                                                    return@pos':232:489:527:571 => 
+                                                    0,
+                                                    param0@pos':233:490:528:572 => 
+                                                    0,
+                                                    return@width':234:491:529:573 => 
+                                                    0,
+                                                    param0@width':235:492:530:574 => 
+                                                    0,
+                                                    param0':231:393:495:531:575 => 
+                                                    0,
+                                                    return':230:394:496:532:576 => 
+                                                    0,
+                                                    phi_return:404:497:533:577 => 
+                                                    0,
+                                                    phi_param0:403:498:534:578 => 
+                                                    0,
+                                                    return@pos':232:395:499:535:579 => 
+                                                    0,
+                                                    phi_return@pos:402:500:536:580 => 
+                                                    0,
+                                                    param0@pos':233:396:501:537:581 => 
+                                                    0,
+                                                    phi_param0@pos:401:502:538:582 => 
+                                                    0,
+                                                    return@width':234:397:503:539:583 => 
+                                                    0,
+                                                    phi_return@width:400:504:540:584 => 
+                                                    0,
+                                                    param0@width':235:398:505:541:585 => 
+                                                    0,
+                                                    phi_param0@width:399:506:542:586 => 
+                                                    0,
+                                                    param0':231:507:543:587 => 
+                                                    0,
+                                                    return':230:508:544:588 => 
+                                                    0,
+                                                    return@pos':232:509:545:589 => 
+                                                    0,
+                                                    param0@pos':233:510:546:590 => 
+                                                    0,
+                                                    return@width':234:511:547:591 => 
+                                                    0,
+                                                    param0@width':235:512:548:592 => 
+                                                    0,
+                                                    phi_tmp:556:593 => 
+                                                    7,
+                                                    phi___retres4:555:594 => 
+                                                    1,
+                                                    phi_return:554:595 => 
+                                                    6,
+                                                    phi_param0:553:596 => 
+                                                    1,
+                                                    phi_return@pos:552:597 => 
+                                                    5,
+                                                    phi_param0@pos:551:598 => 
+                                                    3,
+                                                    phi_return@width:550:599 => 
+                                                    2,
+                                                    phi_param0@width:549:600 => 
+                                                    4,
+                                                    phi___retres4:74:601 => 
+                                                    1]
+
+--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... 
+--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path
+
+concrete path is 61,60 for path from entry to tree node 10(67) err 10 level 1
+cfg_edge_weight: edge weight substitute found for (5,6)
+get summary (art 7 mapsto 57, 8 mapsto 56)
+
+[weight] ******* retrieving summary for 7,8 *****
+(0): {return := phi_return:404
+                                                        param0 := phi_param0:403
+                                                        return@pos := 
+                                                        phi_return@pos:402
+                                                        param0@pos := 
+                                                        phi_param0@pos:401
+                                                        return@width := 
+                                                        phi_return@width:400
+                                                        param0@width := 
+                                                        phi_param0@width:399
+                                                        when ((!((0 < (
+                                                                  -2147483648
+                                                                    + -param0:29)
+                                                                    /\ 
+                                                                    0 <= (
+                                                                    46
+                                                                    + -param0:29)))
+                                                                 /\ 0 <= (
+                                                                    param0:29
+                                                                    + -param0':231:393)
+                                                                 /\ return':230:394 = phi_return:404
+                                                                 /\ param0':231:393 = phi_param0:403
+                                                                 /\ return@pos':232:395 = phi_return@pos:402
+                                                                 /\ param0@pos':233:396 = phi_param0@pos:401
+                                                                 /\ return@width':234:397 = phi_return@width:400
+                                                                 /\ param0@width':235:398 = phi_param0@width:399)
+                                                                \/ (0 <= (
+                                                                    param0:29
+                                                                    + -param0':231)
+                                                                    /\ !(
+                                                                    (
+                                                                    0 < (
+                                                                    45
+                                                                    + -return':230)
+                                                                    /\ 
+                                                                    0 < (
+                                                                    -2147483649
+                                                                    + -return':230)))
+                                                                    /\ 
+                                                                    return':230 = phi_return:404
+                                                                    /\ 
+                                                                    param0':231 = phi_param0:403
+                                                                    /\ 
+                                                                    return@pos':232 = phi_return@pos:402
+                                                                    /\ 
+                                                                    param0@pos':233 = phi_param0@pos:401
+                                                                    /\ 
+                                                                    return@width':234 = phi_return@width:400
+                                                                    /\ 
+                                                                    param0@width':235 = phi_param0@width:399))}
+
+HERE HEREextrapolate at call site (62,67) @ call edge 1
+symbol return:12 is global
+symbol param0:29 is global
+symbol return@pos:11 is global
+symbol param0@pos:31 is global
+symbol return@width:10 is global
+symbol param0@width:33 is global
+symbol return:12 is global
+
+pre extrapolant after renaming: (0 < (2147483650 + param0:29) /\ 0 < (1 + param0:29) /\ 0 <= param0:29
+   /\ 0 <= (44 + -param0:29) /\ 0 <= (1 + param0:29) /\ -param0:29 = 0
+   /\ (1 + -return:12) = 0)
+post extrapolant after renaming: (0 < (44 + -return:12) /\ 0 <= (2147483650 + return:12))
+--------------------------
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(0): (
+0 < (2147483650 + param0) /\ 0 < (1 + param0) /\ 0 <= param0
+  /\ 0 <= (44 + -param0) /\ 0 <= (1 + param0) /\ -param0 = 0
+  /\ (1 + -return) = 0)
+
+[formula] --- handle_path_to_error : extrapolate success; formulas 
+(1): (
+0 < (44 + -return) /\ 0 <= (2147483650 + return))
+
+ *********************************************** recurse_level: 2
+
+ uncovered. try close
+
+hashtable length: 0
+[return@width:10 => 6,
+ return@pos:11 => 4,
+ return:12 => 1,
+ param0:29 => 0,
+ param0@pos:31 => 5,
+ param0@width:33 => 7,
+ tmp:41 => 3,
+ param0':231:393:475:513:557 => 0,
+ return':230:394:476:514:558 => 0,
+ phi_return:404:477:515:559 => 0,
+ phi_param0:403:478:516:560 => 0,
+ return@pos':232:395:479:517:561 => 0,
+ phi_return@pos:402:480:518:562 => 0,
+ param0@pos':233:396:481:519:563 => 0,
+ phi_param0@pos:401:482:520:564 => 0,
+ return@width':234:397:483:521:565 => 0,
+ phi_return@width:400:484:522:566 => 0,
+ param0@width':235:398:485:523:567 => 0,
+ phi_param0@width:399:486:524:568 => 0,
+ param0':231:487:525:569 => 0,
+ return':230:488:526:570 => 0,
+ return@pos':232:489:527:571 => 0,
+ param0@pos':233:490:528:572 => 0,
+ return@width':234:491:529:573 => 0,
+ param0@width':235:492:530:574 => 0,
+ param0':231:393:495:531:575 => 0,
+ return':230:394:496:532:576 => 0,
+ phi_return:404:497:533:577 => 0,
+ phi_param0:403:498:534:578 => 0,
+ return@pos':232:395:499:535:579 => 0,
+ phi_return@pos:402:500:536:580 => 0,
+ param0@pos':233:396:501:537:581 => 0,
+ phi_param0@pos:401:502:538:582 => 0,
+ return@width':234:397:503:539:583 => 0,
+ phi_return@width:400:504:540:584 => 0,
+ param0@width':235:398:505:541:585 => 0,
+ phi_param0@width:399:506:542:586 => 0,
+ param0':231:507:543:587 => 0,
+ return':230:508:544:588 => 0,
+ return@pos':232:509:545:589 => 0,
+ param0@pos':233:510:546:590 => 0,
+ return@width':234:511:547:591 => 0,
+ param0@width':235:512:548:592 => 0,
+ phi_tmp:556:593 => 3,
+ phi___retres4:555:594 => 0,
+ phi_return:554:595 => 1,
+ phi_param0:553:596 => 0,
+ phi_return@pos:552:597 => 4,
+ phi_param0@pos:551:598 => 5,
+ phi_return@width:550:599 => 6,
+ phi_param0@width:549:600 => 7,
+ phi___retres4:74:601 => 0]Unable to refine but got model
+
+ *********************** REFINEMENT FAILED *************************
+
+ visit 0 (62)
+
+ visit 1 (48)
+
+ visit 3 (52)
+
+ visit 4 (67)
+
+inter-procedural return-loc reached. trying expand_pseudo...
+
+       ... expand_pseudo succeeded
+
+--- concolic_mcmillan_execute: found path-to-error at vertex 4 
+
+interpretation at node 4(67) handle_path_to_error: [return@width:10 => 
+                                                    0,
+                                                    return@pos:11 => 
+                                                    0,
+                                                    return:12 => 0,
+                                                    param0:29 => 0,
+                                                    param0@pos:31 => 
+                                                    5,
+                                                    param0@width:33 => 
+                                                    7,
+                                                    tmp:41 => 3,
+                                                    n:42 => 0,
+                                                    __retres4:43 => 0,
+                                                    param0':231:393:475:513:557 => 
+                                                    0,
+                                                    return':230:394:476:514:558 => 
+                                                    0,
+                                                    phi_return:404:477:515:559 => 
+                                                    0,
+                                                    phi_param0:403:478:516:560 => 
+                                                    0,
+                                                    return@pos':232:395:479:517:561 => 
+                                                    0,
+                                                    phi_return@pos:402:480:518:562 => 
+                                                    0,
+                                                    param0@pos':233:396:481:519:563 => 
+                                                    0,
+                                                    phi_param0@pos:401:482:520:564 => 
+                                                    0,
+                                                    return@width':234:397:483:521:565 => 
+                                                    0,
+                                                    phi_return@width:400:484:522:566 => 
+                                                    0,
+                                                    param0@width':235:398:485:523:567 => 
+                                                    0,
+                                                    phi_param0@width:399:486:524:568 => 
+                                                    0,
+                                                    param0':231:487:525:569 => 
+                                                    0,
+                                                    return':230:488:526:570 => 
+                                                    0,
+                                                    return@pos':232:489:527:571 => 
+                                                    0,
+                                                    param0@pos':233:490:528:572 => 
+                                                    0,
+                                                    return@width':234:491:529:573 => 
+                                                    0,
+                                                    param0@width':235:492:530:574 => 
+                                                    0,
+                                                    param0':231:393:495:531:575 => 
+                                                    0,
+                                                    return':230:394:496:532:576 => 
+                                                    0,
+                                                    phi_return:404:497:533:577 => 
+                                                    0,
+                                                    phi_param0:403:498:534:578 => 
+                                                    0,
+                                                    return@pos':232:395:499:535:579 => 
+                                                    0,
+                                                    phi_return@pos:402:500:536:580 => 
+                                                    0,
+                                                    param0@pos':233:396:501:537:581 => 
+                                                    0,
+                                                    phi_param0@pos:401:502:538:582 => 
+                                                    0,
+                                                    return@width':234:397:503:539:583 => 
+                                                    0,
+                                                    phi_return@width:400:504:540:584 => 
+                                                    0,
+                                                    param0@width':235:398:505:541:585 => 
+                                                    0,
+                                                    phi_param0@width:399:506:542:586 => 
+                                                    0,
+                                                    param0':231:507:543:587 => 
+                                                    0,
+                                                    return':230:508:544:588 => 
+                                                    0,
+                                                    return@pos':232:509:545:589 => 
+                                                    0,
+                                                    param0@pos':233:510:546:590 => 
+                                                    0,
+                                                    return@width':234:511:547:591 => 
+                                                    0,
+                                                    param0@width':235:512:548:592 => 
+                                                    0,
+                                                    phi_tmp:556:593 => 
+                                                    3,
+                                                    phi___retres4:555:594 => 
+                                                    0,
+                                                    phi_return:554:595 => 
+                                                    1,
+                                                    phi_param0:553:596 => 
+                                                    0,
+                                                    phi_return@pos:552:597 => 
+                                                    4,
+                                                    phi_param0@pos:551:598 => 
+                                                    5,
+                                                    phi_return@width:550:599 => 
+                                                    6,
+                                                    phi_param0@width:549:600 => 
+                                                    7,
+                                                    phi___retres4:74:601 => 
+                                                    0]
+
+--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... 
+--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path
+
+concrete path is 57,56 for path from entry to tree node 10(67) err 10 level 1
+cfg_edge_weight: edge weight substitute found for (5,6)
+cfg_edge_weight: edge weight substitute found for (7,8)
+--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... 
+--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path
+
+concrete path is 66,65 for path from entry to tree node 17(69) err 17 level 0
+cfg_edge_weight: edge weight substitute found for (5,6)
+--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... 
+  proven unsafe
+------------------------------

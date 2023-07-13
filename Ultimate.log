@@ -1,0 +1,232 @@
+This is Ultimate 0.2.3-release-863304a
+[2023-07-11 21:31:11,613 INFO  L177        SettingsManager]: Resetting all preferences to default values...
+[2023-07-11 21:31:11,615 INFO  L181        SettingsManager]: Resetting UltimateCore preferences to default values
+[2023-07-11 21:31:11,634 INFO  L184        SettingsManager]: Ultimate Commandline Interface provides no preferences, ignoring...
+[2023-07-11 21:31:11,634 INFO  L181        SettingsManager]: Resetting Boogie Preprocessor preferences to default values
+[2023-07-11 21:31:11,635 INFO  L181        SettingsManager]: Resetting Boogie Procedure Inliner preferences to default values
+[2023-07-11 21:31:11,636 INFO  L181        SettingsManager]: Resetting Abstract Interpretation preferences to default values
+[2023-07-11 21:31:11,637 INFO  L181        SettingsManager]: Resetting LassoRanker preferences to default values
+[2023-07-11 21:31:11,638 INFO  L181        SettingsManager]: Resetting Reaching Definitions preferences to default values
+[2023-07-11 21:31:11,639 INFO  L181        SettingsManager]: Resetting SyntaxChecker preferences to default values
+[2023-07-11 21:31:11,640 INFO  L181        SettingsManager]: Resetting Sifa preferences to default values
+[2023-07-11 21:31:11,640 INFO  L184        SettingsManager]: Büchi Program Product provides no preferences, ignoring...
+[2023-07-11 21:31:11,641 INFO  L181        SettingsManager]: Resetting LTL2Aut preferences to default values
+[2023-07-11 21:31:11,641 INFO  L181        SettingsManager]: Resetting PEA to Boogie preferences to default values
+[2023-07-11 21:31:11,642 INFO  L181        SettingsManager]: Resetting BlockEncodingV2 preferences to default values
+[2023-07-11 21:31:11,643 INFO  L181        SettingsManager]: Resetting ChcToBoogie preferences to default values
+[2023-07-11 21:31:11,643 INFO  L181        SettingsManager]: Resetting AutomataScriptInterpreter preferences to default values
+[2023-07-11 21:31:11,644 INFO  L181        SettingsManager]: Resetting BuchiAutomizer preferences to default values
+[2023-07-11 21:31:11,645 INFO  L181        SettingsManager]: Resetting CACSL2BoogieTranslator preferences to default values
+[2023-07-11 21:31:11,646 INFO  L181        SettingsManager]: Resetting CodeCheck preferences to default values
+[2023-07-11 21:31:11,647 INFO  L181        SettingsManager]: Resetting InvariantSynthesis preferences to default values
+[2023-07-11 21:31:11,648 INFO  L181        SettingsManager]: Resetting RCFGBuilder preferences to default values
+[2023-07-11 21:31:11,649 INFO  L181        SettingsManager]: Resetting Referee preferences to default values
+[2023-07-11 21:31:11,650 INFO  L181        SettingsManager]: Resetting TraceAbstraction preferences to default values
+[2023-07-11 21:31:11,656 INFO  L184        SettingsManager]: TraceAbstractionConcurrent provides no preferences, ignoring...
+[2023-07-11 21:31:11,657 INFO  L184        SettingsManager]: TraceAbstractionWithAFAs provides no preferences, ignoring...
+[2023-07-11 21:31:11,657 INFO  L181        SettingsManager]: Resetting TreeAutomizer preferences to default values
+[2023-07-11 21:31:11,657 INFO  L181        SettingsManager]: Resetting IcfgToChc preferences to default values
+[2023-07-11 21:31:11,658 INFO  L181        SettingsManager]: Resetting IcfgTransformer preferences to default values
+[2023-07-11 21:31:11,659 INFO  L184        SettingsManager]: ReqToTest provides no preferences, ignoring...
+[2023-07-11 21:31:11,659 INFO  L181        SettingsManager]: Resetting Boogie Printer preferences to default values
+[2023-07-11 21:31:11,659 INFO  L181        SettingsManager]: Resetting ChcSmtPrinter preferences to default values
+[2023-07-11 21:31:11,660 INFO  L181        SettingsManager]: Resetting ReqPrinter preferences to default values
+[2023-07-11 21:31:11,660 INFO  L181        SettingsManager]: Resetting Witness Printer preferences to default values
+[2023-07-11 21:31:11,661 INFO  L184        SettingsManager]: Boogie PL CUP Parser provides no preferences, ignoring...
+[2023-07-11 21:31:11,661 INFO  L181        SettingsManager]: Resetting CDTParser preferences to default values
+[2023-07-11 21:31:11,662 INFO  L184        SettingsManager]: AutomataScriptParser provides no preferences, ignoring...
+[2023-07-11 21:31:11,662 INFO  L184        SettingsManager]: ReqParser provides no preferences, ignoring...
+[2023-07-11 21:31:11,662 INFO  L181        SettingsManager]: Resetting SmtParser preferences to default values
+[2023-07-11 21:31:11,663 INFO  L181        SettingsManager]: Resetting Witness Parser preferences to default values
+[2023-07-11 21:31:11,663 INFO  L188        SettingsManager]: Finished resetting all preferences to default values...
+[2023-07-11 21:31:11,664 INFO  L101        SettingsManager]: Beginning loading settings from /home/rjf/fast/ultimate/UAutomizer-linux/config/svcomp-Reach-32bit-Automizer_Default.epf
+[2023-07-11 21:31:11,681 INFO  L113        SettingsManager]: Loading preferences was successful
+[2023-07-11 21:31:11,681 INFO  L115        SettingsManager]: Preferences different from defaults after loading the file:
+[2023-07-11 21:31:11,681 INFO  L136        SettingsManager]: Preferences of UltimateCore differ from their defaults:
+[2023-07-11 21:31:11,681 INFO  L138        SettingsManager]:  * Log level for class=de.uni_freiburg.informatik.ultimate.lib.smtlibutils.quantifier.QuantifierPusher=ERROR;
+[2023-07-11 21:31:11,682 INFO  L136        SettingsManager]: Preferences of Boogie Procedure Inliner differ from their defaults:
+[2023-07-11 21:31:11,682 INFO  L138        SettingsManager]:  * Ignore calls to procedures called more than once=ONLY_FOR_SEQUENTIAL_PROGRAMS
+[2023-07-11 21:31:11,682 INFO  L136        SettingsManager]: Preferences of BlockEncodingV2 differ from their defaults:
+[2023-07-11 21:31:11,682 INFO  L138        SettingsManager]:  * Create parallel compositions if possible=false
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * Use SBE=true
+[2023-07-11 21:31:11,683 INFO  L136        SettingsManager]: Preferences of CACSL2BoogieTranslator differ from their defaults:
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * sizeof long=4
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * Overapproximate operations on floating types=true
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * sizeof POINTER=4
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * Check division by zero=IGNORE
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * Pointer to allocated memory at dereference=IGNORE
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * If two pointers are subtracted or compared they have the same base address=IGNORE
+[2023-07-11 21:31:11,683 INFO  L138        SettingsManager]:  * Check array bounds for arrays that are off heap=IGNORE
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * sizeof long double=12
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * Check if freed pointer was valid=false
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * Use constant arrays=true
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * Pointer base address is valid at dereference=IGNORE
+[2023-07-11 21:31:11,684 INFO  L136        SettingsManager]: Preferences of RCFGBuilder differ from their defaults:
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * Size of a code block=SequenceOfStatements
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * SMT solver=External_DefaultMode
+[2023-07-11 21:31:11,684 INFO  L138        SettingsManager]:  * Command for external solver=z3 SMTLIB2_COMPLIANT=true -memory:2024 -smt2 -in -t:2000
+[2023-07-11 21:31:11,685 INFO  L136        SettingsManager]: Preferences of TraceAbstraction differ from their defaults:
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Compute Interpolants along a Counterexample=FPandBP
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Positions where we compute the Hoare Annotation=LoopsAndPotentialCycles
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Trace refinement strategy=CAMEL
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Command for external solver=z3 SMTLIB2_COMPLIANT=true -memory:2024 -smt2 -in
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Automaton type used in concurrency analysis=PETRI_NET
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Compute Hoare Annotation of negated interpolant automaton, abstraction and CFG=true
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Order on configurations for Petri net unfoldings=DBO
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * SMT solver=External_ModelsAndUnsatCoreMode
+[2023-07-11 21:31:11,685 INFO  L138        SettingsManager]:  * Independence relation used for large block encoding in concurrent analysis=SYNTACTIC
+[2023-07-11 21:31:11,686 INFO  L138        SettingsManager]:  * Looper check in Petri net analysis=SEMANTIC
+WARNING: An illegal reflective access operation has occurred
+WARNING: Illegal reflective access by com.sun.xml.bind.v2.runtime.reflect.opt.Injector$1 (file:/home/rjf/fast/ultimate/UAutomizer-linux/plugins/com.sun.xml.bind_2.2.0.v201505121915.jar) to method java.lang.ClassLoader.defineClass(java.lang.String,byte[],int,int)
+WARNING: Please consider reporting this to the maintainers of com.sun.xml.bind.v2.runtime.reflect.opt.Injector$1
+WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
+WARNING: All illegal access operations will be denied in a future release
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator: Entry function -> main
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Witness directory -> /home/rjf/fast/ultimate/UAutomizer-linux
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Witness filename -> witness.graphml
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Write witness besides input file -> false
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Graph data specification -> CHECK( init(main()), LTL(G ! call(reach_error())) )
+
+
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Graph data producer -> Automizer
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Graph data architecture -> 32bit
+Applying setting for plugin de.uni_freiburg.informatik.ultimate.witnessprinter: Graph data programhash -> 941702cf1e8ce7d4accd3db9580225cbe3fda1ef8eb7b84e2bdc84034fbba835
+[2023-07-11 21:31:11,921 INFO  L75    nceAwareModelManager]: Repository-Root is: /tmp
+[2023-07-11 21:31:11,938 INFO  L261   ainManager$Toolchain]: [Toolchain 1]: Applicable parser(s) successfully (re)initialized
+[2023-07-11 21:31:11,941 INFO  L217   ainManager$Toolchain]: [Toolchain 1]: Toolchain selected.
+[2023-07-11 21:31:11,942 INFO  L271        PluginConnector]: Initializing CDTParser...
+[2023-07-11 21:31:11,943 INFO  L275        PluginConnector]: CDTParser initialized
+[2023-07-11 21:31:11,944 INFO  L432   ainManager$Toolchain]: [Toolchain 1]: Parsing single file: /home/rjf/fast/duet-IW/./bad.c
+[2023-07-11 21:31:13,472 INFO  L500              CDTParser]: Created temporary CDT project at NULL
+[2023-07-11 21:31:13,597 INFO  L351              CDTParser]: Found 1 translation units.
+[2023-07-11 21:31:13,597 INFO  L172              CDTParser]: Scanning /home/rjf/fast/duet-IW/bad.c
+[2023-07-11 21:31:13,604 INFO  L394              CDTParser]: About to delete temporary CDT project at /home/rjf/fast/ultimate/UAutomizer-linux/data/66bb0f94a/b08d07d384fc4ff7bb1b02dfded92096/FLAGcfc4c93cf
+[2023-07-11 21:31:13,636 INFO  L402              CDTParser]: Successfully deleted /home/rjf/fast/ultimate/UAutomizer-linux/data/66bb0f94a/b08d07d384fc4ff7bb1b02dfded92096
+[2023-07-11 21:31:13,638 INFO  L299   ainManager$Toolchain]: ####################### [Toolchain 1] #######################
+[2023-07-11 21:31:13,640 INFO  L131        ToolchainWalker]: Walking toolchain with 6 elements.
+[2023-07-11 21:31:13,641 INFO  L113        PluginConnector]: ------------------------CACSL2BoogieTranslator----------------------------
+[2023-07-11 21:31:13,641 INFO  L271        PluginConnector]: Initializing CACSL2BoogieTranslator...
+[2023-07-11 21:31:13,644 INFO  L275        PluginConnector]: CACSL2BoogieTranslator initialized
+[2023-07-11 21:31:13,644 INFO  L185        PluginConnector]: Executing the observer ACSLObjectContainerObserver from plugin CACSL2BoogieTranslator for "CDTParser AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,645 INFO  L205        PluginConnector]: Invalid model from CACSL2BoogieTranslator for observer de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator.ACSLObjectContainerObserver@4043518 and model type de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13, skipping insertion in model container
+[2023-07-11 21:31:13,645 INFO  L185        PluginConnector]: Executing the observer CACSL2BoogieTranslatorObserver from plugin CACSL2BoogieTranslator for "CDTParser AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,651 INFO  L145         MainTranslator]: Starting translation in SV-COMP mode 
+[2023-07-11 21:31:13,659 INFO  L178         MainTranslator]: Built tables and reachable declarations
+[2023-07-11 21:31:13,757 INFO  L210          PostProcessor]: Analyzing one entry point: main
+[2023-07-11 21:31:13,763 INFO  L203         MainTranslator]: Completed pre-run
+[2023-07-11 21:31:13,770 INFO  L210          PostProcessor]: Analyzing one entry point: main
+[2023-07-11 21:31:13,780 INFO  L208         MainTranslator]: Completed translation
+[2023-07-11 21:31:13,780 INFO  L202        PluginConnector]: Adding new model de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13 WrapperNode
+[2023-07-11 21:31:13,780 INFO  L132        PluginConnector]: ------------------------ END CACSL2BoogieTranslator----------------------------
+[2023-07-11 21:31:13,781 INFO  L113        PluginConnector]: ------------------------Boogie Procedure Inliner----------------------------
+[2023-07-11 21:31:13,781 INFO  L271        PluginConnector]: Initializing Boogie Procedure Inliner...
+[2023-07-11 21:31:13,781 INFO  L275        PluginConnector]: Boogie Procedure Inliner initialized
+[2023-07-11 21:31:13,787 INFO  L185        PluginConnector]: Executing the observer TypeChecker from plugin Boogie Procedure Inliner for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,790 INFO  L185        PluginConnector]: Executing the observer Inliner from plugin Boogie Procedure Inliner for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,804 INFO  L138                Inliner]: procedures = 3, calls = 2, calls flagged for inlining = 2, calls inlined = 2, statements flattened = 5
+[2023-07-11 21:31:13,804 INFO  L132        PluginConnector]: ------------------------ END Boogie Procedure Inliner----------------------------
+[2023-07-11 21:31:13,805 INFO  L113        PluginConnector]: ------------------------Boogie Preprocessor----------------------------
+[2023-07-11 21:31:13,805 INFO  L271        PluginConnector]: Initializing Boogie Preprocessor...
+[2023-07-11 21:31:13,805 INFO  L275        PluginConnector]: Boogie Preprocessor initialized
+[2023-07-11 21:31:13,811 INFO  L185        PluginConnector]: Executing the observer EnsureBoogieModelObserver from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,812 INFO  L185        PluginConnector]: Executing the observer TypeChecker from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,812 INFO  L185        PluginConnector]: Executing the observer ConstExpander from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,812 INFO  L185        PluginConnector]: Executing the observer StructExpander from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,813 INFO  L185        PluginConnector]: Executing the observer UnstructureCode from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,814 INFO  L185        PluginConnector]: Executing the observer FunctionInliner from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,815 INFO  L185        PluginConnector]: Executing the observer LTLStepAnnotator from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,815 INFO  L185        PluginConnector]: Executing the observer BoogieSymbolTableConstructor from plugin Boogie Preprocessor for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,816 INFO  L132        PluginConnector]: ------------------------ END Boogie Preprocessor----------------------------
+[2023-07-11 21:31:13,816 INFO  L113        PluginConnector]: ------------------------RCFGBuilder----------------------------
+[2023-07-11 21:31:13,816 INFO  L271        PluginConnector]: Initializing RCFGBuilder...
+[2023-07-11 21:31:13,817 INFO  L275        PluginConnector]: RCFGBuilder initialized
+[2023-07-11 21:31:13,817 INFO  L185        PluginConnector]: Executing the observer RCFGBuilderObserver from plugin RCFGBuilder for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (1/1) ...
+[2023-07-11 21:31:13,822 INFO  L173          SolverBuilder]: Constructing external solver with command: z3 SMTLIB2_COMPLIANT=true -memory:2024 -smt2 -in -t:2000
+[2023-07-11 21:31:13,831 INFO  L189       MonitoredProcess]: No working directory specified, using /home/rjf/fast/ultimate/UAutomizer-linux/z3
+[2023-07-11 21:31:13,840 INFO  L229       MonitoredProcess]: Starting monitored process 1 with /home/rjf/fast/ultimate/UAutomizer-linux/z3 SMTLIB2_COMPLIANT=true -memory:2024 -smt2 -in -t:2000 (exit command is (exit), workingDir is null)
+[2023-07-11 21:31:13,850 INFO  L327       MonitoredProcess]: [MP /home/rjf/fast/ultimate/UAutomizer-linux/z3 SMTLIB2_COMPLIANT=true -memory:2024 -smt2 -in -t:2000 (1)] Waiting until timeout for monitored process
+[2023-07-11 21:31:13,879 INFO  L130     BoogieDeclarations]: Found specification of procedure ULTIMATE.start
+[2023-07-11 21:31:13,879 INFO  L138     BoogieDeclarations]: Found implementation of procedure ULTIMATE.start
+[2023-07-11 21:31:13,946 INFO  L235             CfgBuilder]: Building ICFG
+[2023-07-11 21:31:13,955 INFO  L261             CfgBuilder]: Building CFG for each procedure with an implementation
+[2023-07-11 21:31:14,006 INFO  L276             CfgBuilder]: Performing block encoding
+[2023-07-11 21:31:14,011 INFO  L295             CfgBuilder]: Using the 1 location(s) as analysis (start of procedure ULTIMATE.start)
+[2023-07-11 21:31:14,012 INFO  L300             CfgBuilder]: Removed 0 assume(true) statements.
+[2023-07-11 21:31:14,013 INFO  L202        PluginConnector]: Adding new model de.uni_freiburg.informatik.ultimate.plugins.generator.rcfgbuilder CFG 11.07 09:31:14 BoogieIcfgContainer
+[2023-07-11 21:31:14,013 INFO  L132        PluginConnector]: ------------------------ END RCFGBuilder----------------------------
+[2023-07-11 21:31:14,015 INFO  L113        PluginConnector]: ------------------------TraceAbstraction----------------------------
+[2023-07-11 21:31:14,016 INFO  L271        PluginConnector]: Initializing TraceAbstraction...
+[2023-07-11 21:31:14,021 INFO  L275        PluginConnector]: TraceAbstraction initialized
+[2023-07-11 21:31:14,021 INFO  L185        PluginConnector]: Executing the observer TraceAbstractionObserver from plugin TraceAbstraction for "CDTParser AST 11.07 09:31:13" (1/3) ...
+[2023-07-11 21:31:14,022 INFO  L205        PluginConnector]: Invalid model from TraceAbstraction for observer de.uni_freiburg.informatik.ultimate.plugins.generator.traceabstraction.TraceAbstractionObserver@2ff38cdc and model type de.uni_freiburg.informatik.ultimate.plugins.generator.traceabstraction AST 11.07 09:31:14, skipping insertion in model container
+[2023-07-11 21:31:14,022 INFO  L185        PluginConnector]: Executing the observer TraceAbstractionObserver from plugin TraceAbstraction for "de.uni_freiburg.informatik.ultimate.plugins.generator.cacsl2boogietranslator AST 11.07 09:31:13" (2/3) ...
+[2023-07-11 21:31:14,023 INFO  L205        PluginConnector]: Invalid model from TraceAbstraction for observer de.uni_freiburg.informatik.ultimate.plugins.generator.traceabstraction.TraceAbstractionObserver@2ff38cdc and model type de.uni_freiburg.informatik.ultimate.plugins.generator.traceabstraction AST 11.07 09:31:14, skipping insertion in model container
+[2023-07-11 21:31:14,023 INFO  L185        PluginConnector]: Executing the observer TraceAbstractionObserver from plugin TraceAbstraction for "de.uni_freiburg.informatik.ultimate.plugins.generator.rcfgbuilder CFG 11.07 09:31:14" (3/3) ...
+[2023-07-11 21:31:14,024 INFO  L112   eAbstractionObserver]: Analyzing ICFG bad.c
+[2023-07-11 21:31:14,042 INFO  L203   ceAbstractionStarter]: Automizer settings: Hoare:true NWA Interpolation:FPandBP Determinization: PREDICATE_ABSTRACTION
+[2023-07-11 21:31:14,042 INFO  L162   ceAbstractionStarter]: Applying trace abstraction to program that has 1 error locations.
+[2023-07-11 21:31:14,089 INFO  L356      AbstractCegarLoop]: ======== Iteration 0 == of CEGAR loop == AllErrorsAtOnce ========
+[2023-07-11 21:31:14,096 INFO  L357      AbstractCegarLoop]: Settings: SEPARATE_VIOLATION_CHECK=true, mInterprocedural=true, mMaxIterations=1000000, mWatchIteration=1000000, mArtifact=RCFG, mInterpolation=FPandBP, mInterpolantAutomaton=STRAIGHT_LINE, mDumpAutomata=false, mAutomataFormat=ATS_NUMERATE, mDumpPath=., mDeterminiation=PREDICATE_ABSTRACTION, mMinimize=MINIMIZE_SEVPA, mHoare=true, mAutomataTypeConcurrency=PETRI_NET, mHoareTripleChecks=INCREMENTAL, mHoareAnnotationPositions=LoopsAndPotentialCycles, mDumpOnlyReuseAutomata=false, mLimitTraceHistogram=0, mErrorLocTimeLimit=0, mLimitPathProgramCount=0, mCollectInterpolantStatistics=true, mHeuristicEmptinessCheck=false, mHeuristicEmptinessCheckAStarHeuristic=ZERO, mHeuristicEmptinessCheckAStarHeuristicRandomSeed=1337, mHeuristicEmptinessCheckSmtFeatureScoringMethod=DAGSIZE, mSMTFeatureExtraction=false, mSMTFeatureExtractionDumpPath=., mOverrideInterpolantAutomaton=false, mMcrInterpolantMethod=WP, mPorIndependenceSettings=[Lde.uni_freiburg.informatik.ultimate.lib.tracecheckerutils.partialorder.independence.IndependenceSettings;@60e6f6ec, mLbeIndependenceSettings=[IndependenceType=SYNTACTIC, AbstractionType=NONE, UseConditional=<UNSUPPORTED>, UseSemiCommutativity=<UNSUPPORTED>, Solver=<NOT_USED>, SolverTimeout=<NOT_USED>]
+[2023-07-11 21:31:14,096 INFO  L358      AbstractCegarLoop]: Starting to check reachability of 1 error locations.
+[2023-07-11 21:31:14,100 INFO  L276                IsEmpty]: Start isEmpty. Operand  has 7 states, 5 states have (on average 1.2) internal successors, (6), 6 states have internal predecessors, (6), 0 states have call successors, (0), 0 states have call predecessors, (0), 0 states have return successors, (0), 0 states have call predecessors, (0), 0 states have call successors, (0)
+[2023-07-11 21:31:14,106 INFO  L282                IsEmpty]: Finished isEmpty. Found accepting run of length 4
+[2023-07-11 21:31:14,106 INFO  L187           NwaCegarLoop]: Found error trace
+[2023-07-11 21:31:14,106 INFO  L195           NwaCegarLoop]: trace histogram [1, 1, 1]
+[2023-07-11 21:31:14,107 INFO  L420      AbstractCegarLoop]: === Iteration 1 === Targeting ULTIMATE.startErr0ASSERT_VIOLATIONERROR_FUNCTION === [ULTIMATE.startErr0ASSERT_VIOLATIONERROR_FUNCTION] ===
+[2023-07-11 21:31:14,111 INFO  L144       PredicateUnifier]: Initialized classic predicate unifier
+[2023-07-11 21:31:14,112 INFO  L85        PathProgramCache]: Analyzing trace with hash 29856, now seen corresponding path program 1 times
+[2023-07-11 21:31:14,120 INFO  L118   FreeRefinementEngine]: Executing refinement strategy CAMEL
+[2023-07-11 21:31:14,121 INFO  L333   FreeRefinementEngine]: Using trace check IpTcStrategyModuleSmtInterpolCraig [2141781445]
+[2023-07-11 21:31:14,121 INFO  L95    rtionOrderModulation]: Keeping assertion order NOT_INCREMENTALLY
+[2023-07-11 21:31:14,121 INFO  L127          SolverBuilder]: Constructing new instance of SMTInterpol with explicit timeout -1 ms and remaining time -1 ms
+[2023-07-11 21:31:14,191 INFO  L136    AnnotateAndAsserter]: Conjunction of SSA is sat
+[2023-07-11 21:31:14,191 INFO  L356             TraceCheck]: Trace is feasible, we will do another trace check, this time with branch encoders.
+[2023-07-11 21:31:14,193 INFO  L136    AnnotateAndAsserter]: Conjunction of SSA is sat
+[2023-07-11 21:31:14,208 INFO  L130   FreeRefinementEngine]: Strategy CAMEL found a feasible trace
+[2023-07-11 21:31:14,210 INFO  L360         BasicCegarLoop]: Counterexample is feasible
+[2023-07-11 21:31:14,211 INFO  L805   garLoopResultBuilder]: Registering result UNSAFE for location ULTIMATE.startErr0ASSERT_VIOLATIONERROR_FUNCTION (0 of 1 remaining)
+[2023-07-11 21:31:14,213 WARN  L477      AbstractCegarLoop]: Destroyed unattended storables created during the last iteration: SelfDestructingSolverStorable0
+[2023-07-11 21:31:14,217 INFO  L445         BasicCegarLoop]: Path program histogram: [1]
+[2023-07-11 21:31:14,221 INFO  L178   ceAbstractionStarter]: Computing trace abstraction results
+[2023-07-11 21:31:14,230 INFO  L202        PluginConnector]: Adding new model de.uni_freiburg.informatik.ultimate.plugins.generator.traceabstraction CFG 11.07 09:31:14 BoogieIcfgContainer
+[2023-07-11 21:31:14,230 INFO  L132        PluginConnector]: ------------------------ END TraceAbstraction----------------------------
+[2023-07-11 21:31:14,231 INFO  L113        PluginConnector]: ------------------------Witness Printer----------------------------
+[2023-07-11 21:31:14,231 INFO  L271        PluginConnector]: Initializing Witness Printer...
+[2023-07-11 21:31:14,231 INFO  L275        PluginConnector]: Witness Printer initialized
+[2023-07-11 21:31:14,232 INFO  L185        PluginConnector]: Executing the observer RCFGCatcher from plugin Witness Printer for "de.uni_freiburg.informatik.ultimate.plugins.generator.rcfgbuilder CFG 11.07 09:31:14" (3/4) ...
+[2023-07-11 21:31:14,233 INFO  L131         WitnessPrinter]: Generating witness for reachability counterexample
+[2023-07-11 21:31:14,265 INFO  L141         WitnessManager]: Wrote witness to /home/rjf/fast/ultimate/UAutomizer-linux/witness.graphml
+[2023-07-11 21:31:14,265 INFO  L132        PluginConnector]: ------------------------ END Witness Printer----------------------------
+[2023-07-11 21:31:14,266 INFO  L158              Benchmark]: Toolchain (without parser) took 626.93ms. Allocated memory was 60.8MB in the beginning and 88.1MB in the end (delta: 27.3MB). Free memory was 41.8MB in the beginning and 52.2MB in the end (delta: -10.4MB). Peak memory consumption was 15.6MB. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,267 INFO  L158              Benchmark]: CDTParser took 0.13ms. Allocated memory is still 60.8MB. Free memory was 38.4MB in the beginning and 38.4MB in the end (delta: 81.6kB). There was no memory consumed. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,267 INFO  L158              Benchmark]: CACSL2BoogieTranslator took 139.38ms. Allocated memory is still 60.8MB. Free memory was 41.4MB in the beginning and 32.5MB in the end (delta: 8.9MB). Peak memory consumption was 8.4MB. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,267 INFO  L158              Benchmark]: Boogie Procedure Inliner took 23.35ms. Allocated memory is still 60.8MB. Free memory was 32.5MB in the beginning and 31.2MB in the end (delta: 1.2MB). Peak memory consumption was 2.1MB. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,268 INFO  L158              Benchmark]: Boogie Preprocessor took 10.82ms. Allocated memory is still 60.8MB. Free memory was 31.2MB in the beginning and 30.5MB in the end (delta: 772.2kB). There was no memory consumed. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,268 INFO  L158              Benchmark]: RCFGBuilder took 197.27ms. Allocated memory was 60.8MB in the beginning and 88.1MB in the end (delta: 27.3MB). Free memory was 30.3MB in the beginning and 66.1MB in the end (delta: -35.8MB). Peak memory consumption was 9.3MB. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,269 INFO  L158              Benchmark]: TraceAbstraction took 214.84ms. Allocated memory is still 88.1MB. Free memory was 65.2MB in the beginning and 53.5MB in the end (delta: 11.7MB). Peak memory consumption was 12.6MB. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,269 INFO  L158              Benchmark]: Witness Printer took 34.33ms. Allocated memory is still 88.1MB. Free memory was 53.5MB in the beginning and 52.2MB in the end (delta: 1.3MB). There was no memory consumed. Max. memory is 16.1GB.
+[2023-07-11 21:31:14,271 INFO  L339   ainManager$Toolchain]: #######################  End [Toolchain 1] #######################
+ --- Results ---
+ * Results from de.uni_freiburg.informatik.ultimate.core:
+  - StatisticsResult: Toolchain Benchmarks
+    Benchmark results are:
+ * CDTParser took 0.13ms. Allocated memory is still 60.8MB. Free memory was 38.4MB in the beginning and 38.4MB in the end (delta: 81.6kB). There was no memory consumed. Max. memory is 16.1GB.
+ * CACSL2BoogieTranslator took 139.38ms. Allocated memory is still 60.8MB. Free memory was 41.4MB in the beginning and 32.5MB in the end (delta: 8.9MB). Peak memory consumption was 8.4MB. Max. memory is 16.1GB.
+ * Boogie Procedure Inliner took 23.35ms. Allocated memory is still 60.8MB. Free memory was 32.5MB in the beginning and 31.2MB in the end (delta: 1.2MB). Peak memory consumption was 2.1MB. Max. memory is 16.1GB.
+ * Boogie Preprocessor took 10.82ms. Allocated memory is still 60.8MB. Free memory was 31.2MB in the beginning and 30.5MB in the end (delta: 772.2kB). There was no memory consumed. Max. memory is 16.1GB.
+ * RCFGBuilder took 197.27ms. Allocated memory was 60.8MB in the beginning and 88.1MB in the end (delta: 27.3MB). Free memory was 30.3MB in the beginning and 66.1MB in the end (delta: -35.8MB). Peak memory consumption was 9.3MB. Max. memory is 16.1GB.
+ * TraceAbstraction took 214.84ms. Allocated memory is still 88.1MB. Free memory was 65.2MB in the beginning and 53.5MB in the end (delta: 11.7MB). Peak memory consumption was 12.6MB. Max. memory is 16.1GB.
+ * Witness Printer took 34.33ms. Allocated memory is still 88.1MB. Free memory was 53.5MB in the beginning and 52.2MB in the end (delta: 1.3MB). There was no memory consumed. Max. memory is 16.1GB.
+ * Results from de.uni_freiburg.informatik.ultimate.plugins.generator.traceabstraction:
+  - StatisticsResult: ErrorAutomatonStatistics
+    NumberErrorTraces: 0, NumberStatementsAllTraces: 0, NumberRelevantStatements: 0, 0.0s ErrorAutomatonConstructionTimeTotal, 0.0s FaulLocalizationTime, NumberStatementsFirstTrace: -1, TraceLengthAvg: 0, 0.0s ErrorAutomatonConstructionTimeAvg, 0.0s ErrorAutomatonDifferenceTimeAvg, 0.0s ErrorAutomatonDifferenceTimeTotal, NumberOfNoEnhancement: 0, NumberOfFiniteEnhancement: 0, NumberOfInfiniteEnhancement: 0
+  - CounterExampleResult [Line: 2]: a call to __VERIFIER_error is reachable
+    a call to __VERIFIER_error is reachable
+We found a FailurePath: 
+[L2]        __VERIFIER_error()
+
+  - StatisticsResult: Ultimate Automizer benchmark data
+    CFG has 1 procedures, 7 locations, 1 error locations. Started 1 CEGAR loops. OverallTime: 0.1s, OverallIterations: 1, TraceHistogramMax: 1, PathProgramHistogramMax: 1, EmptinessCheckTime: 0.0s, AutomataDifference: 0.0s, DeadEndRemovalTime: 0.0s, HoareAnnotationTime: 0.0s, InitialAbstractionConstructionTime: 0.0s, HoareTripleCheckerStatistics: , PredicateUnifierStatistics: No data available, 0.0s BasicInterpolantAutomatonTime, BiggestAbstraction: size=7occurred in iteration=0, InterpolantAutomatonStates: 0, traceCheckStatistics: No data available, InterpolantConsolidationStatistics: No data available, PathInvariantsStatistics: No data available, 0/0 InterpolantCoveringCapability, TotalInterpolationStatistics: No data available, 0.0s DumpTime, AutomataMinimizationStatistics: No data available, HoareAnnotationStatistics: No data available, RefinementEngineStatistics: TRACE_CHECK: 0.0s SsaConstructionTime, 0.0s SatisfiabilityAnalysisTime, 0.0s InterpolantComputationTime, 3 NumberOfCodeBlocks, 3 NumberOfCodeBlocksAsserted, 1 NumberOfCheckSat, 0 ConstructedInterpolants, 0 QuantifiedInterpolants, 0 SizeOfPredicates, 0 NumberOfNonLiveVariables, 0 ConjunctsInSsa, 0 ConjunctsInUnsatCore, 0 InterpolantComputations, 0 PerfectInterpolantSequences, 0/0 InterpolantCoveringCapability, INVARIANT_SYNTHESIS: No data available, INTERPOLANT_CONSOLIDATION: No data available, ABSTRACT_INTERPRETATION: No data available, PDR: No data available, ACCELERATED_INTERPOLATION: No data available, SIFA: No data available, ReuseStatistics: No data available
+RESULT: Ultimate proved your program to be incorrect!
+[2023-07-11 21:31:14,290 INFO  L540       MonitoredProcess]: [MP /home/rjf/fast/ultimate/UAutomizer-linux/z3 SMTLIB2_COMPLIANT=true -memory:2024 -smt2 -in -t:2000 (1)] Forceful destruction successful, exit code 0
+Received shutdown request...

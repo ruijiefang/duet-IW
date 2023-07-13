@@ -1,0 +1,30 @@
+digraph G {
+  "4";
+  "7";
+  "9";
+  "13";
+  "23";
+  "26";
+  "27";
+  "28";
+  "29";
+  "30";
+  "31";
+  
+  
+  "4" -> "29" [label="{return := 0\n return@pos := type_err:4:5:14\n return@width := type_err:3:6:15\n when v:1 < 10}",
+               ];
+  "4" -> "31" [label="{when !(v:1 < 10)}", ];
+  "7" -> "27" [label="{param0 := 3\n param0@pos := type_err:11:12\n param0@width := type_err:10:13}",
+               ];
+  "9" -> "30" [label="{}", ];
+  "13" -> "9" [label="{i := (i:33 + x:34)\n when i:33 < 10}", ];
+  "13" -> "28" [label="{return := i:33\n return@pos := type_err:36:37:39\n return@width := type_err:35:38:40\n when 10 <= i:33}",
+                ];
+  "23" -> "9" [label="{i := 0\n x := param0:17}", ];
+  "26" -> "4" [label="{v := return:9}", ];
+  "27" -> "26" [label="call(23, 28)", ];
+  "30" -> "13" [label="{}", ];
+  
+  }
+
