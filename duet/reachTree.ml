@@ -147,7 +147,7 @@ module Make
     mutable vtxcnt : int;
     mutable cfg_vertex : int IntMap.t;
     mutable parents : int IntMap.t;
-    mutable labels : (Ctx.t Syntax.formula) IntMap.t;
+    mutable labels : (C.t Syntax.formula) IntMap.t;
     mutable free_ids : int DQ.t;
     mutable covers : int IntMap.t;       
     mutable children : int list IntMap.t;
@@ -156,7 +156,7 @@ module Make
     mutable reverse_covers : (ISet.t) IntMap.t;
     (* precedent_nodes[v] stores all tree nodes mapping to CFG vertex v. Used in mc_close. *)
     mutable precedent_nodes : (ISet.t) IntMap.t;
-    mutable models : (Ctx.t Interpretation.interpretation) IntMap.t;
+    mutable models : (C.t Interpretation.interpretation) IntMap.t;
     mutable edge_weight_substitutes : K.t ProcMap.t;
     interproc : Summarizer.t ref
   }

@@ -714,7 +714,7 @@ let mk_false () = Syntax.mk_false Ctx.context
 let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module MonotoneDom) else (module TransitionDom))
 
 let log_formulas prefix formulas = 
-  List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr_unnumbered srk) f) formulas 
+  List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr srk) f) formulas 
 
 let log_weights prefix weights = 
   List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i K.pp f) weights
@@ -753,10 +753,8 @@ module Summarizer =
         ref { graph = graph; src = src; query = q; }
 
       let proc_summary (ctx: t ref) ((u, v) : int * int) = 
-        let project tr = (* existentially quantify over all locals, leaving out only globals *)
-          K.exists (fun v -> V.is_global v) tr in
         let q = !ctx.query in 
-          TS.get_summary q (u, v) |> project
+          TS.get_summary q (u, v) 
       
       let set_proc_summary (ctx: t ref) ((u, v): int * int) (w: K.t) = 
         let q = !ctx.query in 
@@ -1603,6 +1601,27 @@ module McMillanChecker = struct
     | None -> failwith "refinement_phase: encountered an empty worklist for refinement\n" (* cannot happen *)
 
 
+  (** Create prelude to a procedure, which is a transition formula *)
+  let prelude (precondition: Ctx.t Syntax.formula) (transform: Ctx.t Syntax.formula) = 
+    let suffix = "_out__" in 
+    let mangle name = name ^ suffix in 
+    let replaced = Hashtbl.create 998 in 
+    let replace_vocab : Syntax.Symbol.Set.t = Syntax.symbols precondition in 
+    let replacer s = 
+      match Hashtbl.find_opt replaced s, Syntax.Symbol.Set.mem s replace_vocab with 
+      | None, true -> 
+          let name = Syntax.show_symbol srk s |> mangle in
+          let typ = Syntax.typ_symbol srk s in
+            Syntax.mk_const srk (Syntax.mk_symbol srk ~name typ) 
+      | Some s', _ -> s'
+      | None, false -> Syntax.mk_const srk s in 
+    let precondition = Syntax.substitute_const srk replacer precondition in 
+    let transform = Syntax.substitute_const srk replacer transform in 
+      (Syntax.symbols precondition 
+      |> Syntax.Symbol.Set.elements
+      |> List.map (fun x -> Ctx.mk_eq (Syntax.mk_const srk x) (nondet_const "havoc" (`TyInt))) 
+      |> Syntax.mk_and srk), transform
+
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
   let rec handle_path_to_error (ctx: intra_context ref) (recurse_level: int) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
     let art = !ctx.art in 
@@ -1635,16 +1654,19 @@ module McMillanChecker = struct
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
             in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  
             in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix recurse_level with 
-              | `Sat (e1, e2) -> 
-                log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e2];
+              | `Sat (e1, e12, _) -> 
+                log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e12];
+                let pre, transform' = prelude e1 e12 in 
+                log_formulas "--- handle_path_to_error : prelude " [ pre ];
+                log_formulas "--- handle_path_to_error prelude transform: " [transform'];
                 (* instantiate interprocedural reachability query *)
-                let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph e1 e2 call_entry call_exit in 
+                let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph (Syntax.mk_and srk [e1; pre]) transform' call_entry call_exit in 
                 begin match concolic_mcmillan_execute ctx' (recurse_level + 1) with 
                   | Safe -> 
                     logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute failed. refining\n";
                     (* concretization of error trace failed. do refine *)
                       (* declare failure *)
-                      refine_summary_with_extrapolants e1 e2;
+                      refine_summary_with_extrapolants e1 e12;
                       let summary' = ReachTree.edge_weight art w z in 
                         log_weights "  --> new summary: " [summary'];
                       (* return the dst vertex of the call-edge (w,z) as frontier node for refinement. *)
