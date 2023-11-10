@@ -1,34 +1,31 @@
-open BatPervasives
+(** reachability tree module *)
+open Core
 open Srk
 open CfgIr
 open BatPervasives
-open Syntax
-open Log 
-include Log.Make(struct let name = "reachTree" end)
 
 module RG = Interproc.RG
 module WG = Srk.WeightedGraph
+module TLLRF = TerminationLLRF
+module TDTA = TerminationDTA
 module G = RG.G
+module Ctx = Syntax.MakeSimplifyingContext ()
 module Int = SrkUtil.Int
 module TF = TransitionFormula
 
-(** Useful definitions for SMT-based analyses: McMillan's assertion-checking algorithm + concolic execution *)
 
-module ProcName = struct 
-  type t = int * int 
+let srk = Ctx.context
 
-  let make u v = (u, v)
+include Log.Make(struct let name = "reachTree" end)
 
-  let string_of (p: t) = 
-    let u, v = p in Printf.sprintf "%d:%d" u v 
-  
-  let of_string (s: string) = 
-    match String.split_on_char ':' s with 
-    | [ us ; vs ] -> (make (int_of_string us) (int_of_string vs))
-    | _ -> failwith @@ Printf.sprintf "illegal procedure identifier %s" s
 
+module type ProcName = sig 
+  type t 
+  val make : int * int -> t 
+  val string_of : t -> string 
+  val of_string : string -> t 
+  val compare : t -> t -> int 
   (* lexicographic comparison using Stdlib.compare *)
-  let compare p1 p2 = compare p1 p2 
 end
 
 
@@ -38,108 +35,60 @@ module StringMap = BatMap.Make(String)
 module ISet = BatSet.Make(Int)
 module DQ = BatDeque
 module ARR = Batteries.DynArray 
-module Int = SrkUtil.Int
+type cfg_t = K.t label WG.t
+type idq_t = int BatDeque.t 
+type state_formula = Ctx.t Syntax.formula 
+exception Mexception of string 
+let mk_true () = Syntax.mk_true Ctx.context
+let mk_false () = Syntax.mk_false Ctx.context 
+let mk_query ts entry = TS.mk_query ts entry (if !monotone then (module MonotoneDom) else (module TransitionDom))
+
+let log_formulas prefix formulas = 
+  List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr srk) f) formulas 
+
+let log_weights prefix weights = 
+  List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i K.pp f) weights
+
+let log_model prefix model = 
+  logf ~level:`always "[model] %s: %a\n" prefix Interpretation.pp model
 
 
+module type TSG = sig
+  type t 
+  module V : sig
+    type label 
+    val label : label -> int 
+    val create : int -> label
+  end
 
-(** reachability tree module *)
-module Make 
-  (C : sig
-    type t
-    val context : t context
-  end)
-  (Var : sig
-    type t
-    val pp : Format.formatter -> t -> unit
-    val typ : t -> [ `TyInt | `TyReal ]
-    val compare : t -> t -> int
-    val symbol_of : t -> symbol
-    val of_symbol : symbol -> t option
-    val is_global : t -> bool
-    val hash : t -> int
-    val equal : t -> t -> bool
-  end)
-  (K : sig
-    type t
-    type var = Var.t
-    val pp : Format.formatter -> t -> unit
-    val guard : t -> C.t formula
-    val transform : t -> (var * C.t arith_term) BatEnum.t
-    val mem_transform : var -> t -> bool
-    val get_transform : var -> t -> C.t arith_term
-    val assume : C.t formula -> t
-    val mul : t -> t -> t
-    val add : t -> t -> t
-    val zero : t
-    val one : t
-    val star : t -> t
-    val exists : (var -> bool) -> t -> t
-  end)
-  (TS : sig 
+  module E : sig 
+    type label 
     type vertex 
-    type transition = K.t
     type t 
-    type query
+    val src : t -> vertex
+    val dst : t -> vertex 
+    val label : t -> label 
+    val create : vertex * label * vertex -> t
 
-    module VarSet : BatSet.S with type elt = Var.t
+  end
 
-    val empty : t
-    val mk_query : ?delay:int ->
-                 t ->
-                 vertex ->
-                 (module WeightedGraph.AbstractWeight
-                         with type weight = transition) ->
-                 query
-    val path_weight : query -> vertex -> transition
-    val call_weight : query -> (vertex * vertex) -> transition
-    val set_summary : query -> (vertex * vertex) -> transition -> unit 
-    val get_summary : query -> (vertex * vertex) -> transition
-    val inter_path_summary : query -> vertex -> vertex -> transition 
-    val intra_path_summary : query -> vertex -> vertex -> transition 
-    val omega_path_weight : query -> (transition,'b) Pathexpr.omega_algebra -> 'b
-    val remove_temporaries : t -> t
-    val forward_invariants_ivl : t -> vertex -> (vertex * C.t formula) list
-    val forward_invariants_ivl_pa : C.t formula list ->
-                                  t ->
-                                  vertex ->
-                                  (vertex * C.t formula) list
-    val simplify : (vertex -> bool) -> t -> t
-    val loop_headers_live : t -> (int * VarSet.t) list  
-  end)
-  (CRA: sig     
-    val mk_query : TS.t -> TS.vertex -> TS.query
-  end)
-  (Summarizer: sig 
-    type t 
-    type state_formula = C.t Syntax.formula 
-    val init : TS.t -> int -> t ref 
-    val proc_summary : t ref -> int * int -> K.t
-    val set_proc_summary : t ref -> int * int -> K.t -> unit
-    val refine : t ref -> int * int -> state_formula -> state_formula  -> unit
-    val path_weight_intra : t ref -> TS.vertex -> TS.vertex -> K.t    
-    val path_weight_inter : t ref -> TS.vertex -> TS.vertex -> K.t
-  end)
-= struct
-  type state_formula = C.t Syntax.formula 
+  val iter_edges  
+  val iter_vertex 
+  val iter_succ 
+  val fold_pred_e
+  
+  (*let iter_edges_e = WG.iter_edges
+  let iter_vertex = WG.iter_vertex
+  let iter_succ f tg v =
+    WG.U.iter_succ f (WG.forget_weights tg) v
+  let fold_pred_e = WG.fold_pred_e*)
+end
 
 
-  type idq_t = int BatDeque.t 
-  exception Mexception of string 
-  let mk_true () = Syntax.mk_true C.context
-  let mk_false () = Syntax.mk_false C.context 
-  let srk = C.context 
-
-  let log_formulas prefix formulas = 
-    List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr_unnumbered srk) f) formulas 
-
-  let log_weights prefix weights = 
-    List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i K.pp f) weights
-
-  let log_model prefix model = 
-    logf ~level:`always "[model] %s: %a\n" prefix Interpretation.pp model
-
+module ReachTree = struct 
+  (  ) 
   type t = {
-    graph : TS.t;
+    graph : cfg_t;
     entry : int;
     err_loc: int;
     pre_state : state_formula;
@@ -147,7 +96,7 @@ module Make
     mutable vtxcnt : int;
     mutable cfg_vertex : int IntMap.t;
     mutable parents : int IntMap.t;
-    mutable labels : (C.t Syntax.formula) IntMap.t;
+    mutable labels : (Ctx.t Syntax.formula) IntMap.t;
     mutable free_ids : int DQ.t;
     mutable covers : int IntMap.t;       
     mutable children : int list IntMap.t;
@@ -156,12 +105,12 @@ module Make
     mutable reverse_covers : (ISet.t) IntMap.t;
     (* precedent_nodes[v] stores all tree nodes mapping to CFG vertex v. Used in mc_close. *)
     mutable precedent_nodes : (ISet.t) IntMap.t;
-    mutable models : (C.t Interpretation.interpretation) IntMap.t;
+    mutable models : (Ctx.t Interpretation.interpretation) IntMap.t;
     mutable edge_weight_substitutes : K.t ProcMap.t;
     interproc : Summarizer.t ref
   }
 
-  let make (g: TS.t) (entry: int) (err_loc: int) (pre: state_formula) (post: state_formula) interproc = 
+  let make (g: cfg_t) (entry: int) (err_loc: int) (pre: state_formula) (post: state_formula) interproc = 
     ref {
       graph = g;
       entry = entry;
@@ -363,14 +312,14 @@ module Make
       in List.rev (visit art u)  
 
   let get_id (art : t ref) = 
-    match DQ.front !art.free_ids with 
+    (*match DQ.front !art.free_ids with 
     | Some (new_id, free_ids') -> 
       begin (* there are some recycled ids; make use of them. *)
         !art.free_ids <- free_ids';
         new_id
       end
-    | None -> (* no more recycled ids; generate a new one. *)
-      begin 
+    | None -> (* no more recycled ids; generate a new one. *)*)
+      begin (**always generate a new ID*)
         let new_id = !art.vtxcnt in 
           !art.vtxcnt <- !art.vtxcnt + 1; new_id
       end

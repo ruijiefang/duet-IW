@@ -1262,7 +1262,7 @@ module McMillanChecker = struct
     List.iter2 (fun u interpolant -> 
       let u_label = ReachTree.label art u in 
       let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
-      log_formulas (Printf.sprintf "[relabelling %d] to label: " u) [ u_label' ];
+      log_formulas (Printf.sprintf "[relabelling %d CFG vertex %d] to label: " u (ReachTree.maps_to art u)) [ u_label' ];
       ReachTree.set_label art u u_label';
       (* remove ( * -> u) in covering relation; we just refined label(u) so implications of form label(y)->label(u)
          might not hold anymore. *)
@@ -1299,11 +1299,17 @@ module McMillanChecker = struct
       end
     ) path interpolants 
 
+let bnd = ref 0
+
 
   (* refine path to (tree) node v. 
      Returns `Failure trans with trans being the path-to-error if unable to refine.
      Returns `Success if refine is able to refine. *)
   let mc_refine (ctx: intra_context ref) (recurse_level: int) (v: int) = 
+    let _ =
+      bnd := !bnd + 1;
+      if !bnd > 100 then failwith "mc_refine: bound reached" 
+    in
     let handle_failure art v = 
       logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
       let path_condition = ReachTree.path_condition art v 
@@ -1314,7 +1320,8 @@ module McMillanChecker = struct
       match !(get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
         begin 
-        match K.interpolate ~solver:(get_solver ctx) ~qflia_solver:(get_qflia_solver ctx) ((K.assume !art.pre_state) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
+        match K.interpolate ~solver:(get_solver ctx) ~qflia_solver:(get_qflia_solver ctx)
+         ((K.assume !art.pre_state) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
@@ -1603,7 +1610,8 @@ module McMillanChecker = struct
 
   (** Create prelude to a procedure, which is a transition formula *)
   let prelude (precondition: Ctx.t Syntax.formula) (transform: Ctx.t Syntax.formula) = 
-    let suffix = "_out__" in 
+    failwith ""
+ (*   let suffix = "_out__" in 
     let mangle name = name ^ suffix in 
     let replaced = Hashtbl.create 998 in 
     let replace_vocab : Syntax.Symbol.Set.t = Syntax.symbols precondition in 
@@ -1621,7 +1629,7 @@ module McMillanChecker = struct
       |> Syntax.Symbol.Set.elements
       |> List.map (fun x -> Ctx.mk_eq (Syntax.mk_const srk x) (nondet_const "havoc" (`TyInt))) 
       |> Syntax.mk_and srk), transform
-
+*)
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
   let rec handle_path_to_error (ctx: intra_context ref) (recurse_level: int) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
     let art = !ctx.art in 
@@ -1654,7 +1662,7 @@ module McMillanChecker = struct
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
             in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  
             in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix recurse_level with 
-              | `Sat (e1, e12, _) -> 
+              | `Sat (e1, e12) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e12];
                 let pre, transform' = prelude e1 e12 in 
                 log_formulas "--- handle_path_to_error : prelude " [ pre ];
