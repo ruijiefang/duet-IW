@@ -1,10 +1,11 @@
-module Ctx : Srk.Syntax.Context
+module TransitionSystem = Srk.TransitionSystem
 type equery = OverApprox | UnderApprox
 module ART :
   functor
+    (Ctx: Srk.Syntax.Context)
     (K : sig
            type t
-           type var = Core.var
+           type var 
            val pp : Format.formatter -> t -> unit
            val guard : t -> Ctx.t Srk.Syntax.formula
            val transform : t -> (var * Ctx.t Srk.Syntax.arith_term) BatEnum.t
@@ -45,7 +46,7 @@ module ART :
               t -> vertex -> (vertex * Ctx.t Srk.Syntax.formula) list
             val simplify : (vertex -> bool) -> t -> t
             val iter_succ_e :
-              (vertex -> transition -> unit) -> t -> vertex -> unit
+              (vertex -> transition TransitionSystem.label -> vertex -> unit) -> t -> vertex -> unit
             val edge_weight :
               t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
           end)
@@ -62,24 +63,20 @@ module ART :
           end)
     (Summarizer : sig
                     type t
-                    type vertex = TS.vertex
                     val init : TS.t -> TS.vertex -> t
                     val proc_summary : t ref -> PN.t -> K.t
                     val under_proc_summary : t ref -> PN.t -> K.t
-                    val set_proc_summary : t ref -> PN.t -> unit
-                    val set_under_proc_summary : t ref -> PN.t -> unit
+                    val set_proc_summary : t ref -> PN.t -> K.t -> unit
+                    val set_under_proc_summary : t ref -> PN.t -> K.t -> unit
                     val refine :
-                      t ref ->
+                      t ref -> 
                       PN.t ->
                       Ctx.t Srk.Syntax.formula ->
                       Ctx.t Srk.Syntax.formula -> unit
                     val refine_under :
-                      t ref ->
-                      PN.t ->
-                      Ctx.t Srk.Syntax.formula ->
-                      Ctx.t Srk.Syntax.formula -> unit
-                    val path_weight_intra : t ref -> vertex -> vertex -> K.t
-                    val path_weight_inter : t ref -> vertex -> vertex -> K.t
+                      t ref -> PN.t -> K.t -> unit
+                    val path_weight_intra : t ref -> TS.vertex -> TS.vertex -> K.t
+                    val path_weight_inter : t ref -> TS.vertex -> TS.vertex -> K.t
                   end)
     ->
     sig

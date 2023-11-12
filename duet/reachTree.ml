@@ -18,6 +18,7 @@ include Log.Make(struct let name = "reachTree" end)
 type equery = OverApprox | UnderApprox
 
 module ART
+  (Ctx: Srk.Syntax.Context)
   (K : sig
     type t
     type var = Var.t
@@ -36,31 +37,32 @@ module ART
     val contains_havoc : t -> bool
     val get_post_model :  ?solver: (Ctx.t Smt.Solver.t) -> Ctx.t Interpretation.interpretation -> t -> (Ctx.t Interpretation.interpretation) option 
   end)
-  (TS : sig 
-    type vertex 
-    type transition = K.t 
-    type t = K.t TransitionSystem.label WG.t 
-    type query 
-    module VarSet : BatSet.S with type elt = Var.t
-    val empty : t
-    val path_weight : query -> vertex -> transition
-    val call_weight : query -> (vertex * vertex) -> transition
-    val set_summary : query -> (vertex * vertex) -> transition -> unit 
-    val get_summary : query -> (vertex * vertex) -> transition
-    val inter_path_summary : query -> vertex -> vertex -> transition 
-    val intra_path_summary : query -> vertex -> vertex -> transition 
-    val omega_path_weight : query -> (transition,'b) Pathexpr.omega_algebra -> 'b
-    val remove_temporaries : t -> t
-    val forward_invariants_ivl : t -> vertex -> (vertex * Ctx.t formula) list
-    val forward_invariants_ivl_pa : Ctx.t formula list ->
-                                    t ->
-                                    vertex ->
-                                    (vertex * Ctx.t formula) list
-    val simplify : (vertex -> bool) -> t -> t
-
-    val iter_succ_e : (vertex -> transition -> unit) -> t -> vertex -> unit 
-    val edge_weight : t -> vertex -> vertex -> K.t TransitionSystem.label 
-  end)
+  (TS : sig
+          type vertex
+          type transition = K.t
+          type t 
+          type query
+          val empty : t
+          val path_weight : query -> vertex -> transition
+          val call_weight : query -> vertex * vertex -> transition
+          val set_summary : query -> vertex * vertex -> transition -> unit
+          val get_summary : query -> vertex * vertex -> transition
+          val inter_path_summary : query -> vertex -> vertex -> transition
+          val intra_path_summary : query -> vertex -> vertex -> transition
+          val omega_path_weight :
+            query -> (transition, 'b) Srk.Pathexpr.omega_algebra -> 'b
+          val remove_temporaries : t -> t
+          val forward_invariants_ivl :
+            t -> vertex -> (vertex * Ctx.t Srk.Syntax.formula) list
+          val forward_invariants_ivl_pa :
+            Ctx.t Srk.Syntax.formula list ->
+            t -> vertex -> (vertex * Ctx.t Srk.Syntax.formula) list
+          val simplify : (vertex -> bool) -> t -> t
+          val iter_succ_e :
+            (vertex -> transition TransitionSystem.label -> vertex -> unit) -> t -> vertex -> unit
+          val edge_weight :
+            t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
+        end)
   (PN : sig 
     type t 
     val make : TS.vertex * TS.vertex -> t 
@@ -74,18 +76,22 @@ module ART
     val to_vertex : int -> TS.vertex
     val of_vertex : TS.vertex -> int 
   end)
-  (Summarizer : sig 
+  (Summarizer : sig
     type t
-    type vertex = TS.vertex 
-    val init : TS.t -> TS.vertex -> t 
-    val proc_summary : (t ref) -> PN.t -> K.t
-    val under_proc_summary : (t ref) -> PN.t -> K.t 
-    val set_proc_summary : (t ref) -> PN.t -> unit 
-    val set_under_proc_summary : (t ref) -> PN.t -> unit 
-    val refine : (t ref) -> PN.t -> Ctx.t formula -> Ctx.t formula -> unit
-    val refine_under : (t ref) -> PN.t -> Ctx.t formula -> Ctx.t formula -> unit  
-    val path_weight_intra : (t ref) -> vertex -> vertex -> K.t  
-    val path_weight_inter : (t ref) -> vertex -> vertex -> K.t 
+    val init : TS.t -> TS.vertex -> t
+    val proc_summary : t ref -> PN.t -> K.t
+    val under_proc_summary : t ref -> PN.t -> K.t
+    val set_proc_summary : t ref -> PN.t -> K.t -> unit
+    val set_under_proc_summary : t ref -> PN.t -> K.t -> unit
+    val refine :
+      t ref -> 
+      PN.t ->
+      Ctx.t Srk.Syntax.formula ->
+      Ctx.t Srk.Syntax.formula -> unit
+    val refine_under :
+      t ref -> PN.t -> K.t -> unit
+    val path_weight_intra : t ref -> TS.vertex -> TS.vertex -> K.t
+    val path_weight_inter : t ref -> TS.vertex -> TS.vertex -> K.t
   end)
   = struct  
   (* type for a tree node *)
@@ -297,7 +303,7 @@ module ART
     (* vg is v's correpsonding cfg location in tree `art` *)
     let vg = maps_to art v in 
     let new_tree_nodes = ref [] in 
-    WG.iter_succ_e (fun (_, _, y) ->  
+    TS.iter_succ_e (fun (_, _, y) ->  
         let u =  add_tree_vertex art (VN.to_vertex y) v in 
           new_tree_nodes := u :: !new_tree_nodes  
         ) !art.graph (VN.of_vertex vg);
