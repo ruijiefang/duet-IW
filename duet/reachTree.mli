@@ -1,10 +1,4 @@
-module RG = Dune__exe.Interproc.RG
-module WG = Srk.WeightedGraph
-module G = RG.G
 module Ctx : Srk.Syntax.Context
-module Int = Srk.SrkUtil.Int
-module TF = Srk.TransitionFormula
-val srk : Ctx.t Srk.Syntax.context
 type equery = OverApprox | UnderApprox
 module ART :
   functor
@@ -32,15 +26,9 @@ module ART :
     (TS : sig
             type vertex
             type transition = K.t
-            type t = transition Srk.TransitionSystem.label WG.weighted_graph
+            type t 
             type query
             val empty : t
-            val mk_query :
-              ?delay:int ->
-              t ->
-              vertex ->
-              (module WG.AbstractWeight with type weight = transition) ->
-              query
             val path_weight : query -> vertex -> transition
             val call_weight : query -> vertex * vertex -> transition
             val set_summary : query -> vertex * vertex -> transition -> unit

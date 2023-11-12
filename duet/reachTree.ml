@@ -43,12 +43,6 @@ module ART
     type query 
     module VarSet : BatSet.S with type elt = Var.t
     val empty : t
-    val mk_query : ?delay:int ->
-                  t ->
-                  vertex ->
-                  (module WeightedGraph.AbstractWeight
-                          with type weight = transition) ->
-                  query
     val path_weight : query -> vertex -> transition
     val call_weight : query -> (vertex * vertex) -> transition
     val set_summary : query -> (vertex * vertex) -> transition -> unit 
