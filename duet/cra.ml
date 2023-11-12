@@ -705,7 +705,7 @@ module StringMap = BatMap.Make(String)
 module ISet = BatSet.Make(Int)
 module DQ = BatDeque
 module ARR = Batteries.DynArray 
-type cfg_t = K.t label WG.t
+type cfg_t = TSG.t
 type idq_t = int BatDeque.t 
 type state_formula = Ctx.t Syntax.formula 
 exception Mexception of string 
@@ -1164,7 +1164,7 @@ module McMillanChecker = struct
     }
 
   (** some helper methods *)
-  let worklist_push  (i : int) (q : idq_t) = DQ.cons i q 
+  let worklist_push  (i : int) (q : idq_t) = DQ.snoc q i 
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
   let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) 
@@ -1821,7 +1821,7 @@ module Executor = struct
   (** some miscellaneous helper operators *)
 
   (* shove an element into front of an int deque *)
-  let (%>>) (i : int)  (q : idq_t) = DQ.cons i q
+  let (%>>) (i : int)  (q : idq_t) = DQ.snoc q i 
 
   (* get parent of a node in mtree *)
   let (%^) (t : mtree) (i : int) = ARR.get t.parents i 
