@@ -133,6 +133,9 @@ module ART :
       val expand_concolic :
         int -> t ref -> unit -> int -> node list * node list
       val expand_pseudo : t ref -> int -> [> `Error | `Refine ]
+      val cover : t ref -> node -> node -> bool
+      val close : t ref -> node -> (bool * node list)
+      val is_covered : t ref -> node -> bool 
       val refine: t ref -> node list -> Ctx.t Syntax.formula list -> node list  
       val verify_well_labelled_tree : t ref -> unit
       val check_covering_welformedness : t ref -> unit 

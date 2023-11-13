@@ -373,14 +373,12 @@ module ART
 
   (* Adds (v -> w) to covering relation if possible and returns true, false otherwise. *)
   (* note that (v, w) in covering if stateLabel(v) IMPLIES stateLabel(w) *)
-    let mc_cover (ctx: intra_context ref) v w =
-      let art = !ctx.art in  
-      let v_label = ReachTree.label art v in 
-      let w_label = ReachTree.label art w in
-      if (ReachTree.maps_to art v) <> (ReachTree.maps_to art w) then 
-        failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w);
-      reset_solver ctx;
-      match Smt.entails Ctx.context ~solver:(get_solver ctx) v_label w_label with 
+    let cover (art: t ref) v w =
+      let v_label = label art v in 
+      let w_label = label art w in
+      if (maps_to art v) <> (maps_to art w) then 
+        failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (maps_to art v |> VN.of_vertex) w (maps_to art w |> VN.of_vertex);
+      match Smt.entails Ctx.context v_label w_label with 
       | `Yes -> 
           logf ~level:`always "   cover success (v=%d, w=%d). \n" v w;
           log_formulas "        v label " [v_label];
@@ -390,22 +388,23 @@ module ART
           !art.reverse_covers <- IntMap.add w (ISet.add v reverse_covers_w) !art.reverse_covers;
           true
       | `No | `Unknown -> false    
-  
-    let mc_close (ctx: intra_context ref) (v : int) = 
-      (* Visits precedents of v in tree and attempts to derive covering relations[]. *)
-      let art = !ctx.art in 
-      (* A _precedent_ of v in tree is any vertex u<v such that u, v map to the same CFG locations. *)
-        let precedents = ReachTree.get_precedent_nodes art v in
-      (* Printf.printf "precedents of node %d : " v; List.iter (fun x -> Printf.printf " %d " x) precedents ; Printf.printf "\n";*)
+
+
+    (** [mc_close art v] visits precedents of v in tree and attempts to derive covering relations from v. *)
+    (*     it returns (`true`, wl) iff covering succeeds at v and wl is a worklist of nodes to be refined. *)
+    let mc_close (art: t ref) (v : node) =
+      (* A _precedent_ of v in tree is any vertex u<v such that u, v map to the same CFG locations, where < is integer less than. *)
+        let precedents = get_precedent_nodes art v in
       (* Fold from first node in preorder to the right. If covering succeeds, do not continue covering. *) 
-      let result = List.fold_right (fun w status ->
-        if status || w == v || w > v (* preorder constraint *) then status
+      let result = List.fold_right (fun w (status, wl) ->
+        if status || w == v || w > v (* preorder constraint *) then (status, wl)
         else begin 
           (* try to "cover v" by deciding if v --> w. If so, no need to further explore v. *)
-          let cover_success = mc_cover ctx v w in 
+          let cover_success = cover art v w in 
+          let wl' = ref wl in 
           if cover_success then begin
             (* remove, for each descendant of v, nodes that are sinks of covers. *)
-            let v_descendants = ReachTree.descendants art v in 
+            let v_descendants = descendants art v in 
               List.iter (fun y -> 
                 (* Find relations (x,y) in covering relation where y is descendant of v. *)
                 if y <> v then 
@@ -420,22 +419,21 @@ module ART
                   (* Step 3: add xs to worklist. *)
                   ISet.iter (fun x ->
                     (* add x's subtree leaves back to the worklist. *)
-                    let x_leaves = ReachTree.leaves art x in 
+                    let x_leaves = leaves art x in 
                       List.iter (fun x_leaf -> 
                         logf ~level:`always "         close: adding %d back to worklist \n" x_leaf;
-                        !ctx.worklist <- worklist_push x_leaf !ctx.worklist) x_leaves;
+                        wl' := x_leaf :: !wl') x_leaves;
                     !art.models <- IntMap.remove x !art.models) xs
                 end) v_descendants
-          end; cover_success
-        end) precedents false in result 
+          end; (cover_success, !wl')
+        end) precedents (false, []) in result 
   
     (* Checks if tree node v is covered. It is covered if its ancestors or it is in covering relation. *)
-    let rec mc_is_covered (ctx: intra_context ref) v = 
-      let art = !ctx.art in 
+    let rec is_covered (art: t ref) v =
       match IntMap.find_opt v !art.covers with 
       | None -> 
         if v == 0 then false
-        else mc_is_covered ctx (ReachTree.parent art v)
+        else is_covered art (parent art v)
       | Some u -> 
         logf ~level:`always "  | covered by %d\n" u;
         true 
