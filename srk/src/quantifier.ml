@@ -1839,7 +1839,8 @@ let _orient project eqs =
   go eqs []
 
 
-let mbp ?(dnf=false) srk ?(solver'=Smt.mk_solver ~theory:"QF_LIA" srk) exists phi =
+let mbp ?(dnf=false) srk exists phi =
+  let solver = Smt.mk_solver ~theory:"QF_LIA" srk in
   let phi =
     eliminate_ite srk phi
     |> rewrite srk
@@ -1855,7 +1856,6 @@ let mbp ?(dnf=false) srk ?(solver'=Smt.mk_solver ~theory:"QF_LIA" srk) exists ph
       project
       IntSet.empty
   in
-  let solver = solver' in
   let disjuncts = ref [] in
   let is_true phi =
     match Formula.destruct srk phi with

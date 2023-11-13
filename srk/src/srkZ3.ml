@@ -7,6 +7,8 @@ type z3_context = Z3.context
 type z3_expr = Z3.Expr.expr
 type z3_func_decl = Z3.FuncDecl.func_decl
 
+let default_context = Z3.mk_context []
+
 type 'a open_expr = [
   | `Real of QQ.t
   | `App of z3_func_decl * 'a list
@@ -368,7 +370,7 @@ type 'a solver =
     formula_of : z3_expr -> 'a formula;
     of_formula : 'a formula -> z3_expr }
 
-let mk_solver ?(context=Z3.mk_context []) ?(theory="") srk =
+let mk_solver ?(context=default_context) ?(theory="") srk =
   let s = 
     if theory = "" then
       Z3.Solver.mk_simple_solver context
@@ -661,7 +663,7 @@ module CHC = struct
       mutable head_relations : Symbol.Set.t;
       fp : Z3.Fixedpoint.fixedpoint }
 
-  let mk_solver ?(context=Z3.mk_context []) srk =
+  let mk_solver ?(context=default_context) srk =
     let fp = Z3.Fixedpoint.mk_fixedpoint context in
     let error = mk_symbol srk ~name:"error" (`TyFun ([], `TyBool)) in
     let error_decl = decl_of_symbol context srk error in

@@ -348,8 +348,7 @@ struct
   let transform tr = M.enum tr.transform
   let guard tr = tr.guard
 
-  let get_post_model ?(solver=Smt.mk_solver C.context) m f = 
-    let _ = Smt.Solver.reset solver in 
+  let get_post_model m f = 
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
       if Var.of_symbol sym == None then Syntax.mk_const C.context sym 
@@ -358,7 +357,7 @@ struct
     let f_guard' = Syntax.substitute_const C.context replacer f_guard in 
     let f_transform = transform f in 
     let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in 
-    match Smt.get_model ~symbols:(symbols) C.context ~solver:(solver)  f_guard' with 
+    match Smt.get_model ~symbols:(symbols) C.context f_guard' with 
     | `Sat skolem_model -> 
       let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
         let sub_expr = Syntax.substitute_const C.context replacer rhs in 
@@ -388,9 +387,8 @@ struct
       guard = substitute_const srk fresh_skolem tr.guard }
 
 
-  let interpolate_unsat_core solver' trs post guards core = 
-    let refresh s = Smt.Solver.reset s; s 
-    in let core_symbols =
+  let interpolate_unsat_core trs post guards core = 
+    let core_symbols =
       List.fold_left (fun core phi ->
           match Formula.destruct srk phi with
           | (`Proposition (`App (s, []))) -> Symbol.Set.add s core
@@ -420,18 +418,18 @@ struct
           in
           let wp =
             (mk_not srk (mk_or srk (post'::reduced_guard)))
-            |> Quantifier.mbp srk ~solver':(refresh solver') (fun s -> Var.of_symbol s != None)
+            |> Quantifier.mbp srk (fun s -> Var.of_symbol s != None)
             |> mk_not srk
           in
           (wp::itp, wp))
         trs
         guards
-        ([post], post)
+        ([Quantifier.mbp srk (fun x -> Var.of_symbol x <> None) post], post)
     in `Valid (List.tl itp)  
 
 
-  let interpolate_query ?(solver=Smt.mk_solver C.context) trs post sat_callback unsat_callback = 
-    let _ = Smt.Solver.reset solver in 
+  let interpolate_query trs post sat_callback unsat_callback = 
+    let solver = Smt.mk_solver C.context in 
     (* Break guards into conjunctions, associate each conjunct with an indicator *)
     let guards =
       List.map (fun tr ->
@@ -498,14 +496,12 @@ struct
         | `Unknown -> `Unknown 
 
 
-  let interpolate ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post =
-    Smt.Solver.reset solver;
+  let interpolate trs post =
     let trs = List.map rename_skolems trs in 
-    interpolate_query ~solver:solver trs post (fun _ _ _ _ -> `Invalid) @@ interpolate_unsat_core qflia_solver
+    interpolate_query trs post (fun _ _ _ _ -> `Invalid) @@ interpolate_unsat_core 
 
-  let interpolate_or_concrete_model ?(solver=Smt.mk_solver C.context) ?(qflia_solver=(Smt.mk_solver ~theory:"QF_LIA" srk)) trs post = 
+  let interpolate_or_concrete_model trs post = 
     (* subst_model: rename skolem constants back to their appropriate names using reverse subscript table *)
-    Smt.Solver.reset solver;
     let trs = List.map rename_skolems trs in 
     let sat_model model (symbols: Symbol.Set.t list) ss ss_inv = 
         let m = 
@@ -531,27 +527,10 @@ struct
       (* symbols is a list of subscripted symbols arranged in left-to-right order. 
          folding over this in left-to-right order amounts to forward concrete execution. *)
       `Invalid m
-   (* let sat_model model ss_inv = 
-      let e = Interpretation.enum model in 
-      let m' = BatEnum.fold 
-        (fun m (s, v) -> 
-          match Var.of_symbol s with 
-            | Some _ -> (* s is associated with some variable *) 
-              Interpretation.add s v m 
-            | None -> (* s is e.g. trip count variable or havoc *)
-              begin 
-                try 
-                  let pre_symbol = Hashtbl.find ss_inv s 
-                  in Interpretation.add pre_symbol v m
-                with Not_found -> m 
-              end) (Interpretation.empty C.context) e
-      in 
-      logf ~level:`always "interpolate: got model, model is: %a\n" (Interpretation.pp) m';
-      `Invalid m'
-    *) in interpolate_query ~solver:solver trs post sat_model @@ interpolate_unsat_core qflia_solver
+    in interpolate_query trs post sat_model @@ interpolate_unsat_core 
 
 
-  let extrapolate ?(solver=Smt.mk_solver srk) t1 t2 t3 level : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
+  let extrapolate t1 t2 t3 level : [`Sat of (C.t formula * C.t formula) | `Unsat ] =
     let t1 = rename_skolems t1 
     in let t2 = rename_skolems t2 
     in let t3 = rename_skolems t3 
@@ -680,7 +659,7 @@ struct
       symbols_printer (symbols_t3_t2 |> Symbol.Set.elements);
           Format.print_flush();
      Printf.printf "\n------------ SMT query in extrapolate ------------\n";*)
-     match Smt.get_model ~solver:solver ~symbols:(symbols_conj |> Symbol.Set.elements) srk conj with 
+     match Smt.get_model ~symbols:(symbols_conj |> Symbol.Set.elements) srk conj with 
       | `Sat m -> 
         (*Printf.printf "extrapolate: result is SAT, got model\n";*)
         (*Interpretation.pp Format.std_formatter m ;
