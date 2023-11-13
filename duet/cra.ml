@@ -929,15 +929,16 @@ module McMillanChecker = struct
         log_formulas "label: " [ReachTree.label !ctx.art u]; 
         !ctx.worklist <- w;
         (* Fetched tree node u from work list. First attempt to close it. *)
-        if not (mc_is_covered ctx u) then begin
+        if not (ReachTree.is_covered !ctx.art u) then begin
           logf ~level:`always " uncovered. try close\n";
-          begin match mc_close ctx u with 
-            | true -> (* Close succeeded. No need to further explore it. *)
-              logf ~level:`always "Close succeeded.\n"; 
+          begin match ReachTree.close !ctx.art u with 
+            | (true, wl) -> (* Close succeeded. No need to further explore it. *)
+              logf ~level:`always "Close succeeded.\n";
+               
               (* ctx.worklist := u %>> !(ctx.worklist); *)
               `Continue 
-            | false -> (* u is uncovered. *)
-              if (ReachTree.maps_to !ctx.art u) == !(!ctx.art).err_loc then 
+            | (false, wl) -> (* u is uncovered. *)
+              if (ReachTree.maps_to !ctx.art u) == ReachTree.get_err_loc !ctx.art then 
                 begin match mc_refine ctx 0 u with 
                   | `Success -> 
                     logf ~level:`always " refinement result: SUCCESS\n";
