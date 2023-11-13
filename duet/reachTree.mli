@@ -4,6 +4,7 @@ type equery = OverApprox | UnderApprox
 module ART :
   functor
     (Ctx: Srk.Syntax.Context)
+    (** transition formula algebra *)
     (K : sig
            type t
            type var 
@@ -24,6 +25,7 @@ module ART :
              Ctx.t Srk.Interpretation.interpretation ->
              t -> Ctx.t Srk.Interpretation.interpretation option
          end)
+    (** transition system with edge weights from K *)
     (TS : sig
             type vertex
             type transition = K.t
@@ -52,6 +54,8 @@ module ART :
             
             val fold_succ_e : (vertex * (K.t Srk.TransitionSystem.label) * vertex -> 'b -> 'b) -> t -> vertex -> 'b -> 'b
             end)
+    (** a module giving a procedure name type. Procedures are implicitly represented by pairs of CFG vertices in Duet.
+        Here we give them a type. *)
     (PN : sig
             type t
             val make : TS.vertex * TS.vertex -> t
@@ -59,25 +63,36 @@ module ART :
             val of_string : string -> t
             val compare : t -> t -> int
           end)
+    (** a module giving a vertex name type. Vertices are integers in Duet, here we give them a type. *)
     (VN : sig
             val to_vertex : int -> TS.vertex
             val of_vertex : TS.vertex -> int
           end)
+    (** a module giving an interface for accessing over/under-approximate procedure summaries. *)
     (Summarizer : sig
                     type t
+                    (** [init g s] returns a Summarizer.t type for a given transition system, source vertex pair (g, s). *)
                     val init : TS.t -> TS.vertex -> t
+                    (** [proc_summary s n] returns the over-approximate procedure summary for procedure `n`. *)
                     val proc_summary : t -> PN.t -> K.t
+                    (** [under_proc_summary s n] returns the under-approximate procedure summary (initially `false`) for procedure `n`. *)
                     val under_proc_summary : t -> PN.t -> K.t
+                    (** [set_proc_summary s n w] sets the over-approximate procedure summary to be `w` at procedure `n`. *)
                     val set_proc_summary : t -> PN.t -> K.t -> unit
+                    (** [set_under_proc_summary s n w] sets the under-approximate procedure summary to be `w` at procedure `n`. *)
                     val set_under_proc_summary : t -> PN.t -> K.t -> unit
+                    (** [refine s n pre post] refines the over-approximate procedure summary at `n` by conjuncting on (pre) /\ (post') *)
                     val refine :
                       t -> 
                       PN.t ->
                       Ctx.t Srk.Syntax.formula ->
                       Ctx.t Srk.Syntax.formula -> unit
+                    (** [refine_under s n tr] refines the under-approximate procedure summary at `n` by adding `tr` as a disjunct. *)
                     val refine_under :
                       t -> PN.t -> K.t -> unit
+                    (** [path_weight_intra s u v] gives the weighted path summary between (u, v) on an intraprocedural CFG *)
                     val path_weight_intra : t -> TS.vertex -> TS.vertex -> K.t
+                    (** [path_weight_inter s u v] gives the inter-procedural path weight between (u, v) *)
                     val path_weight_inter : t -> TS.vertex -> TS.vertex -> K.t
                   end)
     ->
