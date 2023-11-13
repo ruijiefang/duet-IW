@@ -369,6 +369,78 @@ module ART
         | None -> `Refine
       end
 
+  (** maintenance of coverings *)
+
+  (* Adds (v -> w) to covering relation if possible and returns true, false otherwise. *)
+  (* note that (v, w) in covering if stateLabel(v) IMPLIES stateLabel(w) *)
+    let mc_cover (ctx: intra_context ref) v w =
+      let art = !ctx.art in  
+      let v_label = ReachTree.label art v in 
+      let w_label = ReachTree.label art w in
+      if (ReachTree.maps_to art v) <> (ReachTree.maps_to art w) then 
+        failwith @@ Printf.sprintf "error: %d->%d but %d->%d\n" v (ReachTree.maps_to art v) w (ReachTree.maps_to art w);
+      reset_solver ctx;
+      match Smt.entails Ctx.context ~solver:(get_solver ctx) v_label w_label with 
+      | `Yes -> 
+          logf ~level:`always "   cover success (v=%d, w=%d). \n" v w;
+          log_formulas "        v label " [v_label];
+          log_formulas "        w label "  [w_label];
+        let reverse_covers_w = IntMap.find_default ISet.empty w !art.reverse_covers in 
+          !art.covers <- IntMap.add v w (!art.covers);
+          !art.reverse_covers <- IntMap.add w (ISet.add v reverse_covers_w) !art.reverse_covers;
+          true
+      | `No | `Unknown -> false    
+  
+    let mc_close (ctx: intra_context ref) (v : int) = 
+      (* Visits precedents of v in tree and attempts to derive covering relations[]. *)
+      let art = !ctx.art in 
+      (* A _precedent_ of v in tree is any vertex u<v such that u, v map to the same CFG locations. *)
+        let precedents = ReachTree.get_precedent_nodes art v in
+      (* Printf.printf "precedents of node %d : " v; List.iter (fun x -> Printf.printf " %d " x) precedents ; Printf.printf "\n";*)
+      (* Fold from first node in preorder to the right. If covering succeeds, do not continue covering. *) 
+      let result = List.fold_right (fun w status ->
+        if status || w == v || w > v (* preorder constraint *) then status
+        else begin 
+          (* try to "cover v" by deciding if v --> w. If so, no need to further explore v. *)
+          let cover_success = mc_cover ctx v w in 
+          if cover_success then begin
+            (* remove, for each descendant of v, nodes that are sinks of covers. *)
+            let v_descendants = ReachTree.descendants art v in 
+              List.iter (fun y -> 
+                (* Find relations (x,y) in covering relation where y is descendant of v. *)
+                if y <> v then 
+                begin 
+                  (* xs = {x | x -> y} *)
+                  let xs = IntMap.find_default ISet.empty y !art.reverse_covers in 
+                  (* Iterate through and remove pairs (x, y) from covering relation. *)
+                  (* Step 1: Remove (x |-> y) from !ptt.covers. *)
+                  ISet.iter (fun x -> !art.covers <- IntMap.remove x !art.covers) xs;
+                  (* Step 2: Remove (y |-> xs) from !pthit.reverse_covers. *)
+                  !art.reverse_covers <- IntMap.remove y !art.reverse_covers;
+                  (* Step 3: add xs to worklist. *)
+                  ISet.iter (fun x ->
+                    (* add x's subtree leaves back to the worklist. *)
+                    let x_leaves = ReachTree.leaves art x in 
+                      List.iter (fun x_leaf -> 
+                        logf ~level:`always "         close: adding %d back to worklist \n" x_leaf;
+                        !ctx.worklist <- worklist_push x_leaf !ctx.worklist) x_leaves;
+                    !art.models <- IntMap.remove x !art.models) xs
+                end) v_descendants
+          end; cover_success
+        end) precedents false in result 
+  
+    (* Checks if tree node v is covered. It is covered if its ancestors or it is in covering relation. *)
+    let rec mc_is_covered (ctx: intra_context ref) v = 
+      let art = !ctx.art in 
+      match IntMap.find_opt v !art.covers with 
+      | None -> 
+        if v == 0 then false
+        else mc_is_covered ctx (ReachTree.parent art v)
+      | Some u -> 
+        logf ~level:`always "  | covered by %d\n" u;
+        true 
+    
+  
 
   (* refine the label of each tree node u along path from tree root to v. *)
   let refine (art: t ref) path interpolants : node list = 
