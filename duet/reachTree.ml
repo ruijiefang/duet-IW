@@ -59,7 +59,7 @@ module ART
             t -> vertex -> (vertex * Ctx.t Srk.Syntax.formula) list
           val simplify : (vertex -> bool) -> t -> t
           val iter_succ_e :
-            (vertex -> transition TransitionSystem.label -> vertex -> unit) -> t -> vertex -> unit
+            ((vertex * transition TransitionSystem.label * vertex) -> unit) -> t -> vertex -> unit
           val edge_weight :
             t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
         end)
@@ -304,9 +304,9 @@ module ART
     let vg = maps_to art v in 
     let new_tree_nodes = ref [] in 
     TS.iter_succ_e (fun (_, _, y) ->  
-        let u =  add_tree_vertex art (VN.to_vertex y) v in 
+        let u =  add_tree_vertex art y v in 
           new_tree_nodes := u :: !new_tree_nodes  
-        ) !art.graph (VN.of_vertex vg);
+        ) !art.graph vg;
     List.rev !new_tree_nodes
 
   (* returns (new nodes on concolic worklist, new nodes on frontier worklist) *)
@@ -322,14 +322,14 @@ module ART
       (* visit out neighbors of v *)
       begin match IntMap.find_opt v !art.models with 
       | Some m ->
-        WG.iter_succ_e (fun (_, weight, y) -> 
+        TS.iter_succ_e (fun (_, weight, y) -> 
           let weight =
             match weight with 
             | TransitionSystem.Weight w -> 
               if K.contains_havoc w then begin 
                 (* w /\ guard (summary from y -> error location) *)
                 K.mul w 
-                  (K.assume @@ K.guard (K.mul (oracle !art.interproc (VN.to_vertex y) !art.err_loc) 
+                  (K.assume @@ K.guard (K.mul (oracle !art.interproc y !art.err_loc) 
                   (K.assume !art.post_state)))
               end else 
                 w
@@ -338,13 +338,13 @@ module ART
                 Summarizer.proc_summary !art.interproc proc  in 
           begin match K.get_post_model m weight with 
           | Some y_model -> 
-            let new_vtx = add_tree_vertex art ~model:y_model (VN.to_vertex y) v in  
+            let new_vtx = add_tree_vertex art ~model:y_model y v in  
               new_concolic_nodes := new_vtx :: !new_concolic_nodes
           | None -> 
-            let new_node = add_tree_vertex art (VN.to_vertex y) v in 
+            let new_node = add_tree_vertex art y v in 
               new_frontier_nodes := new_node :: !new_concolic_nodes 
           end
-        ) !art.graph (VN.of_vertex vg)
+        ) !art.graph vg
       | None -> 
         failwith @@ Printf.sprintf "trying to expand from node %d(%d) without labelled model " v (maps_to art v |> VN.of_vertex)
       end;

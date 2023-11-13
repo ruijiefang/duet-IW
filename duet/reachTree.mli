@@ -46,7 +46,7 @@ module ART :
               t -> vertex -> (vertex * Ctx.t Srk.Syntax.formula) list
             val simplify : (vertex -> bool) -> t -> t
             val iter_succ_e :
-              (vertex -> transition TransitionSystem.label -> vertex -> unit) -> t -> vertex -> unit
+              ((vertex * transition TransitionSystem.label * vertex) -> unit) -> t -> vertex -> unit
             val edge_weight :
               t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
           end)
