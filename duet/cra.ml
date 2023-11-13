@@ -793,9 +793,9 @@ module McMillanChecker = struct
   end
   module TS' = struct 
     include TS
-    let iter_succ_e (f: (TS.vertex * TS.transition label * TS.vertex) -> unit) (g: TS.t) (v: TS.vertex) = WG.iter_succ_e f g v
+    let iter_succ_e (f: (TS.vertex * (TS.transition label) * TS.vertex) -> unit) (g: TS.t) (v: TS.vertex) = WG.iter_succ_e f g v
     
-    let fold_succ_e (f : (TS.vertex * TS.transition label * TS.vertex) -> 'b -> 'b) (g: TS.t) (u: TS.vertex) (s: 'b) = 
+    let fold_succ_e (f : (TS.vertex * (TS.transition label) * TS.vertex) -> 'b -> 'b) (g: TS.t) (u: TS.vertex) (s: 'b) = 
       WG.fold_succ_e f g u s 
 
     let edge_weight g u v = WG.edge_weight g u v 

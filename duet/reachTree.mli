@@ -46,7 +46,7 @@ module ART :
               t -> vertex -> (vertex * Ctx.t Srk.Syntax.formula) list
             val simplify : (vertex -> bool) -> t -> t
             val iter_succ_e :
-              ((vertex * transition TransitionSystem.label * vertex) -> unit) -> t -> vertex -> unit
+              ((vertex * (transition TransitionSystem.label) * vertex) -> unit) -> t -> vertex -> unit
             val edge_weight :
               t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
             
@@ -119,4 +119,7 @@ module ART :
         int -> t ref -> unit -> int -> node list * node list
       val expand_pseudo : t ref -> int -> [> `Error | `Refine ]
       val refine: t ref -> node list -> Ctx.t Syntax.formula list -> node list  
+      val verify_well_labelled_tree : t ref -> unit
+      val check_covering_welformedness : t ref -> unit 
+
     end
