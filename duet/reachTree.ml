@@ -158,6 +158,12 @@ module ART
   let get_err_loc (art: t ref) = !art.err_loc 
   let get_pre_state (art: t ref) = !art.pre_state 
   let get_post_state (art: t ref) = !art.post_state 
+  let get_model_opt (art: t ref) (u: node) =
+     IntMap.find_opt u !art.models  
+  
+  let set_model (art: t ref) (u: node) m = 
+    !art.models <- IntMap.add u m !art.models 
+
   (** [print_tree t ident v] prints an ART t with indentation `ident` rooted at node v *)
   let print_tree (art: t ref) (indent: string) (v: node) = 
     let rec print_tree_ (art: t ref) indent v = 
@@ -437,9 +443,7 @@ module ART
       | Some u -> 
         logf ~level:`always "  | covered by %d\n" u;
         true 
-    
   
-
   (* refine the label of each tree node u along path from tree root to v. *)
   let refine (art: t ref) path interpolants : node list = 
     let worklist = ref [] in 
@@ -536,5 +540,22 @@ module ART
         | None -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but no list found in reverse_covers\n" src dst
       ) (!t.covers);
       logf ~level:`always "...done checking welformedness of covering relations\n"
+
+      (** pretty-printing functionalities *)
+      let tree_printer_get_name (art: t ref) i =
+        match IntMap.find_opt i !art.covers with 
+        | None ->  Printf.sprintf "%d(%d)" i (maps_to art i |> VN.of_vertex )
+        | Some j -> Printf.sprintf "[%d(%d)]->%d" i (maps_to art i |> VN.of_vertex) j
+    
+
+      let log_art (art: t ref) =
+        logf ~level:`always " +----------------- ART ----------------+\n";
+        let string_of_art = 
+          Tree_printer.to_string 
+            ~line_prefix:"* " 
+            ~get_name:(tree_printer_get_name art) 
+            ~get_children:(children art) 0
+          in logf ~level:`always "%s" string_of_art; 
+        logf ~level:`always " +----------------- ART ----------------+\n"
 
   end

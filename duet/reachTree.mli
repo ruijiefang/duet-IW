@@ -1,5 +1,6 @@
 module TransitionSystem = Srk.TransitionSystem
 module Syntax = Srk.Syntax 
+module Interpretation = Srk.Interpretation 
 type equery = OverApprox | UnderApprox
 module ART :
   functor
@@ -110,6 +111,8 @@ module ART :
       val get_pre_state : t ref -> Ctx.t Syntax.formula 
       val get_post_state : t ref -> Ctx.t Syntax.formula 
       val get_err_loc : t ref -> TS.vertex
+      val get_model_opt : t ref -> node -> Ctx.t Interpretation.interpretation option 
+      val set_model : t ref -> node -> Ctx.t Interpretation.interpretation -> unit 
       val print_tree : t ref -> string -> node -> unit
       val parent : t ref -> node -> node
       val maps_to : t ref -> node -> TS.vertex
@@ -139,5 +142,5 @@ module ART :
       val refine: t ref -> node list -> Ctx.t Syntax.formula list -> node list  
       val verify_well_labelled_tree : t ref -> unit
       val check_covering_welformedness : t ref -> unit 
-
+      val log_art : t ref -> unit 
     end

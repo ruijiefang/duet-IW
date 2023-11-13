@@ -870,17 +870,11 @@ module McMillanChecker = struct
 
   (** Core procedures of McMillan's algorithm *)
 
-let bnd = ref 0
-
 
   (* refine path to (tree) node v. 
      Returns `Failure trans with trans being the path-to-error if unable to refine.
      Returns `Success if refine is able to refine. *)
   let mc_refine (ctx: intra_context ref) (recurse_level: int) (v: ReachTree.node) = 
-    let _ =
-      bnd := !bnd + 1;
-      if !bnd > 100 then failwith "mc_refine: bound reached" 
-    in
     let handle_failure art v = 
       logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
       let path_condition = ReachTree.path_condition art OverApprox v 
@@ -911,41 +905,25 @@ let bnd = ref 0
           `Invalid v_model -> 
             logf ~level:`always "Unable to refine but got model\n";
             (* for node v, since v is a frontier node, update art.models to store its corresponding model. *)
-            !art.models <- IntMap.add v v_model !art.models;
+            ReachTree.set_model art v v_model;
             handle_failure art v
           | `Unknown -> failwith ""
           | `Valid interpolants -> 
             logf ~level:`always "--- mc_refine: interpolation succeeded. path length %d, interpolant length %d" (List.length path) (List.length interpolants);
-            ReachTree.refine art path interpolants; 
+            ReachTree.refine art path interpolants
+            |> List.iter (fun x -> !ctx.worklist <- worklist_push x !ctx.worklist); 
             `Success 
         end
-  let tree_printer_get_name (ctx: intra_context ref) i = 
-    let art = !ctx.art in 
-    match IntMap.find_opt i !art.covers with 
-    | None ->  Printf.sprintf "%d(%d)" i (ReachTree.maps_to art i)
-    | Some j -> Printf.sprintf "[%d(%d)]->%d" i (ReachTree.maps_to art i) j
 
   let print_worklist (ctx: intra_context ref) = 
     logf ~level:`always "["; DQ.iter (fun x -> Printf.printf "%d " x) !ctx.worklist; 
     logf ~level:`always "]\n"
 
 
-  let log_art (ctx: intra_context ref) =
-    if print_tree then begin
-      logf ~level:`always " +----------------- ART ----------------+\n";
-      let string_of_art = 
-        Tree_printer.to_string 
-          ~line_prefix:"* " 
-          ~get_name:(tree_printer_get_name ctx) 
-          ~get_children:(ReachTree.children !ctx.art) 0
-        in logf ~level:`always "%s" string_of_art; 
-      logf ~level:`always " +----------------- ART ----------------+\n"
-    end
-
   let single_plain_mcmillan_round (ctx: intra_context ref) = 
     match DQ.front !ctx.worklist with (* use DQ.rear if want BFS *) 
       | Some (u, w) (* (w, u) if use DQ.front *) ->          
-        log_art ctx;
+        ReachTree.log_art !ctx.art;
         print_worklist ctx;
         logf ~level:`always " visit %d\n" u;
         log_formulas "label: " [ReachTree.label !ctx.art u]; 
