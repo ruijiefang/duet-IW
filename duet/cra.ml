@@ -691,7 +691,7 @@ module ProcName = struct
   
   let of_string (s: string) = 
     match String.split_on_char ':' s with 
-    | [ us ; vs ] -> (make (int_of_string us) (int_of_string vs))
+    | [ us ; vs ] -> (make ((int_of_string us), (int_of_string vs)))
     | _ -> failwith @@ Printf.sprintf "illegal procedure identifier %s" s
 
   (* lexicographic comparison using Stdlib.compare *)
@@ -753,39 +753,35 @@ module Summarizer =
         let q = mk_query graph src in  
         { graph = graph; src = src; query = q; underapprox = SMap.empty }
 
-      let proc_summary (ctx: t ref) ((u, v) : ProcName.t) = 
-        let q = !ctx.query in 
-          TS.get_summary q (u, v) 
+      let proc_summary (ctx: t) ((u, v) : ProcName.t) =
+          TS.get_summary ctx.query (u, v) 
       
-      let set_proc_summary (ctx: t ref) ((u, v): ProcName.t) (w: K.t) = 
-        let q = !ctx.query in 
-          TS.set_summary q (u, v) w
+      let set_proc_summary (ctx: t) ((u, v): ProcName.t) (w: K.t) =
+          TS.set_summary ctx.query (u, v) w
       
-      let under_proc_summary (ctx: t ref) ((u, v): ProcName.t) : K.t = 
-        SMap.find_default K.zero (u, v) !ctx.underapprox
+      let under_proc_summary (ctx: t) ((u, v): ProcName.t) : K.t = 
+        SMap.find_default K.zero (u, v) ctx.underapprox
 
-      let set_under_proc_summary (ctx: t ref) ((u, v): ProcName.t) (w: K.t) : unit = 
-        !ctx.underapprox <- SMap.add (u, v) w !ctx.underapprox
+      let set_under_proc_summary (ctx: t) ((u, v): ProcName.t) (w: K.t) : unit = 
+        ctx.underapprox <- SMap.add (u, v) w ctx.underapprox
 
-      let refine (ctx: t ref) ((u, v): ProcName.t) (pre: state_formula) (post: state_formula) =
+      let refine (ctx: t) ((u, v): ProcName.t) (pre: state_formula) (post: state_formula) =
         let summary = proc_summary ctx (u, v) in 
         let s_pre = K.mul (K.assume (Syntax.mk_not srk pre)) summary in 
         let s_post = K.mul summary (K.assume (Syntax.mk_not srk post)) in 
           K.add s_pre s_post |> set_proc_summary ctx (u, v);
           assert (summary <> (proc_summary ctx (u,v)))
       
-      let refine_under (ctx: t ref) ((u, v): ProcName.t) (w:K.t) : unit = 
+      let refine_under (ctx: t) ((u, v): ProcName.t) (w:K.t) : unit = 
         let summary = under_proc_summary ctx (u, v) in 
         let summary' = K.add summary w in 
         set_under_proc_summary ctx (u, v) summary'
       
-      let path_weight_intra (ctx: t ref) (src: int) (dst: int) = 
-        let q = !ctx.query in 
-          TS.intra_path_summary q src dst
+      let path_weight_intra (ctx: t) (src: int) (dst: int) =
+          TS.intra_path_summary ctx.query src dst
       
-      let path_weight_inter (ctx: t ref) (src: int) (dst: int) = 
-        let q = !ctx.query in 
-          TS.inter_path_summary q src dst 
+      let path_weight_inter (ctx: t) (src: int) (dst: int) =
+          TS.inter_path_summary ctx.query src dst 
   end
 
 
@@ -799,6 +795,9 @@ module McMillanChecker = struct
     include TS
     let iter_succ_e (f: (TS.vertex * TS.transition label * TS.vertex) -> unit) (g: TS.t) (v: TS.vertex) = WG.iter_succ_e f g v
     
+    let fold_succ_e (f : (TS.vertex * TS.transition label * TS.vertex) -> 'b -> 'b) (g: TS.t) (u: TS.vertex) (s: 'b) = 
+      WG.fold_succ_e f g u s 
+
     let edge_weight g u v = WG.edge_weight g u v 
   end
   (* ART module *)
@@ -820,8 +819,6 @@ module McMillanChecker = struct
   (* global context *)
   and global_context = {
       mode: mc_mode;
-      solver: Ctx.t Srk.Smt.Solver.t; (** persistent solver state object, prevents Z3 from allocating per SMT call *)
-      qflia_solver : Ctx.t Srk.Smt.Solver.t;
       interproc: Summarizer.t ref;
   }
   (* mode of McMillan's algorithm: plain, or CRA-fueled concolic mode *)
@@ -846,146 +843,32 @@ module McMillanChecker = struct
   and mk_mc_context (start_mode: mc_mode) (global_cfg: cfg_t) (global_src: int) = 
     ref {
       mode = start_mode; 
-      solver = Smt.mk_solver Ctx.context;
-      qflia_solver = Smt.mk_solver ~theory:"QF_LIA" Ctx.context;
-      interproc = (Summarizer.init global_cfg global_src);
+      interproc = ref (Summarizer.init global_cfg global_src);
     }
 
   (** some helper methods *)
   let worklist_push  (i : int) (q : idq_t) = DQ.snoc q i 
 
   (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
-  let interpolate_or_get_model ?(solver=Smt.mk_solver srk) ?(qflia_solver=Smt.mk_solver ~theory:"QF_LIA" srk) 
-    (art : ReachTree.t ref) (recurse_level: int) (src : int) (sink : int) = 
+  let interpolate_or_get_model (art : ReachTree.t ref) (recurse_level: int) (src : ReachTree.node) (sink: TS.vertex) = 
     let oracle = 
       if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in 
-    let is_inter_err_loc = (recurse_level > 0) && ((ReachTree.maps_to art src) = !art.err_loc) in 
-    let post_path_summary = oracle !art.interproc (ReachTree.maps_to art src) sink in 
+    let is_inter_err_loc = (recurse_level > 0) && ((ReachTree.maps_to art src) = ReachTree.get_err_loc art) in 
+    let post_path_summary = oracle (ReachTree.get_summarizer art) (ReachTree.maps_to art src) sink in 
     let err_state =  
       if recurse_level = 0 then K.guard post_path_summary |> Syntax.mk_not srk
       else 
         begin if is_inter_err_loc then 
-          Syntax.mk_not srk !art.post_state 
-        else (K.guard (K.mul post_path_summary (K.assume (!art.post_state)))) |> Syntax.mk_not srk 
+          Syntax.mk_not srk @@ ReachTree.get_post_state art 
+        else (K.guard (K.mul post_path_summary (K.assume (ReachTree.get_post_state art)))) |> Syntax.mk_not srk 
       end
     in
-    let initial_path_weights = (K.assume (!art.pre_state)) :: ReachTree.path_condition art src in 
-    (*log_formulas (Printf.sprintf "interpolate: pre_state@recurse_level %d: " recurse_level) [!art.pre_state];
-    log_weights "interpolate: initial weight : " initial_path_weights;
-    log_weights "interpolate: abstract suffix formula: " [post_path_summary];
-    log_formulas "interpolate: post_state: " [!art.post_state];*)
-    K.interpolate_or_concrete_model ~solver:solver ~qflia_solver:qflia_solver initial_path_weights err_state
+    let initial_path_weights = (K.assume (ReachTree.get_pre_state art)) :: ReachTree.path_condition art OverApprox src in 
+      K.interpolate_or_concrete_model initial_path_weights err_state
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
-  let reset_solver (ctx: intra_context ref) = Smt.Solver.reset !(get_global_ctx ctx).solver
-  let get_solver (ctx: intra_context ref) = 
-    let solver = !(get_global_ctx ctx).solver in 
-    Smt.Solver.reset solver; solver
-  let get_qflia_solver (ctx: intra_context ref) = 
-    let solver = !(get_global_ctx ctx).qflia_solver in 
-    Smt.Solver.reset solver; solver
-
-  (** procedures for lightweight verification of ART invariants *)
-
-  let verify_well_labelled_tree (t: ReachTree.t ref) = 
-    let rec aux v =
-      let children = ReachTree.children t v in 
-      (*mypp_formula (Printf.sprintf "visiting %d, label: " v) [ ARR.get t.labels v ];*)
-      match children with 
-      | [] (* leaf node *) -> 
-        begin match IntMap.find_opt v (!t.covers) with 
-          | None -> 
-            logf ~level:`always "!!! found uncovered leaf: %d\n" v;
-            WG.fold_succ_e (fun (x, _, y) _ (* acc *) ->
-              logf ~level:`always "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" x y; 
-              false 
-            ) !t.graph (ReachTree.maps_to t v) true
-          | Some _ -> true 
-        end 
-      | _ -> 
-        begin match IntMap.find_opt v (!t.covers) with 
-        | None -> 
-          logf ~level:`always "node %d uncovered\n" v;
-          List.fold_left (fun acc u -> (aux u) && acc) true children 
-        | Some u -> 
-          logf ~level:`always "node %d covered by %d\n" v u;
-          true 
-        end 
-    in 
-    logf ~level:`always "verifying well-labelledness of ART...\n";
-    let r =  aux 0 in 
-    logf ~level:`always "...done verifying well-labelledness of ART\n";
-    r
-
-  let check_covering_welformedness (t: ReachTree.t ref) = 
-    logf ~level:`always "checking welformedness of covering relations\n";
-    IntMap.iter (fun dst covered_from -> 
-      ISet.iter (fun src -> 
-        logf ~level:`always "checking if (%d, %d) in covering\n" src dst;
-        match IntMap.find_opt src (!t.covers) with 
-        | Some dst' -> if dst' <> dst then failwith @@ Printf.sprintf "ERROR: (%d, %d) in covering\n" src dst'
-        | None -> failwith "ERROR: not in covering"
-      ) covered_from
-    ) (!t.reverse_covers);
-    logf ~level:`always "performing a reverse check\n";
-    IntMap.iter (fun src dst -> 
-      match IntMap.find_opt dst (!t.reverse_covers) with 
-      | Some reverse_covers ->
-        begin match ISet.mem src reverse_covers with 
-        | false -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but %d not in %d's reverse_covers\n" src dst src dst
-        | true -> ()
-        end
-      | None -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but no list found in reverse_covers\n" src dst
-    ) (!t.covers);
-    logf ~level:`always "...done checking welformedness of covering relations\n"
-
 
   (** Core procedures of McMillan's algorithm *)
-
-
-  (* refine the label of each tree node u along path from tree root to v. *)
-  let mc_refine_with_interpolants (ctx: intra_context ref) path interpolants = 
-    let art = !ctx.art in 
-    let _ = logf ~level:`always "path length: %d\n" (List.length path); logf ~level:`always "interpolant length: %d\n" (List.length interpolants) in 
-    List.iter2 (fun u interpolant -> 
-      let u_label = ReachTree.label art u in 
-      let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
-      log_formulas (Printf.sprintf "[relabelling %d CFG vertex %d] to label: " u (ReachTree.maps_to art u)) [ u_label' ];
-      ReachTree.set_label art u u_label';
-      (* remove ( * -> u) in covering relation; we just refined label(u) so implications of form label(y)->label(u)
-         might not hold anymore. *)
-      begin match IntMap.find_opt u !art.reverse_covers with 
-      | None -> () 
-      | Some l -> 
-        (* remove covers (List.iter (fun x -> Printf.printf " (%d->%d)" x u) l *)
-        let u_coverers  = 
-        ISet.fold (fun x coverers -> 
-          (* test if label(x) --> new label(u)*)
-          let x_label = ReachTree.label art x in 
-          let u_label = ReachTree.label art u in
-          reset_solver ctx;
-          begin match Smt.entails Ctx.context ~solver:(get_solver ctx) (x_label) (u_label) with
-          | `No | `Unknown -> 
-            (* remove (x, u) from covering. *)
-            logf ~level:`always "   refine: removing cover (%d->%d)\n" x u;
-            !art.covers <- IntMap.remove x (!art.covers);
-            (* add x's subtree leaves back to the worklist. *)
-            let x_leaves = ReachTree.leaves art x in 
-              List.iter (fun x_leaf -> 
-                logf ~level:`always "         refine: adding %d back to worklist \n" x_leaf; 
-                !ctx.worklist <- worklist_push x_leaf !ctx.worklist) x_leaves;
-            !art.models <- IntMap.remove x !art.models;
-            l
-          | `Yes -> 
-            logf ~level:`always "    refine: cover (x %d-> u %d) still holds\n" x u;
-            log_formulas " x label: " [x_label];
-            log_formulas " u label: " [u_label];
-            ISet.add x coverers (* unchanged. *) 
-          end
-          ) l ISet.empty in 
-            !art.reverse_covers <- IntMap.add u u_coverers (!art.reverse_covers)
-      end
-    ) path interpolants 
 
 let bnd = ref 0
 
@@ -993,23 +876,22 @@ let bnd = ref 0
   (* refine path to (tree) node v. 
      Returns `Failure trans with trans being the path-to-error if unable to refine.
      Returns `Success if refine is able to refine. *)
-  let mc_refine (ctx: intra_context ref) (recurse_level: int) (v: int) = 
+  let mc_refine (ctx: intra_context ref) (recurse_level: int) (v: ReachTree.node) = 
     let _ =
       bnd := !bnd + 1;
       if !bnd > 100 then failwith "mc_refine: bound reached" 
     in
     let handle_failure art v = 
       logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
-      let path_condition = ReachTree.path_condition art v 
+      let path_condition = ReachTree.path_condition art OverApprox v 
       in `Failure path_condition 
     in let art = !ctx.art in 
-    let path_condition = ReachTree.path_condition art v in 
+    let path_condition = ReachTree.path_condition art OverApprox v in 
     let path = ReachTree.tree_path art v in 
       match !(get_global_ctx ctx).mode with 
       | PlainMcMillan -> 
-        begin 
-        match K.interpolate ~solver:(get_solver ctx) ~qflia_solver:(get_qflia_solver ctx)
-         ((K.assume !art.pre_state) :: path_condition) (Syntax.mk_not srk !art.post_state) with 
+        begin
+        match K.interpolate ((K.assume @@ ReachTree.get_pre_state art) :: path_condition) (Syntax.mk_not srk @@ ReachTree.get_post_state art) with 
         | `Invalid | `Unknown -> 
           handle_failure art v
         | `Valid interpolants ->
@@ -1019,12 +901,12 @@ let bnd = ref 0
           logf ~level:`always "--------------------------------------------------------------\n";
           log_formulas "" interpolants;
           logf ~level:`always "--------------------------------------------------------------\n";
-          mc_refine_with_interpolants ctx path interpolants;
+          ReachTree.refine ctx path interpolants;
           `Success 
         end 
       | ConcolicMcMillan -> 
         begin 
-          match interpolate_or_get_model ~solver:(get_solver ctx) ~qflia_solver:(get_qflia_solver ctx) art recurse_level v !art.err_loc with 
+          match interpolate_or_get_model art recurse_level v @@ ReachTree.get_err_loc art with 
           `Invalid v_model -> 
             logf ~level:`always "Unable to refine but got model\n";
             (* for node v, since v is a frontier node, update art.models to store its corresponding model. *)
@@ -1033,7 +915,7 @@ let bnd = ref 0
           | `Unknown -> failwith ""
           | `Valid interpolants -> 
             logf ~level:`always "--- mc_refine: interpolation succeeded. path length %d, interpolant length %d" (List.length path) (List.length interpolants);
-            mc_refine_with_interpolants ctx path interpolants; 
+            ReachTree.refine art path interpolants; 
             `Success 
         end
 
@@ -1586,7 +1468,7 @@ module Executor = struct
             let x_out_neighbors = get_out_neighbors !(ctx.ptt).graph x in 
               List.iter (fun (weight, y) -> 
                 let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
-                begin match K.get_post_model ~solver:(ctx.solver) x_model weight with 
+                begin match K.get_post_model x_model weight with 
                 | Some y_model ->   
                       ARR.add !(ctx.ptt).cfg_vertex y;
                       ARR.add !(ctx.ptt).parents tx;

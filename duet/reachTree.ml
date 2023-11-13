@@ -7,12 +7,8 @@ open Syntax
 module RG = Interproc.RG
 module WG = Srk.WeightedGraph
 module G = RG.G
-module Ctx = Syntax.MakeSimplifyingContext ()
 module Int = SrkUtil.Int
 module TF = TransitionFormula
-
-
-let srk = Ctx.context
 
 include Log.Make(struct let name = "reachTree" end)
 type equery = OverApprox | UnderApprox
@@ -35,7 +31,7 @@ module ART
     val star : t -> t
     val exists : (var -> bool) -> t -> t
     val contains_havoc : t -> bool
-    val get_post_model :  ?solver: (Ctx.t Smt.Solver.t) -> Ctx.t Interpretation.interpretation -> t -> (Ctx.t Interpretation.interpretation) option 
+    val get_post_model : Ctx.t Interpretation.interpretation -> t -> (Ctx.t Interpretation.interpretation) option 
   end)
   (TS : sig
           type vertex
@@ -62,7 +58,8 @@ module ART
             ((vertex * transition TransitionSystem.label * vertex) -> unit) -> t -> vertex -> unit
           val edge_weight :
             t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
-        end)
+          val fold_succ_e : (vertex * (K.t Srk.TransitionSystem.label) * vertex -> 'b -> 'b) -> t -> vertex -> 'b -> 'b
+          end)
   (PN : sig 
     type t 
     val make : TS.vertex * TS.vertex -> t 
@@ -79,19 +76,19 @@ module ART
   (Summarizer : sig
     type t
     val init : TS.t -> TS.vertex -> t
-    val proc_summary : t ref -> PN.t -> K.t
-    val under_proc_summary : t ref -> PN.t -> K.t
-    val set_proc_summary : t ref -> PN.t -> K.t -> unit
-    val set_under_proc_summary : t ref -> PN.t -> K.t -> unit
+    val proc_summary : t -> PN.t -> K.t
+    val under_proc_summary : t -> PN.t -> K.t
+    val set_proc_summary : t -> PN.t -> K.t -> unit
+    val set_under_proc_summary : t -> PN.t -> K.t -> unit
     val refine :
-      t ref -> 
+      t -> 
       PN.t ->
       Ctx.t Srk.Syntax.formula ->
       Ctx.t Srk.Syntax.formula -> unit
     val refine_under :
-      t ref -> PN.t -> K.t -> unit
-    val path_weight_intra : t ref -> TS.vertex -> TS.vertex -> K.t
-    val path_weight_inter : t ref -> TS.vertex -> TS.vertex -> K.t
+      t -> PN.t -> K.t -> unit
+    val path_weight_intra : t -> TS.vertex -> TS.vertex -> K.t
+    val path_weight_inter : t -> TS.vertex -> TS.vertex -> K.t
   end)
   = struct  
   (* type for a tree node *)
@@ -109,7 +106,7 @@ module ART
   let mk_false () = Syntax.mk_false Ctx.context 
 
   let log_formulas prefix formulas = 
-    List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr srk) f) formulas 
+    List.iteri (fun i f -> logf ~level:`always "[formula] %s(%i): %a\n" prefix i (Syntax.pp_expr Ctx.context) f) formulas 
   
   let log_weights prefix weights = 
     List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i K.pp f) weights
@@ -135,7 +132,7 @@ module ART
     (* precedent_nodes[v] stores all tree nodes mapping to CFG vertex v. Used in mc_close. *)
     mutable precedent_nodes : (ISet.t) IntMap.t;
     mutable models : (Ctx.t Interpretation.interpretation) IntMap.t;
-    interproc : Summarizer.t ref
+    interproc : Summarizer.t
   }
 
   let make (g: TS.t) (entry: TS.vertex) (err_loc: TS.vertex) (pre: state_formula) (post: state_formula) interproc = 
@@ -157,6 +154,10 @@ module ART
       interproc = interproc
     }
 
+  let get_summarizer (art: t ref) = !art.interproc
+  let get_err_loc (art: t ref) = !art.err_loc 
+  let get_pre_state (art: t ref) = !art.pre_state 
+  let get_post_state (art: t ref) = !art.post_state 
   (** [print_tree t ident v] prints an ART t with indentation `ident` rooted at node v *)
   let print_tree (art: t ref) (indent: string) (v: node) = 
     let rec print_tree_ (art: t ref) indent v = 
@@ -355,16 +356,115 @@ module ART
     (** "pseudo-expansion" of a leaf node mapping to error loc in a recursion level > 0. 
         Use this when recursively model-checking until the return location of a procedure call
         to expand one-"pseudo-edge" past the return vertex and verify that post-state is reached. *)
-    let expand_pseudo solver (art : t ref) (v: int) = 
+    let expand_pseudo (art : t ref) (v: int) = 
       if not (maps_to art v = !art.err_loc) then 
         failwith "err: expand_pseudo: must be called on a leaf node mapping to error location"
       else begin 
         match IntMap.find_opt v !art.models with 
         | Some m -> 
-          begin match K.get_post_model ~solver:solver m (K.assume !art.post_state) with 
+          begin match K.get_post_model m (K.assume !art.post_state) with 
           | Some _ -> `Error
           | None -> `Refine
           end
         | None -> `Refine
       end
-end
+
+
+  (* refine the label of each tree node u along path from tree root to v. *)
+  let refine (art: t ref) path interpolants : node list = 
+    let worklist = ref [] in 
+    List.iter2 (fun u interpolant -> 
+      let u_label = label art u in 
+      let u_label' = Syntax.mk_and Ctx.context [ u_label ; interpolant ] in 
+      log_formulas (Printf.sprintf "[relabelling %d CFG vertex %d] to label: " u (maps_to art u |> VN.of_vertex)) [ u_label' ];
+      set_label art u u_label';
+      (* remove ( * -> u) in covering relation; we just refined label(u) so implications of form label(y)->label(u)
+         might not hold anymore. *)
+      begin match IntMap.find_opt u !art.reverse_covers with 
+      | None -> () 
+      | Some l ->  
+        (* remove covers (List.iter (fun x -> Printf.printf " (%d->%d)" x u) l *)
+        let u_coverers  = 
+        ISet.fold (fun x coverers -> 
+          (* test if label(x) --> new label(u)*)
+          let x_label = label art x in 
+          let u_label = label art u in
+          begin match Smt.entails Ctx.context (x_label) (u_label) with
+          | `No | `Unknown -> 
+            (* remove (x, u) from covering. *)
+            logf ~level:`always "   refine: removing cover (%d->%d)\n" x u;
+            !art.covers <- IntMap.remove x (!art.covers);
+            (* add x's subtree leaves back to the worklist. *)
+            let x_leaves = leaves art x in 
+              List.iter (fun x_leaf -> 
+                logf ~level:`always "         refine: adding %d back to worklist \n" x_leaf; 
+                worklist := x_leaf :: !worklist) x_leaves;
+            !art.models <- IntMap.remove x !art.models;
+            l
+          | `Yes -> 
+            logf ~level:`always "    refine: cover (x %d-> u %d) still holds\n" x u;
+            log_formulas " x label: " [x_label];
+            log_formulas " u label: " [u_label];
+            ISet.add x coverers (* unchanged. *) 
+          end
+          ) l ISet.empty in 
+            !art.reverse_covers <- IntMap.add u u_coverers (!art.reverse_covers)
+      end
+    ) path interpolants; !worklist  
+
+
+    (** procedures for lightweight verification of ART invariants *)
+
+    let verify_well_labelled_tree (t: t ref) = 
+      let rec aux v =
+        let children = children t v in 
+        match children with 
+        | [] (* leaf node *) -> 
+          begin match IntMap.find_opt v (!t.covers) with 
+            | None -> 
+              logf ~level:`always "!!! found uncovered leaf: %d\n" v;
+              (TS.fold_succ_e (fun (x, _, y) _ ->
+                logf ~level:`always "  ERROR ERROR ERROR: mapped cfg vertex %d has out-neighbor %d\n" 
+                  (VN.of_vertex x) (VN.of_vertex y); 
+                false 
+              ) !t.graph (maps_to t v) true)
+            | Some _ -> true 
+          end 
+        | _ -> 
+          begin match IntMap.find_opt v (!t.covers) with 
+          | None -> 
+            logf ~level:`always "node %d uncovered\n" v;
+            List.fold_left (fun acc u -> (aux u) && acc) true children 
+          | Some u -> 
+            logf ~level:`always "node %d covered by %d\n" v u;
+            true 
+          end 
+      in 
+      logf ~level:`always "verifying well-labelledness of ART...\n";
+      let r =  aux 0 in 
+      logf ~level:`always "...done verifying well-labelledness of ART\n";
+      r
+
+    let check_covering_welformedness (t: t ref) = 
+      logf ~level:`always "checking welformedness of covering relations\n";
+      IntMap.iter (fun dst covered_from -> 
+        ISet.iter (fun src -> 
+          logf ~level:`always "checking if (%d, %d) in covering\n" src dst;
+          match IntMap.find_opt src (!t.covers) with 
+          | Some dst' -> if dst' <> dst then failwith @@ Printf.sprintf "ERROR: (%d, %d) in covering\n" src dst'
+          | None -> failwith "ERROR: not in covering"
+        ) covered_from
+      ) (!t.reverse_covers);
+      logf ~level:`always "performing a reverse check\n";
+      IntMap.iter (fun src dst -> 
+        match IntMap.find_opt dst (!t.reverse_covers) with 
+        | Some reverse_covers ->
+          begin match ISet.mem src reverse_covers with 
+          | false -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but %d not in %d's reverse_covers\n" src dst src dst
+          | true -> ()
+          end
+        | None -> failwith @@ Printf.sprintf "ERROR: (%d, %d) in t.covers but no list found in reverse_covers\n" src dst
+      ) (!t.covers);
+      logf ~level:`always "...done checking welformedness of covering relations\n"
+
+  end

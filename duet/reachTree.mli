@@ -1,4 +1,5 @@
 module TransitionSystem = Srk.TransitionSystem
+module Syntax = Srk.Syntax 
 type equery = OverApprox | UnderApprox
 module ART :
   functor
@@ -20,7 +21,6 @@ module ART :
            val exists : (var -> bool) -> t -> t
            val contains_havoc : t -> bool
            val get_post_model :
-             ?solver:Ctx.t Srk.Smt.Solver.t ->
              Ctx.t Srk.Interpretation.interpretation ->
              t -> Ctx.t Srk.Interpretation.interpretation option
          end)
@@ -49,7 +49,9 @@ module ART :
               ((vertex * transition TransitionSystem.label * vertex) -> unit) -> t -> vertex -> unit
             val edge_weight :
               t -> vertex -> vertex -> K.t Srk.TransitionSystem.label
-          end)
+            
+            val fold_succ_e : (vertex * (K.t Srk.TransitionSystem.label) * vertex -> 'b -> 'b) -> t -> vertex -> 'b -> 'b
+            end)
     (PN : sig
             type t
             val make : TS.vertex * TS.vertex -> t
@@ -64,19 +66,19 @@ module ART :
     (Summarizer : sig
                     type t
                     val init : TS.t -> TS.vertex -> t
-                    val proc_summary : t ref -> PN.t -> K.t
-                    val under_proc_summary : t ref -> PN.t -> K.t
-                    val set_proc_summary : t ref -> PN.t -> K.t -> unit
-                    val set_under_proc_summary : t ref -> PN.t -> K.t -> unit
+                    val proc_summary : t -> PN.t -> K.t
+                    val under_proc_summary : t -> PN.t -> K.t
+                    val set_proc_summary : t -> PN.t -> K.t -> unit
+                    val set_under_proc_summary : t -> PN.t -> K.t -> unit
                     val refine :
-                      t ref -> 
+                      t -> 
                       PN.t ->
                       Ctx.t Srk.Syntax.formula ->
                       Ctx.t Srk.Syntax.formula -> unit
                     val refine_under :
-                      t ref -> PN.t -> K.t -> unit
-                    val path_weight_intra : t ref -> TS.vertex -> TS.vertex -> K.t
-                    val path_weight_inter : t ref -> TS.vertex -> TS.vertex -> K.t
+                      t -> PN.t -> K.t -> unit
+                    val path_weight_intra : t -> TS.vertex -> TS.vertex -> K.t
+                    val path_weight_inter : t -> TS.vertex -> TS.vertex -> K.t
                   end)
     ->
     sig
@@ -89,6 +91,10 @@ module ART :
         TS.vertex ->
         TS.vertex ->
         state_formula -> state_formula -> Summarizer.t ref -> t ref
+      val get_summarizer : t ref -> Summarizer.t
+      val get_pre_state : t ref -> Ctx.t Syntax.formula 
+      val get_post_state : t ref -> Ctx.t Syntax.formula 
+      val get_err_loc : t ref -> TS.vertex
       val print_tree : t ref -> string -> node -> unit
       val parent : t ref -> node -> node
       val maps_to : t ref -> node -> TS.vertex
@@ -111,6 +117,6 @@ module ART :
       val expand_plain : t ref -> int -> node list
       val expand_concolic :
         int -> t ref -> unit -> int -> node list * node list
-      val expand_pseudo :
-        Ctx.t Srk.Smt.Solver.t -> t ref -> int -> [> `Error | `Refine ]
+      val expand_pseudo : t ref -> int -> [> `Error | `Refine ]
+      val refine: t ref -> node list -> Ctx.t Syntax.formula list -> node list  
     end
