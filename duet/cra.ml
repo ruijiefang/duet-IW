@@ -915,16 +915,10 @@ module McMillanChecker = struct
             `Success 
         end
 
-  let print_worklist (ctx: intra_context ref) = 
-    logf ~level:`always "["; DQ.iter (fun x -> Printf.printf "%d " x) !ctx.worklist; 
-    logf ~level:`always "]\n"
-
-
   let single_plain_mcmillan_round (ctx: intra_context ref) = 
     match DQ.front !ctx.worklist with (* use DQ.rear if want BFS *) 
       | Some (u, w) (* (w, u) if use DQ.front *) ->          
         ReachTree.log_art !ctx.art;
-        print_worklist ctx;
         ReachTree.log_node u;
         log_formulas "label: " [ReachTree.label !ctx.art u]; 
         !ctx.worklist <- w;
@@ -1135,7 +1129,7 @@ module McMillanChecker = struct
             let refine_summary_with_extrapolants e1 e2 = 
               Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
             in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  
-            in begin match K.extrapolate ~solver:(get_solver ctx) prefix summary suffix recurse_level with 
+            in begin match K.extrapolate prefix summary suffix recurse_level with 
               | `Sat (e1, e12) -> 
                 log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e12];
                 let pre, transform' = prelude e1 e12 in 
@@ -1238,203 +1232,6 @@ module McMillanChecker = struct
         concolic_mcmillan_execute main_context 0
   end
 
-
-(**
-  Directed algebraic concolic executor guided by path summaries in CRA
- *)
-module Executor = struct 
-  (** context and state information of the concolic executor. *)
-  type exec_context = {
-    ts: cfg_t; (** underlying transition system (control-flow graph) *)
-    entry: int; (** entry vertex of the transition system *)
-    err_loc: int; (** error location of the transtion system *)
-    solver: Ctx.t Srk.Smt.Solver.t; (** persistent solver state object, prevents Z3 from allocating per SMT call *)
-    worklist: int DQ.t ref; (** worklist of the solver, implemented as front-to-back deque. *)
-    ptt: mtree ref; (** past explored paths tree. *)
-    unsafe: bool ref; (** whether the assertion-violation state is reached. If unsafe==true, then found counterexample. *)
-    vtxcnt: int ref;
-  }
-  (* set of paths explored by concolic executor. *)
-  and mtree = {
-    graph : cfg_t;
-    start : int;
-    cfg_vertex : int ARR.t;
-    parents : int ARR.t; 
-    model : Ctx.t Interpretation.interpretation IntMap.t;
-  }
-  (* executor state *)
-  and executor_state = 
-    | Continue 
-    | ProvenUnsafe
-    | ProvenSafe
-  (* result of an execution *)
-  and execution_result = 
-    | ExecutorResultSafe
-    | ExecutorResultUnsafe
-    | ExecutorResultUnknown
-
-  (* make a reference to an empty mtree. *)
-  let mk_mtree_ptr (ts: cfg_t) (entry: int) = ref { 
-      graph = ts; 
-      start = entry; 
-      cfg_vertex = ARR.singleton entry ; 
-      parents = ARR.singleton (-1) ;
-      model  = IntMap.empty (* IntMap.singleton 0 initial_model *) }
-  
-  (* make an execution context *)
-  let mk_context (ts: cfg_t) (entry: int) (err_loc: int) : exec_context = 
-    { ts = ts;
-      entry = entry; 
-      err_loc = err_loc; 
-      solver = Smt.mk_solver Ctx.context;
-      worklist = ref DQ.empty;
-      unsafe = ref false;
-      ptt = mk_mtree_ptr ts entry;
-      vtxcnt = ref 0; }
-
-  (** some miscellaneous helper operators *)
-
-  (* shove an element into front of an int deque *)
-  let (%>>) (i : int)  (q : idq_t) = DQ.snoc q i 
-
-  (* get parent of a node in mtree *)
-  let (%^) (t : mtree) (i : int) = ARR.get t.parents i 
-
-  (* get cfg vertex mapped by mtree node *)
-  let (%->) (t : mtree) (i : int) = ARR.get t.cfg_vertex i 
-
-  (* get edge weight in CFG of (t%->u, t%->v) in mtree t. *)
-  let ew (t : mtree) u v = match WG.edge_weight t.graph u v with  Weight w -> w  | Call _ -> failwith "call unimplemented" 
-
-
-  (* get path weight sequence in CFG mapped by tree path 0---->u in mtree t *)
-  let (%-*>) (t: mtree) (u : int) : K.t list = 
-    if u == 0 then [ ]
-    else let rec (%<*-) (t : mtree) (u : int) =
-     match t %^ u with 
-      | 0 -> [ ew t (t %-> 0) (t %-> u) ] 
-      | v -> ew t (t %-> v) (t %-> u) :: (t %<*- v) in 
-      List.rev (t %<*- u)
-
-  (* out neighbors of a vertex u in cfg g. *)
-  let get_out_neighbors (g : cfg_t) (u : int) = 
-    WG.fold_succ_e (fun (x, weight, y) l -> 
-      if x <> u then failwith "will not happen" 
-      else (weight, y) :: l) g u [] 
-  
-  (* retrieve the initial path-to-error abstract model between source and err loc in CFG. *)
-  let get_initial_abstract_model ?(solver=Smt.mk_solver Ctx.context) (src : int) (sink : int) (graph : cfg_t) = 
-    let query = mk_query graph src in 
-    let path = TS.path_weight query sink in 
-    let path_condition = K.guard path in 
-    let path_condition_symbols = Syntax.symbols path_condition |> MonotoneDom.SymbolSet.elements in 
-      Smt.get_concrete_model Ctx.context ~solver:(solver) path_condition_symbols path_condition 
-
-  (* retrieve abstract model from some intermediate CFG vertex v --> err_loc, provided with pre-condition to vertex v. *)
-  let get_abstract_model ?(solver=Smt.mk_solver Ctx.context) pre_condition (src : int) (sink : int) (graph : cfg_t) = 
-    let _ = Smt.Solver.reset solver in 
-    let query = mk_query graph src in 
-    let post_condition = TS.path_weight query sink |> K.guard |> K.assume in 
-    let condition = K.mul pre_condition post_condition in 
-    let condition_tf = K.to_transition_formula condition in 
-    let post_pre_symbols = List.fold_right (fun (x, y) l -> (y, x) :: l) (TransitionFormula.symbols condition_tf) [] in 
-    let condition_formula = TransitionFormula.formula condition_tf in 
-    let condition_symbols = Syntax.symbols condition_formula |> MonotoneDom.SymbolSet.elements in 
-    match Smt.get_concrete_model Ctx.context ~solver:(solver) condition_symbols condition_formula with 
-      | `Sat itp ->
-        logf ~level:`always "Interpretation: %a\n" Interpretation.pp itp ;
-        let m = Interpretation.enum itp in 
-        let itp' = BatEnum.fold (fun itp' (symb, v) -> 
-          let pre_symb = List.assoc symb post_pre_symbols in 
-          Interpretation.add pre_symb v itp' ) (Interpretation.empty Ctx.context) m in 
-          logf ~level:`always "InterpretationPRIME: %a\n" Interpretation.pp itp'; 
-          Some itp'
-      | `Unknown -> None 
-      | `Unsat -> None
-
-  (** concolic execution procedure subroutines *)
-
-  (* do execution loop for a single iterate *)
-  let execute_single_round (ctx: exec_context) : executor_state =
-    if !(ctx.unsafe) then begin
-      ProvenUnsafe 
-    end
-    else begin 
-      begin match DQ.front !(ctx.worklist) with 
-        | Some (tx, w') -> 
-          let x = ARR.get !(ctx.ptt).cfg_vertex tx in
-          ctx.worklist := w'; (* Pop x off front of list. *)
-          if x == ctx.err_loc then begin 
-            ctx.unsafe := true;
-            ProvenUnsafe
-          end else 
-            let x_model = IntMap.find tx !(ctx.ptt).model in 
-            let x_out_neighbors = get_out_neighbors !(ctx.ptt).graph x in 
-              List.iter (fun (weight, y) -> 
-                let weight = match weight with Weight w -> w | Call _ -> failwith "cannot handle call" in 
-                begin match K.get_post_model x_model weight with 
-                | Some y_model ->   
-                      ARR.add !(ctx.ptt).cfg_vertex y;
-                      ARR.add !(ctx.ptt).parents tx;
-                      ctx.ptt := {!(ctx.ptt) with model = IntMap.add !(ctx.vtxcnt) y_model !(ctx.ptt).model};
-                      ctx.worklist := !(ctx.vtxcnt) %>> !(ctx.worklist);
-                      ctx.vtxcnt := !(ctx.vtxcnt) + 1 
-                | None ->
-              let _ = get_out_neighbors !(ctx.ptt).graph y in 
-                  try begin 
-                    let pre_condition = !(ctx.ptt) %-*> y in 
-                    let pre_condition = 
-                      match pre_condition with 
-                      | a :: t -> List.fold_right (fun x y -> K.mul y x) t a
-                      | [] -> K.one 
-                    in 
-                    match get_abstract_model ~solver:(ctx.solver) pre_condition y ctx.err_loc !(ctx.ptt).graph with 
-                      | Some y_model ->
-                        ARR.add !(ctx.ptt).cfg_vertex y; 
-                        ARR.add !(ctx.ptt).parents tx;
-                        ctx.ptt := {!(ctx.ptt) with model = IntMap.add !(ctx.vtxcnt) y_model !(ctx.ptt).model};
-                        ctx.worklist := !(ctx.vtxcnt) %>> !(ctx.worklist);
-                        ctx.vtxcnt := !(ctx.vtxcnt) + 1; () ;
-                      | _ -> () 
-                      end with _ -> ()
-                end
-                ) x_out_neighbors;
-                (* Can safely remove current node from the tree. *) 
-                ctx.ptt := {!(ctx.ptt) with model = IntMap.remove tx !(ctx.ptt).model };
-                Continue
-        | None -> failwith "cannot happen" 
-        end
-      end
-
-
-  (* entry to concolic execution procedure *)
-  let go (ctx: exec_context) : execution_result = 
-    begin match get_initial_abstract_model ~solver:(ctx.solver) ctx.entry  ctx.err_loc ctx.ts with 
-    | `Sat initial_model ->
-        begin
-        (* (re-)initialize executor state to put first vertex on worklist. *)
-          ctx.worklist := (0 %>> DQ.empty);
-          ctx.vtxcnt := 1;
-          ctx.ptt := {!(ctx.ptt) with model = (IntMap.singleton 0 initial_model) };
-          ctx.unsafe := false;
-          let post_state = ref Continue in 
-            while (DQ.size !(ctx.worklist) > 0) (*&& not !unsafe*) do 
-              post_state := execute_single_round ctx 
-            done;
-            begin match !post_state with 
-            | Continue -> ExecutorResultUnknown 
-            | ProvenSafe -> ExecutorResultSafe 
-            | ProvenUnsafe -> ExecutorResultUnsafe
-            end
-        end
-    | `Unsat -> 
-      ExecutorResultSafe 
-    | `Unknown -> 
-      ExecutorResultUnknown
-    end
-  end (* end of Executor module *)
-
-
 module BM = BatMap.Make(Int)
 
 let test_interpolate_path (g : cfg_t) (entry : int) (err_loc : int) = 
@@ -1475,29 +1272,6 @@ let test_interpolate_path (g : cfg_t) (entry : int) (err_loc : int) =
       | `Valid interpolants ->
         log_formulas " *** Interpolants: " interpolants 
 
-
-let analyze_concolic file = 
-  populate_offset_table file;
-  match file.entry_points with
-  | [main] -> begin
-      let rg = Interproc.make_recgraph file in
-      let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system true rg in
-      let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
-      TSDisplay.display ts;
-      Printf.printf "\nentry: %d\n" entry; 
-      List.iter (fun err_loc ->
-        let ectx = Executor.mk_context ts entry err_loc in 
-          match Executor.go ectx with 
-          | Executor.ExecutorResultSafe -> 
-            Printf.printf "assertion@%d: safe\n" err_loc
-          | Executor.ExecutorResultUnsafe ->
-            Printf.printf "assertion%d: unsafe\n" err_loc
-          | Executor.ExecutorResultUnknown -> 
-            Printf.printf "assertion%d: unknown\n" err_loc
-        ) new_vertices 
-      end
-  | _ -> assert false
 
 (* driver for plain mcmillan *)
 let analyze_plain_mcl file = 
@@ -2049,8 +1823,6 @@ let _ =
     ("-termination", prove_termination_main, " Proof of termination");
   CmdLine.register_pass
     ("-rba", resource_bound_analysis, " Resource bound analysis");
-  CmdLine.register_pass 
-    ("-concolic", analyze_concolic, " Concolic executor");
   CmdLine.register_pass 
     ("-mcl-plain", analyze_plain_mcl, " Plain McMillan");
   CmdLine.register_pass 
