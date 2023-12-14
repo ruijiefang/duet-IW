@@ -6,6 +6,6 @@ int main()
   while(__VERIFIER_nondet_int()) i = 2 * i;
   int j = 0;
   while(i>0){j++;i--;}
-  assert(j!=3);
+  assert(j!=131);
   return 0;
 }

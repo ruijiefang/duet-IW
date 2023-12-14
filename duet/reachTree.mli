@@ -108,6 +108,7 @@ module ART :
         TS.vertex ->
         state_formula -> state_formula -> Summarizer.t ref -> t ref
       val get_summarizer : t ref -> Summarizer.t
+      val get_entry : t ref -> TS.vertex 
       val get_pre_state : t ref -> Ctx.t Syntax.formula 
       val get_post_state : t ref -> Ctx.t Syntax.formula 
       val get_err_loc : t ref -> TS.vertex
@@ -132,15 +133,17 @@ module ART :
         t ref ->
         ?model:Ctx.t Srk.Interpretation.interpretation ->
         ?label:Ctx.t Srk.Syntax.formula -> TS.vertex -> int -> node
-      val expand_plain : t ref -> int -> node list
+      val expand_plain : t ref -> node -> node list
       val expand_concolic :
-        int -> t ref -> unit -> int -> node list * node list
-      val expand_pseudo : t ref -> int -> [> `Error | `Refine ]
+        int -> t ref -> unit -> node -> node list * node list
+      val expand_pseudo : t ref -> node -> [> `Error | `Refine ]
       val cover : t ref -> node -> node -> bool
       val close : t ref -> node -> (bool * node list)
       val is_covered : t ref -> node -> bool 
       val refine: t ref -> node list -> Ctx.t Syntax.formula list -> node list  
-      val verify_well_labelled_tree : t ref -> unit
+      val verify_well_labelled_tree : t ref -> bool
       val check_covering_welformedness : t ref -> unit 
       val log_art : t ref -> unit 
+      val log_node :  node -> unit 
+      val of_node : node -> int
     end

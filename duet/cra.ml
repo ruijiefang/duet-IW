@@ -925,7 +925,7 @@ module McMillanChecker = struct
       | Some (u, w) (* (w, u) if use DQ.front *) ->          
         ReachTree.log_art !ctx.art;
         print_worklist ctx;
-        logf ~level:`always " visit %d\n" u;
+        ReachTree.log_node u;
         log_formulas "label: " [ReachTree.label !ctx.art u]; 
         !ctx.worklist <- w;
         (* Fetched tree node u from work list. First attempt to close it. *)
@@ -934,7 +934,7 @@ module McMillanChecker = struct
           begin match ReachTree.close !ctx.art u with 
             | (true, wl) -> (* Close succeeded. No need to further explore it. *)
               logf ~level:`always "Close succeeded.\n";
-               
+
               (* ctx.worklist := u %>> !(ctx.worklist); *)
               `Continue 
             | (false, wl) -> (* u is uncovered. *)
@@ -944,7 +944,9 @@ module McMillanChecker = struct
                     logf ~level:`always " refinement result: SUCCESS\n";
                     (* for every node along path of refinement try close *)
                     let path = ReachTree.tree_path !ctx.art u in 
-                      List.iter (fun x -> let _ = mc_close ctx x in ()) path;
+                      List.iter (fun x -> 
+                        let _, l = ReachTree.close !ctx.art x in 
+                          List.iter (fun frontier -> !ctx.worklist <- worklist_push frontier !ctx.worklist) l) path;
                       (* ctx.worklist := u %>> !(ctx.worklist); *)
                       `Continue
                   | `Failure path_cond -> 
@@ -956,7 +958,7 @@ module McMillanChecker = struct
                 let new_nodes = ReachTree.expand_plain !ctx.art u in 
                   logf ~level:`always "new nodes: [";
                   List.iter (fun n -> 
-                    logf ~level:`always "%d " n;
+                    logf ~level:`always "%d " (n |> ReachTree.of_node);
                     !ctx.worklist <- worklist_push n !ctx.worklist) new_nodes;
                   logf ~level:`always " ]\n";
                   `Continue
@@ -972,7 +974,7 @@ module McMillanChecker = struct
     let continue = ref true in
     let witness_r = ref [ K.zero ] in 
     let state = ref `Continue in 
-    let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
+    let eps = ReachTree.add_tree_vertex !ctx.art ~label:(ReachTree.get_pre_state !ctx.art) (ReachTree.get_entry !ctx.art) (-1) in 
     !ctx.worklist <- worklist_push eps !ctx.worklist;
     begin
       while DQ.size (!ctx.worklist) > 0 && !continue do 
@@ -987,14 +989,14 @@ module McMillanChecker = struct
         end
       done;
       logf ~level:`always " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
-      log_art ctx;
+      ReachTree.log_art !ctx.art;
       match !state with 
       | `ErrorReached -> Unsafe (!witness_r)
       | `Continue -> 
         logf ~level:`always "execution saturated\n"; 
-        begin match verify_well_labelled_tree !ctx.art with 
+        begin match ReachTree.verify_well_labelled_tree !ctx.art with 
           | false -> failwith "ERROR: well-labelled check failed"
-          | true -> check_covering_welformedness !ctx.art 
+          | true -> ReachTree.check_covering_welformedness !ctx.art 
         end;
         Safe
     end
@@ -1003,44 +1005,37 @@ module McMillanChecker = struct
   let concolic_phase (ctx: intra_context ref) (recursion_level: int) = 
     match DQ.front (!ctx.execlist) with 
     | Some (u, w) -> 
-      log_art ctx;
-      begin match ReachTree.find_opt !ctx.art u with 
-        | Some _ -> 
-        logf ~level:`always " visit %d (%d)\n" u (ReachTree.maps_to !ctx.art u);
-        !ctx.execlist <- w;
-        if (ReachTree.maps_to !ctx.art u) = !(!ctx.art).err_loc then 
-          begin 
-            (** if an error is reached , see if it is a call from the first recursive level or non-first. *)
-            (** a non-first recursion level requires an additional step of concolic execution past edge (K.assume !art.post). *)
-            if recursion_level = 0 then 
-              `ErrorReached u
-            else begin 
-              logf ~level:`always "inter-procedural return-loc reached. trying expand_pseudo...\n";
-              (** if we can successfully expand past the assertion of !art.post_state, then we can report error and exit. *)
-              (** otherwise, we shall refine the current, exit node. *)
-              match ReachTree.expand_pseudo (get_solver ctx) !ctx.art u with 
-              | `Refine -> 
-                logf ~level:`always "     ... expand_pseudo failed, adding %d to refinement worklist...\n" u;
-                !ctx.worklist <- worklist_push u !ctx.worklist; 
-                `Continue 
-              | `Error -> 
-                logf ~level:`always "       ... expand_pseudo succeeded\n";
-                `ErrorReached u 
-            end
+      ReachTree.log_art !ctx.art;
+      logf ~level:`always " visit %d (%d)\n" u (ReachTree.maps_to !ctx.art u);
+      !ctx.execlist <- w;
+      if (ReachTree.maps_to !ctx.art u) = (ReachTree.get_err_loc !ctx.art) then 
+        begin 
+          (** if an error is reached , see if it is a call from the first recursive level or non-first. *)
+          (** a non-first recursion level requires an additional step of concolic execution past edge (K.assume !art.post). *)
+          if recursion_level = 0 then 
+            `ErrorReached u
+          else begin 
+            logf ~level:`always "inter-procedural return-loc reached. trying expand_pseudo...\n";
+            (** if we can successfully expand past the assertion of !art.post_state, then we can report error and exit. *)
+            (** otherwise, we shall refine the current, exit node. *)
+            match ReachTree.expand_pseudo !ctx.art u with 
+            | `Refine -> 
+              logf ~level:`always "     ... expand_pseudo failed, adding %d to refinement worklist...\n" u;
+              !ctx.worklist <- worklist_push u !ctx.worklist; 
+              `Continue 
+            | `Error -> 
+              logf ~level:`always "       ... expand_pseudo succeeded\n";
+              `ErrorReached u 
           end
-        else begin
-          let u_model = IntMap.find u !(!ctx.art).models in 
-            logf ~level:`always "model of %d (%d): \n" u (ReachTree.maps_to !ctx.art u);
-            log_model "" u_model;
-            let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) recursion_level !ctx.art u in 
-              List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
-              List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
-              `Continue
         end
-        | None -> 
-          logf ~level:`always "concolic_phase: found deleted vertex %d on worklist. continuing...\n" u;
-          !ctx.execlist <- w;
-          `Continue 
+      else begin
+        let u_model = IntMap.find u !(!ctx.art).models in 
+          logf ~level:`always "model of %d (%d): \n" u (ReachTree.maps_to !ctx.art u);
+          log_model "" u_model;
+          let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) recursion_level !ctx.art u in 
+            List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
+            List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
+            `Continue
       end
     | None -> failwith "err: concolic_phase is reading from empty execution worklist" (* cannot happen *)
 
@@ -1048,7 +1043,7 @@ module McMillanChecker = struct
   let refinement_phase (ctx: intra_context ref) (recurse_level: int) = 
     match DQ.front (!ctx.worklist) with 
     | Some (u, w) -> 
-      log_art ctx;
+      ReachTree.log_art !ctx;
       !ctx.worklist <- w;
       begin match ReachTree.find_opt !ctx.art u with 
       | Some _ -> 
@@ -1113,7 +1108,6 @@ module McMillanChecker = struct
   (* handle procedure calls by lazily backsolving them along paths-to-error. *)
   let rec handle_path_to_error (ctx: intra_context ref) (recurse_level: int) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
     let art = !ctx.art in 
-    let _ = reset_solver ctx in 
     let _ = 
       logf ~level:`always "interpretation at node %d(%d) handle_path_to_error: %a\n" 
         err_leaf (ReachTree.maps_to art err_leaf) (Interpretation.pp) (IntMap.find err_leaf !art.models)

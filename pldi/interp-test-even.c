@@ -7,6 +7,6 @@ int main()
   while(havoc>0){ i = 2 * i; havoc--; }
   int j = 0;
   while(i>0){j++;i--;}
-  assert(j!=131);
+  assert(j!=130);
   return 0;
 }

@@ -200,6 +200,7 @@ struct
 
   let get_summarizer (art : t ref) = !art.interproc
   let get_err_loc (art : t ref) = !art.err_loc
+  let get_entry (art: t ref) = !art.entry 
   let get_pre_state (art : t ref) = !art.pre_state
   let get_post_state (art : t ref) = !art.post_state
   let get_model_opt (art : t ref) (u : node) = IntMap.find_opt u !art.models
@@ -353,7 +354,7 @@ struct
           mcmillan worklist. *)
 
   (* returns a list of new nodes to be added to the worklist *)
-  let expand_plain (art : t ref) (v : int) =
+  let expand_plain (art : t ref) (v : node) =
     (* vg is v's correpsonding cfg location in tree `art` *)
     let vg = maps_to art v in
     let new_tree_nodes = ref [] in
@@ -369,7 +370,7 @@ struct
      a post-state model from its parent by means of symbol substitution. It is deemed
      a _frontier node_ if concrete execution cannot reach it from its parent node. A
      frontier node does not have a model associated with it and is in need of refinement. *)
-  let expand_concolic recurse_level (art : t ref) () (v : int) =
+  let expand_concolic recurse_level (art : t ref) () (v : node) =
     let oracle =
       if recurse_level = 0 then Summarizer.path_weight_inter
       else Summarizer.path_weight_intra
@@ -416,7 +417,7 @@ struct
   (** "pseudo-expansion" of a leaf node mapping to error loc in a recursion level > 0. 
         Use this when recursively model-checking until the return location of a procedure call
         to expand one-"pseudo-edge" past the return vertex and verify that post-state is reached. *)
-  let expand_pseudo (art : t ref) (v : int) =
+  let expand_pseudo (art : t ref) (v : node) =
     if not (maps_to art v = !art.err_loc) then
       failwith
         "err: expand_pseudo: must be called on a leaf node mapping to error \
@@ -657,4 +658,9 @@ struct
     in
     logf ~level:`always "%s" string_of_art;
     logf ~level:`always " +----------------- ART ----------------+\n"
+
+  let log_node u = 
+    logf ~level:`always " node: visit %d\n" u 
+  
+  let of_node u = u
 end
