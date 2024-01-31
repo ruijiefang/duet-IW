@@ -81,50 +81,82 @@ let var_of_value = function
   | VVal v | VPos v | VWidth v -> v
 let map_value f = function
   | VVal v -> VVal (f v)
-  | VPos v -> VPos (f v)
+  | VPos v -> VPos (f v) 
   | VWidth v -> VWidth (f v)
-
-module V = struct
-  module I = struct
-    type t = value [@@deriving ord]
-    let pp formatter = function
-      | VVal v -> Var.pp formatter v
-      | VWidth v -> Format.fprintf formatter "%a@@width" Var.pp v
-      | VPos v -> Format.fprintf formatter "%a@@pos" Var.pp v
-    let show = SrkUtil.mk_show pp
-    let equal x y = compare x y = 0
-    let hash = function
-      | VVal v -> Hashtbl.hash (Var.hash v, 0)
-      | VPos v -> Hashtbl.hash (Var.hash v, 1)
-      | VWidth v -> Hashtbl.hash (Var.hash v, 2)
-  end
-  include I
-
-
-
-  let sym_to_var = Hashtbl.create 991
-  let var_to_sym = ValueHT.create 991
-
-  let typ v = tr_typ (Var.get_type (var_of_value v))
-
-  let symbol_of var =
-    if ValueHT.mem var_to_sym var then
-      ValueHT.find var_to_sym var
-    else begin
-      let sym = Ctx.mk_symbol ~name:(show var) (typ var) in
-      ValueHT.add var_to_sym var sym;
-      Hashtbl.add sym_to_var sym var;
-      sym
+  module V = struct
+    module I = struct
+      type t = value [@@deriving ord]
+      let pp formatter = function
+        | VVal v -> Var.pp formatter v
+        | VWidth v -> Format.fprintf formatter "%a@@width" Var.pp v
+        | VPos v -> Format.fprintf formatter "%a@@pos" Var.pp v
+      let show = SrkUtil.mk_show pp
+      let equal x y = compare x y = 0
+      let hash = function
+        | VVal v -> Hashtbl.hash (Var.hash v, 0)
+        | VPos v -> Hashtbl.hash (Var.hash v, 1)
+        | VWidth v -> Hashtbl.hash (Var.hash v, 2)
     end
+    include I
+  
+  
+  
+    let sym_to_var = Hashtbl.create 991
+    let var_to_sym = ValueHT.create 991
+    let prophecy_vars = ValueHT.create 991 (* var -> var mapping *)
+    let var_of_prophecy_vars = ValueHT.create 991 (* reverse mapping of prophecy_vars *)
 
-  let of_symbol sym =
-    if Hashtbl.mem sym_to_var sym then
-      Some (Hashtbl.find sym_to_var sym)
-    else
-      None
+    let typ v = tr_typ (Var.get_type (var_of_value v))
+  
+    let symbol_of var =
+      if ValueHT.mem var_to_sym var then
+        ValueHT.find var_to_sym var
+      else begin
+        let sym = Ctx.mk_symbol ~name:(show var) (typ var) in
+        ValueHT.add var_to_sym var sym;
+        Hashtbl.add sym_to_var sym var;
+        sym
+      end
+  
+    let of_symbol sym =
+      if Hashtbl.mem sym_to_var sym then
+        Some (Hashtbl.find sym_to_var sym)
+      else
+        None
+  
+    let is_global = Var.is_global % var_of_value
 
-  let is_global = Var.is_global % var_of_value
-end
+    let make_var sym is_global =
+      let v = 
+        begin match is_global with 
+        | true ->  
+          Varinfo.mk_global (Syntax.show_symbol srk sym) (Concrete (Int 8)) 
+        | false -> 
+          Varinfo.mk_local (Syntax.show_symbol srk sym) (Concrete (Int 8))
+        end |> Var.mk 
+        in 
+      Hashtbl.add sym_to_var sym (VVal v);
+      ValueHT.add var_to_sym (VVal v) sym;
+      VVal v
+    
+    let prophesize var = 
+      let sym = symbol_of var in 
+      let sym_name = (Syntax.show_symbol srk sym) ^ "_prophecy" in
+      let sym' = Syntax.mk_symbol srk ~name:sym_name (Syntax.typ_symbol srk sym) in 
+      let var' = make_var sym' false in 
+      ValueHT.add prophecy_vars var var'; 
+      ValueHT.add var_of_prophecy_vars var' var;
+      var' 
+
+    let var_of_prophecy_var var' = ValueHT.find_opt var_of_prophecy_vars var'
+    let prophecy_var_of_var var = ValueHT.find_opt prophecy_vars var 
+    let is_prophecy_var v = 
+      match var_of_prophecy_var v with 
+      | Some _ -> true 
+      | None -> false
+  end
+  
+  
 
 module K = struct
   include Transition.Make(Ctx)(V)
@@ -679,7 +711,7 @@ let make_transition_system (simplify:bool) rg =
   in
   (ts, !assertions)
 
-(** Useful definitions for SMT-based analyses: McMillan's assertion-checking algorithm + concolic execution *)
+(** Useful definitions for GPS *)
 
 module ProcName = struct 
   type t = int * int 
@@ -718,6 +750,7 @@ let log_formulas prefix formulas =
 let log_weights prefix weights = 
   List.iteri (fun i f -> logf ~level:`always "[weight] %s(%i): %a\n" prefix i K.pp f) weights
 
+
 let log_model prefix model = 
   logf ~level:`always "[model] %s: %a\n" prefix Interpretation.pp model
 
@@ -739,6 +772,47 @@ let make_ts_assertions_unreachable (ts : cfg_t) assertions =
       new_vertices := u :: !new_vertices 
   ); !pts, !new_vertices
 
+let instrument_with_gas (ts: cfg_t) = 
+  let mk_int k = Ctx.mk_real (QQ.of_int k) in 
+  let largest = ref (WG.fold_vertex (fun v max -> if v > max then v else max) ts 0) in 
+  let new_vtx () = 
+    largest := !largest + 1; !largest in
+  let gas_var = Var.mk (Varinfo.mk_global "__duet_gas" (Concrete (Int 8))) in 
+  let gas_var_sym = Syntax.mk_symbol srk ~name:"__duet_gas" `TyInt in  
+  let gas_var_term = Syntax.mk_const srk gas_var_sym in 
+  let gasexpr =  
+    let open Syntax.Infix(Ctx) in 
+      let assume_positive = K.assume (Syntax.mk_lt srk (mk_int 0) gas_var_term) in 
+      let decr_by_one = Syntax.mk_sub srk gas_var_term (mk_int 1) |> K.assign (VVal gas_var) in 
+      K.mul assume_positive decr_by_one in 
+  Hashtbl.add V.sym_to_var gas_var_sym (VVal gas_var);
+  ValueHT.add V.var_to_sym (VVal gas_var) gas_var_sym;
+  (* for each call-edge, u->v, add new predecessor edge x->u->v where x->u is an instrumented edge. *)
+  let loop_headers = 
+    let module L = Loop.Make(TSG) in 
+    List.map (fun loop -> L.header loop) @@ L.all_loops (L.loop_nest ts) in 
+  let call_edge_headers = 
+    WG.fold_edges (fun (u, w, _) ls -> 
+      match w with 
+      | Call _ -> u :: ls 
+      | _ -> ls) ts [] in 
+  let modify ts u =
+    let g = ref ts in 
+    (* step 1: add new in-edge to (u, v) *) 
+    let x = new_vtx () in 
+      g := WG.add_vertex !g x;
+      (* step 2: add weighted edge x-(gasexpr)->u *)
+      g := WG.add_edge !g x (Weight gasexpr) u;
+      (* step 3: redirect every p->u to be y->x->u *)
+      WG.iter_pred_e (fun (p, weight, _) -> 
+        g := WG.add_edge !g p weight x;
+        g := WG.remove_edge !g p u  
+        ) ts u;
+      !g in 
+  let g = ref ts in 
+  List.iter (fun u -> g := modify !g u) (loop_headers @ call_edge_headers);
+  !g
+
 module Summarizer = 
   struct 
       module SMap = BatMap.Make(ProcName)
@@ -753,26 +827,31 @@ module Summarizer =
         let q = mk_query graph src in  
         { graph = graph; src = src; query = q; underapprox = SMap.empty }
 
-      let proc_summary (ctx: t) ((u, v) : ProcName.t) =
+      (** retrieve over-approximate procedure summary *)
+      let over_proc_summary (ctx: t) ((u, v) : ProcName.t) =
           TS.get_summary ctx.query (u, v) 
-      
-      let set_proc_summary (ctx: t) ((u, v): ProcName.t) (w: K.t) =
+          |> K.exists (V.is_global)
+
+      (** set over-approximate procedure summary *)
+      let set_over_proc_summary (ctx: t) ((u, v): ProcName.t) (w: K.t) =
           TS.set_summary ctx.query (u, v) w
       
+      (** retrieve under-approximate procedure summary *)
       let under_proc_summary (ctx: t) ((u, v): ProcName.t) : K.t = 
         SMap.find_default K.zero (u, v) ctx.underapprox
+        |> K.exists (V.is_global) 
 
+      (** set under-approximate procedure summary *)
       let set_under_proc_summary (ctx: t) ((u, v): ProcName.t) (w: K.t) : unit = 
         ctx.underapprox <- SMap.add (u, v) w ctx.underapprox
 
-      let refine (ctx: t) ((u, v): ProcName.t) (pre: state_formula) (post: state_formula) =
-        let summary = proc_summary ctx (u, v) in 
-        let s_pre = K.mul (K.assume (Syntax.mk_not srk pre)) summary in 
-        let s_post = K.mul summary (K.assume (Syntax.mk_not srk post)) in 
-          K.add s_pre s_post |> set_proc_summary ctx (u, v);
-          assert (summary <> (proc_summary ctx (u,v)))
+      (** refinement of procedure summaries using a two-voc transition formula *)
+      let refine_over_summary (ctx: t) ((u, v): ProcName.t) (rfn: K.t) =
+        over_proc_summary ctx (u, v) 
+        |> K.conjunct rfn 
+        |> set_over_proc_summary ctx (u, v)
       
-      let refine_under (ctx: t) ((u, v): ProcName.t) (w:K.t) : unit = 
+      let refine_under_summary (ctx: t) ((u, v): ProcName.t) (w:K.t) : unit = 
         let summary = under_proc_summary ctx (u, v) in 
         let summary' = K.add summary w in 
         set_under_proc_summary ctx (u, v) summary'
@@ -785,12 +864,31 @@ module Summarizer =
   end
 
 
-  (** Algebraic formulation of McMillan's algorithm. *)
-module McMillanChecker = struct
+  type path_type = 
+    | OverApprox 
+    | UnderApprox
+
+let log_labelled_weights s uu prefix weights = 
+  List.iteri 
+    (fun i f -> 
+      match f with 
+      | Call (u, v)-> 
+        let p = 
+          begin match uu with 
+          | OverApprox -> Summarizer.over_proc_summary s (ProcName.make (u, v)) 
+          | UnderApprox -> Summarizer.under_proc_summary s (ProcName.make (u, v)) 
+        end in 
+        logf ~level:`always "[labelled weight] %s(%i, call(%d,%d)): %a\n" prefix i u v K.pp p
+      | Weight w -> 
+        logf ~level:`always "[labelled weight] %s(%i): %a\n" prefix i K.pp w) weights
+
+module GPS = struct
+  (* vertex names module *)
   module VN = struct 
     let to_vertex (v : int) : TS.vertex = v 
     let of_vertex (v : TS.vertex) : int = v
   end
+  (* we need to augment the `TS` module to include some extra stuff. *)
   module TS' = struct 
     include TS
     let iter_succ_e (f: (TS.vertex * (TS.transition label) * TS.vertex) -> unit) (g: TS.t) (v: TS.vertex) = WG.iter_succ_e f g v
@@ -806,499 +904,389 @@ module McMillanChecker = struct
   (* to print the reachability tree (+ worklist), or not *) 
   let print_tree = false
 
-  (* contextual information maintained by McMillan-Checker. *)
+  (* contextual information maintained by GPS algorithm. *)
   (* intraprocedural context *)
   type intra_context = {
     id : ProcName.t;
     ts : cfg_t;
+    recurse_level : int;
+    precondition : K.t;
+    pre_state : Ctx.t Syntax.formula;
+    equalities: value ValueHT.t;
     mutable art : ReachTree.t ref;
     mutable worklist : ReachTree.node DQ.t;
-    mutable execlist : ReachTree.node DQ.t;
+    mutable execlist : (ReachTree.node * Ctx.t Interpretation.interpretation) DQ.t;
     global_ctx : global_context ref;
   } 
   (* global context *)
   and global_context = {
-      mode: mc_mode;
-      interproc: Summarizer.t ref;
+      interproc: Summarizer.t;
   }
-  (* mode of McMillan's algorithm: plain, or CRA-fueled concolic mode *)
-  and mc_mode = 
-      | PlainMcMillan 
-      | ConcolicMcMillan
-  (* answer *)
   and mc_result = 
-      | Safe 
-      | Unsafe of K.t list
+      | Safe of K.t 
+      | Unsafe of K.t
   (** some helper functions that operate on the context *)
 
-  let mk_intra_context (gctx: global_context ref) (id: ProcName.t) (ts: cfg_t) (pre_state: state_formula) (post_state: state_formula) (entry: int) (err_loc: int)  =
+
+  let demote_precondition (precondition: K.t) =
+    let pre_guard, pre_transform = K.guard precondition, K.transform precondition in 
+    let pre_state = ref @@ pre_guard in 
+    let equalities = ValueHT.create 991 in 
+    BatEnum.iter (fun (var, asgn) -> 
+      let prophecy_var = V.prophesize var in 
+      let prophecy_sym = V.symbol_of prophecy_var in 
+      let prophecy_term = Syntax.mk_const srk prophecy_sym in 
+      ValueHT.add equalities var prophecy_var;
+      pre_state := Syntax.mk_and srk [!pre_state; (Syntax.mk_eq srk prophecy_term asgn)]) pre_transform;
+    !pre_state, equalities 
+  
+
+  (* promote an arbitrary state formula (not necessarily the pre-state) to a transition formula. *)
+  (* To do so, we substitute in fresh skolem symbols for all prophecy variables inside [f], and *)
+  (* create a transform map, treating the substituted formula as guard. *)
+  let promote (f : Ctx.t Syntax.formula) = 
+    let sym_map = ValueHT.create 991 in 
+    let substitute = Memo.memo (fun sym -> 
+      match V.of_symbol sym with
+      | Some v ->
+        begin match V.var_of_prophecy_var v with 
+        | Some original_var ->
+          let fresh_skolem = Syntax.mk_symbol srk (Syntax.typ_symbol srk sym) in 
+          let term = Syntax.mk_const srk fresh_skolem in 
+          ValueHT.add sym_map original_var term;
+          term 
+        | None -> Syntax.mk_const srk sym 
+        end
+      | None -> Syntax.mk_const srk sym) in 
+    K.construct (Syntax.substitute_const srk substitute f) (ValueHT.to_seq sym_map |> List.of_seq)
+
+
+  let mk_intra_context (gctx: global_context ref) (id: ProcName.t) (ts: cfg_t) (recurse_level: int) (precondition: K.t) (entry: int) (err_loc: int)  =
+    let pre_state, equalities = demote_precondition precondition in  
     ref {
       id = id;
       ts = ts;
+      recurse_level = recurse_level;
+      precondition = precondition;
+      pre_state = pre_state;
+      equalities = equalities;
       worklist = DQ.empty;
       execlist = DQ.empty;
-      art = ReachTree.make ts entry err_loc pre_state post_state !gctx.interproc;
+      art = ReachTree.make ts entry err_loc pre_state !gctx.interproc;
       global_ctx = gctx;
     }
-  and mk_mc_context (start_mode: mc_mode) (global_cfg: cfg_t) (global_src: int) = 
+  and mk_mc_context (global_cfg: cfg_t) (global_src: int) = 
     ref {
-      mode = start_mode; 
-      interproc = ref (Summarizer.init global_cfg global_src);
+      interproc = Summarizer.init global_cfg global_src;
     }
 
-  (** some helper methods *)
-  let worklist_push  (i : ReachTree.node) (q : ReachTree.node DQ.t) = DQ.snoc q i 
+  (** place an element in front of the deque (worklist) *)
+  let worklist_push  (i : 'a) (q : 'a DQ.t) = DQ.snoc q i 
 
-  (* Interpolate the path (entry) -> (t %-> src) -> (sink). If fail, then get model. *)
-  let interpolate_or_get_model (art : ReachTree.t ref) (recurse_level: int) (src : ReachTree.node) (sink: TS.vertex) = 
-    let oracle = 
-      if recurse_level = 0 then Summarizer.path_weight_inter else Summarizer.path_weight_intra in 
-    let is_inter_err_loc = (recurse_level > 0) && ((ReachTree.maps_to art src) = ReachTree.get_err_loc art) in 
-    let post_path_summary = oracle (ReachTree.get_summarizer art) (ReachTree.maps_to art src) sink in 
-    let err_state =  
-      if recurse_level = 0 then K.guard post_path_summary |> Syntax.mk_not srk
-      else 
-        begin if is_inter_err_loc then 
-          Syntax.mk_not srk @@ ReachTree.get_post_state art 
-        else (K.guard (K.mul post_path_summary (K.assume (ReachTree.get_post_state art)))) |> Syntax.mk_not srk 
-      end
-    in
-    let initial_path_weights = (K.assume (ReachTree.get_pre_state art)) :: ReachTree.path_condition art OverApprox src in 
-      K.interpolate_or_concrete_model initial_path_weights err_state
+  let get_summarizer intra_ctx = 
+    !(!intra_ctx.global_ctx).interproc 
+
+  let make_equalities (ctx: intra_context ref) = 
+    ValueHT.fold (fun k v acc -> 
+      let s = V.symbol_of k |> Syntax.mk_const srk in 
+      let s' = V.symbol_of v |> Syntax.mk_const srk in 
+      Syntax.mk_eq srk s s' :: acc) !ctx.equalities [Syntax.mk_true srk]
+    |> Syntax.mk_and srk 
+
+  let oracle ctx u v= 
+    if !ctx.recurse_level = 0 then Summarizer.path_weight_inter (get_summarizer ctx) u v
+      else Summarizer.path_weight_intra (get_summarizer ctx) u v
+
+  let rec art_cfg_path_pair (ctx: intra_context ref) (p: ReachTree.node list) = 
+    match p with 
+    | u :: v :: t ->
+      let u_vtx = ReachTree.maps_to !ctx.art u in 
+      let v_vtx = ReachTree.maps_to !ctx.art v in 
+      (u, (u_vtx, v_vtx), v) :: (art_cfg_path_pair ctx (v :: t))
+    | _ -> []
+
+  (* turn tree path into a sequence of CFG edges. *)
+  let rec cfg_path (ctx: intra_context ref) (p : ReachTree.node list) = 
+    art_cfg_path_pair ctx p 
+    |> List.map (fun (_, (u, v), _) -> (u, v))
+  
+  (* CFG path condition from art.src -> art.v *)
+  let path_condition (ctx: intra_context ref) condition_type (v: ReachTree.node) =
+    let art = !ctx.art in 
+    let summarizer = get_summarizer ctx in   
+    let cfg = !ctx.ts in 
+    let art_nodes = ReachTree.tree_path art v in 
+    let cfg_nodes = List.map (fun x -> ReachTree.maps_to art x) art_nodes in 
+    let rec to_weights l : K.t label list = 
+      match l with 
+      | a :: b :: t -> 
+        WG.edge_weight cfg a b :: (to_weights (b :: t)) 
+      | _ -> []
+      in 
+    let pathcond = List.map (fun (weight: K.t label) -> 
+      match weight with  
+      | Call (src, dst) -> 
+        begin match condition_type with 
+        | OverApprox -> Summarizer.over_proc_summary summarizer (ProcName.make (src, dst))
+        | UnderApprox -> Summarizer.under_proc_summary summarizer (ProcName.make (src, dst)) 
+        end
+      | Weight w -> w) (to_weights cfg_nodes) in 
+      Printf.printf " ---- path_condition: path length: %d, before add1: %d\n" ((List.length pathcond)+1) (List.length pathcond);
+    (K.assume !ctx.pre_state) :: pathcond 
+
+  let mk_post (ctx: intra_context ref) (v: ReachTree.node) (sink: TS.vertex) = 
+    let art = !ctx.art in
+    let post_path_summary = oracle ctx (ReachTree.maps_to art v) sink in  
+    let equalities = make_equalities ctx |> K.assume in 
+    K.guard (K.mul post_path_summary equalities)
+  
+  (* Interpolate the path (entry) -> (CFG vertex corresponding to src node) -> (sink CFG vertex). If fail, then get model. *)
+  let interpolate_or_get_model (ctx: intra_context ref) (src : ReachTree.node) (sink: TS.vertex) = 
+    let suffix = Syntax.mk_not srk (mk_post ctx src sink) in
+    let prefix = path_condition ctx OverApprox src in 
+    K.interpolate_or_concrete_model prefix suffix
 
   let get_global_ctx (ctx: intra_context ref) = (!ctx.global_ctx)
 
-  (** Core procedures of McMillan's algorithm *)
-
-
   (* refine path to (tree) node v. 
-     Returns `Failure trans with trans being the path-to-error if unable to refine.
+     Returns `Failure (u, m) with (u, m) being a new item to the concolic worklist if unable to refine.
      Returns `Success if refine is able to refine. *)
-  let mc_refine (ctx: intra_context ref) (recurse_level: int) (v: ReachTree.node) = 
-    let handle_failure art v = 
+  let mc_refine (ctx: intra_context ref) (v: ReachTree.node) = 
+    let handle_failure v m = 
       logf ~level:`always " *********************** REFINEMENT FAILED *************************\n"; 
-      let path_condition = ReachTree.path_condition art OverApprox v 
-      in `Failure path_condition 
+      let path_condition = path_condition ctx OverApprox v 
+      in `Failure (m, path_condition) 
     in let art = !ctx.art in 
-    let path_condition = ReachTree.path_condition art OverApprox v in 
     let path = ReachTree.tree_path art v in 
-      match !(get_global_ctx ctx).mode with 
-      | PlainMcMillan -> 
-        begin
-        match K.interpolate ((K.assume @@ ReachTree.get_pre_state art) :: path_condition) (Syntax.mk_not srk @@ ReachTree.get_post_state art) with 
-        | `Invalid | `Unknown -> 
-          handle_failure art v
-        | `Valid interpolants ->
-          logf ~level:`always "  refine: interpolant sequence for tree vertex %d: -----------\n" v;
-          logf ~level:`always " original formula: ";
-          log_weights "" path_condition;
-          logf ~level:`always "--------------------------------------------------------------\n";
-          log_formulas "" interpolants;
-          logf ~level:`always "--------------------------------------------------------------\n";
-          ReachTree.refine !ctx.art path interpolants
-          |> List.iter (fun x -> !ctx.worklist <- worklist_push x !ctx.worklist);
-          `Success 
-        end 
-      | ConcolicMcMillan -> 
-        begin 
-          match interpolate_or_get_model art recurse_level v @@ ReachTree.get_err_loc art with 
-          `Invalid v_model -> 
-            logf ~level:`always "Unable to refine but got model\n";
-            (* for node v, since v is a frontier node, update art.models to store its corresponding model. *)
-            ReachTree.set_model art v v_model;
-            handle_failure art v
-          | `Unknown -> failwith ""
-          | `Valid interpolants -> 
-            logf ~level:`always "--- mc_refine: interpolation succeeded. path length %d, interpolant length %d" (List.length path) (List.length interpolants);
-            ReachTree.refine art path interpolants
-            |> List.iter (fun x -> !ctx.worklist <- worklist_push x !ctx.worklist); 
-            `Success 
-        end
-
-  let single_plain_mcmillan_round (ctx: intra_context ref) = 
-    match DQ.front !ctx.worklist with (* use DQ.rear if want BFS *) 
-      | Some (u, w) (* (w, u) if use DQ.front *) ->          
-        ReachTree.log_art !ctx.art;
-        ReachTree.log_node u;
-        log_formulas "label: " [ReachTree.label !ctx.art u]; 
-        !ctx.worklist <- w;
-        (* Fetched tree node u from work list. First attempt to close it. *)
-        if not (ReachTree.is_covered !ctx.art u) then begin
-          logf ~level:`always " uncovered. try close\n";
-          begin match ReachTree.close !ctx.art u with 
-            | (true, wl) -> (* Close succeeded. No need to further explore it. *)
-              logf ~level:`always "Close succeeded.\n";
-
-              (* ctx.worklist := u %>> !(ctx.worklist); *)
-              `Continue 
-            | (false, wl) -> (* u is uncovered. *)
-              if (ReachTree.maps_to !ctx.art u) == ReachTree.get_err_loc !ctx.art then 
-                begin match mc_refine ctx 0 u with 
-                  | `Success -> 
-                    logf ~level:`always " refinement result: SUCCESS\n";
-                    (* for every node along path of refinement try close *)
-                    let path = ReachTree.tree_path !ctx.art u in 
-                      List.iter (fun x -> 
-                        let _, l = ReachTree.close !ctx.art x in 
-                          List.iter (fun frontier -> !ctx.worklist <- worklist_push frontier !ctx.worklist) l) path;
-                      (* ctx.worklist := u %>> !(ctx.worklist); *)
-                      `Continue
-                  | `Failure path_cond -> 
-                    logf ~level:`always " refinement result: FAILURE\n";
-                    `ErrorReached path_cond
-                end 
-              else begin 
-                logf ~level:`always " expanding...\n";
-                let new_nodes = ReachTree.expand_plain !ctx.art u in 
-                  logf ~level:`always "new nodes: [";
-                  List.iter (fun n -> 
-                    logf ~level:`always "%d " (n |> ReachTree.of_node);
-                    !ctx.worklist <- worklist_push n !ctx.worklist) new_nodes;
-                  logf ~level:`always " ]\n";
-                  `Continue
-              end
-          end end
-        else begin (* u is closed *)
-          logf ~level:`always "  | covered \n"; 
-          `Continue 
-        end
-      | None -> failwith "err: single_mcmillan_round assumes worklist is non-empty"
-
-  let plain_mcmillan_execute (ctx: intra_context ref) = 
-    let continue = ref true in
-    let witness_r = ref [ K.zero ] in 
-    let state = ref `Continue in 
-    let eps = ReachTree.add_tree_vertex !ctx.art ~label:(ReachTree.get_pre_state !ctx.art) (ReachTree.get_entry !ctx.art) (-1) in 
-    !ctx.worklist <- worklist_push eps !ctx.worklist;
-    begin
-      while DQ.size (!ctx.worklist) > 0 && !continue do 
-        begin 
-          match single_plain_mcmillan_round ctx with 
-          | `Continue -> continue := true; state := `Continue
-          | `ErrorReached witness -> 
-            logf ~level:`always "  not continueing any further --- error reached\n";
-            witness_r := witness; 
-            continue := false; 
-            state := `ErrorReached
-        end
-      done;
-      logf ~level:`always " +++++++++++++++++++++++++++++++++ Final ART +++++++++++++++++++++++++++++ \n";
-      ReachTree.log_art !ctx.art;
-      match !state with 
-      | `ErrorReached -> Unsafe (!witness_r)
-      | `Continue -> 
-        logf ~level:`always "execution saturated\n"; 
-        begin match ReachTree.verify_well_labelled_tree !ctx.art with 
-          | false -> failwith "ERROR: well-labelled check failed"
-          | true -> ReachTree.check_covering_welformedness !ctx.art 
-        end;
-        Safe
-    end
+      match interpolate_or_get_model ctx v @@ ReachTree.get_err_loc art with 
+      `Invalid v_model -> 
+        logf ~level:`always "Unable to refine but got model\n";
+        (* v is no longer a frontier node. *)
+        handle_failure v v_model
+      | `Unknown -> failwith "mc_refine: got UNKNOWN as a result for interpolate_or_get_model"
+      | `Valid interpolants ->
+        logf ~level:`always "--- mc_refine: interpolation succeeded. path length %d, interpolant length %d" (List.length path) (List.length interpolants);
+        ReachTree.refine art path interpolants
+        |> List.iter (fun x -> !ctx.worklist <- worklist_push x !ctx.worklist); 
+        `Success 
 
   (* concolic phase of our model checking algorithm *)
-  let concolic_phase (ctx: intra_context ref) (recursion_level: int) = 
-    match DQ.front (!ctx.execlist) with 
-    | Some (u, w) -> 
-      ReachTree.log_art !ctx.art;
-      logf ~level:`always " visit %d (%d)\n" u (ReachTree.maps_to !ctx.art u);
-      !ctx.execlist <- w;
-      if (ReachTree.maps_to !ctx.art u) = (ReachTree.get_err_loc !ctx.art) then 
-        begin 
-          (** if an error is reached , see if it is a call from the first recursive level or non-first. *)
-          (** a non-first recursion level requires an additional step of concolic execution past edge (K.assume !art.post). *)
-          if recursion_level = 0 then 
-            `ErrorReached u
-          else begin 
-            logf ~level:`always "inter-procedural return-loc reached. trying expand_pseudo...\n";
-            (** if we can successfully expand past the assertion of !art.post_state, then we can report error and exit. *)
-            (** otherwise, we shall refine the current, exit node. *)
-            match ReachTree.expand_pseudo !ctx.art u with 
-            | `Refine -> 
-              logf ~level:`always "     ... expand_pseudo failed, adding %d to refinement worklist...\n" u;
-              !ctx.worklist <- worklist_push u !ctx.worklist; 
-              `Continue 
-            | `Error -> 
-              logf ~level:`always "       ... expand_pseudo succeeded\n";
-              `ErrorReached u 
+  let concolic_phase (ctx: intra_context ref) =
+    let round ctx = 
+      match DQ.front (!ctx.execlist) with 
+      | Some ((u, u_model), w) -> 
+        if print_tree then 
+        ReachTree.log_art !ctx.art;
+        logf ~level:`always " visit %d (%d)\n" (ReachTree.of_node u) (ReachTree.maps_to !ctx.art u);
+        !ctx.execlist <- w;
+        if (ReachTree.maps_to !ctx.art u) = (ReachTree.get_err_loc !ctx.art) then
+          begin match Smt.is_sat srk (make_equalities ctx) with 
+          | `Sat -> 
+          `ErrorReached u
+          | _ -> !ctx.worklist <- worklist_push u !ctx.worklist; `Continue
           end
+        else begin
+            logf ~level:`always "model of %d (%d): \n" (ReachTree.of_node u) (ReachTree.maps_to !ctx.art u);
+            log_model "" u_model;
+            let new_concolic_nodes, new_frontier_nodes = ReachTree.expand !ctx.recurse_level !ctx.art u u_model in 
+              List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
+              List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
+              `Continue
         end
-      else begin
-        let u_model = IntMap.find u !(!ctx.art).models in 
-          logf ~level:`always "model of %d (%d): \n" u (ReachTree.maps_to !ctx.art u);
-          log_model "" u_model;
-          let new_concolic_nodes, new_frontier_nodes = ReachTree.expand_concolic (get_solver ctx) recursion_level !ctx.art u in 
-            List.iter (fun concolic_node -> !ctx.execlist <- worklist_push concolic_node !ctx.execlist) new_concolic_nodes;
-            List.iter (fun frontier_node -> !ctx.worklist <- worklist_push frontier_node !ctx.worklist) new_frontier_nodes;
-            `Continue
-      end
-    | None -> failwith "err: concolic_phase is reading from empty execution worklist" (* cannot happen *)
+      | None -> failwith "err: concolic_phase is reading from empty execution worklist" (* cannot happen *)
+      in 
+    let rtn = ref `Continue in 
+    while !rtn = `Continue && ((DQ.size !ctx.execlist) > 0) do  
+      rtn := round ctx 
+    done;
+    match !rtn with 
+    | `Continue -> `Safe 
+    | `ErrorReached u -> `Unsafe u 
+
 
   (* refinement phase of our model checking algorithm *)
-  let refinement_phase (ctx: intra_context ref) (recurse_level: int) = 
+  let refinement_phase (ctx: intra_context ref) = 
+    let worklist_push_all ls = 
+      List.iter (fun x -> !ctx.worklist <- worklist_push x !ctx.worklist) ls in 
     match DQ.front (!ctx.worklist) with 
     | Some (u, w) -> 
-      ReachTree.log_art !ctx;
+      if print_tree then 
+      ReachTree.log_art !ctx.art;
       !ctx.worklist <- w;
-      begin match ReachTree.find_opt !ctx.art u with 
-      | Some _ -> 
-        (* Fetched tree node u from work list. First attempt to close it. *)
-        if not (mc_is_covered ctx u) then 
-          begin
-            logf ~level:`always " uncovered. try close\n";
-            if mc_close ctx u then (* Close succeeded. No need to further explore it. *)
-              begin 
-                logf ~level:`always "Close succeeded.\n"; 
-                `Continue
-              end   
-            else (* u is uncovered. *)
-              begin match mc_refine ctx recurse_level u with 
+      (* Fetched tree node u from work list. First attempt to close it. *)
+      if not (ReachTree.is_covered !ctx.art u) then 
+        begin
+          logf ~level:`always " uncovered. try close\n";
+          begin match ReachTree.lclose !ctx.art u with (* Close succeeded. No need to further explore it. *)
+          | true, leaves ->  
+            logf ~level:`always "Close succeeded.\n"; 
+            worklist_push_all leaves;
+            `Continue
+          | false, leaves -> (* u is uncovered. *)
+            worklist_push_all leaves;
+            begin match mc_refine ctx u with 
               | `Success -> (* refinement succeeded *)
                 logf ~level:`always "refinement_phase: refinement succeeded\n";
                 (* for every node along path of refinement try close *)
                 let path = ReachTree.tree_path !ctx.art u in 
-                  List.iter (fun x -> let _ = mc_close ctx x in ()) path;
+                  List.iter 
+                    (fun x -> let (_, ls) = ReachTree.close !ctx.art x in 
+                      worklist_push_all ls) path;
                   `Continue 
-              | `Failure _ -> 
-                !ctx.execlist <- worklist_push u !ctx.execlist; (* put u onto execlist since it now has a model. *)
+              | `Failure (u_m, _) -> 
+                !ctx.execlist <- worklist_push (u, u_m) !ctx.execlist; (* put u onto execlist since it now has a model. *)
                 (* for every node along path of refinement try close *)
                 let path = ReachTree.tree_path !ctx.art u in 
-                  List.iter (fun x -> let _ = mc_close ctx x in ()) path 
+                  List.iter (fun x -> let (_, ls) = ReachTree.close !ctx.art x in 
+                    worklist_push_all ls) path 
                 ; `Continue
               end
           end
-        else begin 
-          logf ~level:`always "refinement_phase: %d is covered\n" u;
-          `Continue
         end
-      | None -> 
-        logf ~level:`always "refinement_phase: encountered deleted vertex %d. continuing\n" u;
+      else begin 
+        logf ~level:`always "refinement_phase: %d is covered\n" (ReachTree.of_node u);
         `Continue
       end
     | None -> failwith "refinement_phase: encountered an empty worklist for refinement\n" (* cannot happen *)
 
 
-  (** Create prelude to a procedure, which is a transition formula *)
-  let prelude (precondition: Ctx.t Syntax.formula) (transform: Ctx.t Syntax.formula) = 
-    failwith ""
- (*   let suffix = "_out__" in 
-    let mangle name = name ^ suffix in 
-    let replaced = Hashtbl.create 998 in 
-    let replace_vocab : Syntax.Symbol.Set.t = Syntax.symbols precondition in 
-    let replacer s = 
-      match Hashtbl.find_opt replaced s, Syntax.Symbol.Set.mem s replace_vocab with 
-      | None, true -> 
-          let name = Syntax.show_symbol srk s |> mangle in
-          let typ = Syntax.typ_symbol srk s in
-            Syntax.mk_const srk (Syntax.mk_symbol srk ~name typ) 
-      | Some s', _ -> s'
-      | None, false -> Syntax.mk_const srk s in 
-    let precondition = Syntax.substitute_const srk replacer precondition in 
-    let transform = Syntax.substitute_const srk replacer transform in 
-      (Syntax.symbols precondition 
-      |> Syntax.Symbol.Set.elements
-      |> List.map (fun x -> Ctx.mk_eq (Syntax.mk_const srk x) (nondet_const "havoc" (`TyInt))) 
-      |> Syntax.mk_and srk), transform
-*)
-  (* handle procedure calls by lazily backsolving them along paths-to-error. *)
-  let rec handle_path_to_error (ctx: intra_context ref) (recurse_level: int) (err_leaf : int) : [`Concretized of K.t list | `Failure of int ] = 
-    let art = !ctx.art in 
-    let _ = 
-      logf ~level:`always "interpretation at node %d(%d) handle_path_to_error: %a\n" 
-        err_leaf (ReachTree.maps_to art err_leaf) (Interpretation.pp) (IntMap.find err_leaf !art.models)
+  let extract_refinement (ctx: intra_context ref) = 
+    let art = !ctx.art in
+    let rfn = ReachTree.label art ReachTree.root |> promote in 
+    K.exists (fun v -> V.is_global v) rfn 
+  
+  let seq = List.fold_left K.mul K.one (* sequentially multiply, left-right *)
 
-    in let _ = ReachTree.reset_substitute_map art in 
-    let seq = List.fold_left K.mul K.one in 
-    let project tr = (* existentially quantify over all locals, leaving out only globals *)
-      K.exists (fun v -> V.is_global v) tr in
-    let call_edges = ReachTree.calls_in_path art err_leaf in 
-    let status = List.fold_left 
-      (fun result curr_call ->
-        match result with 
-        | `Unconcretized nnn ->  
-          begin
-            (* w, z are tree nodes such that (art.maps_to w, art.maps_to z) is a call-edge to (call_entry, call_exit)
-               and (call_entry, call_exit) refer to cfg vertex locations delineating the procedure entry/exit in the 
-               recursive control flow graph. *)
-            let (w, (call_entry, call_exit), z) = curr_call in 
-            let prefix = K.assume (!art.pre_state) :: ReachTree.path_condition art w |> seq in
-            let suffix = ((ReachTree.path_condition art ~cutoff:z err_leaf) @ [K.assume (!art.post_state)]) |> seq in 
-            let summary = 
-              logf ~level:`always "get summary (art %d mapsto %d, %d mapsto %d)\n" w (ReachTree.maps_to art w) z (ReachTree.maps_to art z); 
-              ReachTree.edge_weight art w z in 
-            (* helper subroutine to refine procedure summary of (call_entry, call_exit), when extrapolate failed *)
-            let refine_summary_with_extrapolants e1 e2 = 
-              Summarizer.refine (!art.interproc) (call_entry, call_exit) e1 e2 
-            in let _ = Printf.printf "HERE HEREextrapolate at call site (%d,%d) @ call edge %d\n" call_entry call_exit nnn  
-            in begin match K.extrapolate prefix summary suffix recurse_level with 
-              | `Sat (e1, e12) -> 
-                log_formulas "--- handle_path_to_error : extrapolate success; formulas \n" [e1;e12];
-                let pre, transform' = prelude e1 e12 in 
-                log_formulas "--- handle_path_to_error : prelude " [ pre ];
-                log_formulas "--- handle_path_to_error prelude transform: " [transform'];
-                (* instantiate interprocedural reachability query *)
-                let ctx' = mk_intra_context (get_global_ctx ctx) (call_entry, call_exit) !art.graph (Syntax.mk_and srk [e1; pre]) transform' call_entry call_exit in 
-                begin match concolic_mcmillan_execute ctx' (recurse_level + 1) with 
-                  | Safe -> 
-                    logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute failed. refining\n";
-                    (* concretization of error trace failed. do refine *)
-                      (* declare failure *)
-                      refine_summary_with_extrapolants e1 e12;
-                      let summary' = ReachTree.edge_weight art w z in 
-                        log_weights "  --> new summary: " [summary'];
-                      (* return the dst vertex of the call-edge (w,z) as frontier node for refinement. *)
-                      (* a frontier node is a node that cannot be reached by means of concrete execution from its parent, 
-                         and here our interprocedural definition is the same. *)
-                      `Failure z (* z is the dst vertex of call-edge (w, (call_entry, call_exit), z) *)
-                  | Unsafe tr -> 
-                    logf ~level:`always "--- handle_path_to_error: recursive call to concolic_mcmillan_execute success. substituting in concrete path\n";
-                    Printf.printf "concrete path is %d,%d for path from entry to tree node %d(%d) err %d level %d\n" 
-                      (ReachTree.maps_to art w) (ReachTree.maps_to art z) err_leaf (ReachTree.maps_to art err_leaf) err_leaf recurse_level;
-                       ReachTree.substitute_edge_weight art (w, z) (tr |> seq |> project);
-                      `Unconcretized (nnn+1)
-                end
-              | `Unsat -> 
-                failwith "--- handle_path_to_error : extrapolate failed"
+
+  let rec handle_path_to_error ctx left curr right dir err_leaf : [`Unsafe of K.t | `Safe] = 
+    let handle_right_case caller_id = 
+      let f = List.map (fun (_, w, _) -> w) in 
+      let left = f left in 
+      let right = f right in
+      match K.project (V.is_global) (path_condition ctx UnderApprox err_leaf |> seq) with 
+      | `Sat t -> `Unsafe t 
+      | _ -> 
+        Printf.printf " ------------------------ handle_path_to_error debug info: called by case %s ------------------\n" caller_id; 
+        log_weights "faulty weight: " (path_condition ctx UnderApprox err_leaf);
+        Printf.printf "\nlength of left path: %d" (List.length left);
+        Printf.printf "\nlength of right path: %d" (List.length right);
+        Printf.printf "\nPrinting left path... \n";
+        log_labelled_weights (get_summarizer ctx) UnderApprox "left path - " left;
+        failwith "error: handle_path_to_error: cannot project path condition" in 
+    let handle_left_case caller_id =
+      Printf.printf "handle_path_to_error: %s\n" caller_id;
+      `Safe in 
+    match curr with 
+    | (_, Weight _, _) -> 
+      begin match left, dir, right with 
+      | [], `Left, _ -> 
+        handle_left_case "reached leftmost item, `curr` variable is NOT a call-edge" 
+      | _, `Right, [] -> 
+          handle_right_case "reached rightmost item, `curr` variable is NOT a call-edge" 
+      | a :: left', `Left, _ -> handle_path_to_error ctx left' a (curr :: right) dir err_leaf 
+      | _, `Right, a :: right' -> handle_path_to_error ctx (curr :: left) a right' dir err_leaf 
+      end
+    | (u, (Call (src, dst)), _) ->
+      let prefix = path_condition ctx UnderApprox u |> seq in 
+      let suffix = 
+        List.map (fun (_, ew, _) -> 
+          match ew with 
+          | Weight w -> w 
+          | Call (s, t) -> Summarizer.over_proc_summary (get_summarizer ctx) (ProcName.make (s, t))) 
+        right 
+        |> seq in 
+      let summary = Summarizer.over_proc_summary (get_summarizer ctx) (ProcName.make (src, dst)) in 
+      begin match K.contextualize prefix summary suffix with 
+      | `Sat query -> 
+        let answer =
+          mk_intra_context (!ctx.global_ctx) (ProcName.make (src, dst)) !ctx.ts  (!ctx.recurse_level + 1) query src dst 
+          |> intraproc_check 
+        in begin match answer with 
+           | Safe r -> 
+            Summarizer.refine_over_summary (get_summarizer ctx) (ProcName.make (src, dst)) r;
+            handle_path_to_error ctx left curr right dir err_leaf
+           | Unsafe trs -> 
+            begin match trs |> K.project (V.is_global) with 
+            | `Sat tr -> 
+              Summarizer.refine_under_summary (get_summarizer ctx) (ProcName.make (src, dst)) tr;
+              begin match right with 
+              | a :: right' -> 
+                handle_path_to_error ctx (curr::left) a right' `Right err_leaf 
+              | [] -> (* we're done *) 
+                handle_right_case "rightmost edge is call-edge, underapproximation successful"
+              end
+            | _ -> failwith "error: cannot do mbp on returned error trace in handle_path_to_error" 
             end
-         end
-         | _ -> result (* some call-edge failed in the middle. go down without trying further. *)
-        ) (`Unconcretized 0) call_edges in 
-      match status with 
-      | `Unconcretized _ -> 
-        let path_cond = 
-          ReachTree.path_condition art err_leaf in 
-        `Concretized path_cond (* by the end, we've concretized ourselves *)
-      | `Failure v -> 
-        ReachTree.reset_substitute_map art;
-        `Failure v  (* otherwise, we've encountered a concretization failure*)
-
-  (* intraprocedural mcmillan's algorithm sped-up with CRA + concolic execution *)
-  and concolic_mcmillan_execute (ctx: intra_context ref) (recurse_level: int) : mc_result = 
-    logf ~level:`always " *********************************************** recurse_level: %d\n" recurse_level;
-    (*if recurse_level > 3 then failwith "failing because recursive level > 1"; *)
-    let eps = ReachTree.add_tree_vertex !ctx.art ~label:!(!ctx.art).pre_state !(!ctx.art).entry (-1) in 
+        end
+      | `Unsat -> (* procedure summary at `curr` is UNSAT, so backtrack *) 
+        begin match left with 
+        | a :: left' -> 
+          handle_path_to_error ctx left' a (curr :: right) `Left err_leaf
+        | [] -> (* at the very left. we're done *)
+           handle_left_case "at the leftmost edge, is a call-edge, done"
+      end
+      end
+  
+    
+  and intraproc_check (ctx: intra_context ref) : mc_result = 
+    logf ~level:`always " *********************************************** recurse_level: %d\n" !ctx.recurse_level;
     let continue = ref true in 
     let state = ref `Continue in
-      !ctx.worklist <- worklist_push eps !ctx.worklist;
+      !ctx.worklist <- worklist_push (ReachTree.root) !ctx.worklist; 
       while !continue && (DQ.size (!ctx.worklist) > 0 || DQ.size (!ctx.execlist) > 0) do
         if DQ.size (!ctx.execlist) > 0 then begin 
           (* concolic phase *)
-          begin match concolic_phase ctx recurse_level with 
-          | `ErrorReached w -> 
-            logf ~level:`always "--- concolic_mcmillan_execute: found path-to-error at vertex %d \n" w;
-            begin match handle_path_to_error ctx recurse_level w with 
-            | `Failure frontier_node -> (* path-to-error concretization failed. frontier_node is the src node of a call-edge. *)
-              (* refine and blow away the tree at `frontier_node`. *)
-              logf ~level:`always "--- concolic_mcmillan_execute: frontier node is %d\n" frontier_node;
-              let children = ReachTree.children !ctx.art frontier_node in 
-                (* blow away children of tree node `frontier_node`. *)
-                List.iter (fun child -> 
-                  logf ~level:`always " --- concolic_mcmillan_execute: blowing away subtree at child node %d \n" child;                  
-                  ReachTree.blowup !ctx.art child) children;
-                !ctx.worklist <- worklist_push frontier_node !ctx.worklist;
-                continue := true
-            | `Concretized pathcond ->  
-              logf ~level:`always "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
-              state := `Concretized (pathcond);
-              continue := false
+          begin match concolic_phase ctx with 
+          | `Unsafe w -> 
+            logf ~level:`always "--- concolic_mcmillan_execute: found path-to-error at tree node %d (cfg vertex %d) \n" (ReachTree.of_node w) (ReachTree.maps_to !ctx.art w);
+            let path_to_w = 
+              ReachTree.tree_path !ctx.art w 
+              |> art_cfg_path_pair ctx 
+              |> List.map (fun (u, (u_vtx, v_vtx), v) -> (u, WG.edge_weight !ctx.ts u_vtx v_vtx, v)) in
+            begin match path_to_w with 
+            | curr :: right -> 
+              begin match handle_path_to_error ctx [] curr right `Right w with 
+                | `Safe -> (* path-to-error concretization failed. frontier_node is the src node of a call-edge. *)
+                  (* we can mark `w` as a frontier node to be refined, and continue. *)
+                  !ctx.worklist <- worklist_push w !ctx.worklist;
+                  continue := true
+                | `Unsafe pathcond ->  
+                  logf ~level:`always "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
+                  state := `Concretized (pathcond);
+                  continue := false
+                end
+            | [] -> 
+              (* corner case: the path to error is of length 0. *)
+              state := `Concretized (K.one)  
             end
-          | `Continue -> 
+          | `Safe -> 
             state := `Continue
           end
         end else begin 
           (* refinement phase *)
-          state := refinement_phase ctx recurse_level
+          state := refinement_phase ctx
         end
       done; 
       match !state with 
-      | `Continue -> Safe
+      | `Continue -> Safe (extract_refinement ctx)
       | `Concretized cond -> Unsafe (cond) 
+  
 
-
-  let mc_exec (mode: mc_mode) (ts : cfg_t) (entry : int) (err_loc : int) : mc_result = 
+  let execute (ts : cfg_t) (entry : int) (err_loc : int) : mc_result = 
     (**
     * Set up data structures used by the algorithm: worklist, 
     * vtxcnt (keeps track of largest unused vertex number in tree), 
     * ptt is a pointer to the reachability tree.
     *)
-    let global_context = mk_mc_context mode ts entry in 
-    match mode with 
-    | PlainMcMillan -> 
-      logf ~level:`always "executing plain mcmillan's algorithm\n";
-      let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
-        plain_mcmillan_execute main_context 
-    | ConcolicMcMillan -> 
-      logf ~level:`always "executing concolic mcmillan's algorithm\n";
-      let main_context = mk_intra_context global_context (entry, err_loc) ts (mk_true ()) (mk_true ()) entry err_loc in 
-        concolic_mcmillan_execute main_context 0
-  end
+    let global_context = mk_mc_context ts entry in 
+    logf ~level:`always "executing concolic mcmillan's algorithm\n";
+    (*let ts_with_gas = instrument_with_gas ts in *)
+    let main_context = mk_intra_context global_context (entry, err_loc) ts 0 K.one entry err_loc in 
+    intraproc_check main_context 
+    end
+
 
 module BM = BatMap.Make(Int)
-
-let test_interpolate_path (g : cfg_t) (entry : int) (err_loc : int) = 
-  let parents = ref BM.empty in 
-  let weights = ref BM.empty in 
-  let rec gatherDFS v err_loc p = 
-    Printf.printf "gatherDFS: visiting node %d\n" v ; 
-    parents := BM.add v p !parents;
-    if v == err_loc then ()
-    else
-      WG.iter_succ_e (fun (_, weight, y) -> 
-        (* If y is unvisited, then visit it. *)
-        match BM.find_opt y !parents with 
-        | None -> 
-          let weight = match weight with | Call _ -> failwith "" | Weight w -> w in 
-          weights := BM.add y weight !weights;
-          gatherDFS y err_loc v
-        | Some _ -> ()
-        ) g v
-  in 
-  let rec getPathCond u = 
-    Printf.printf "Path node %d, parent %d\n" u (BM.find u !parents);
-    if u = entry then begin Printf.printf "returning...\n" ; [] end
-    else begin
-      let u_weight = BM.find u !weights in 
-      u_weight :: (getPathCond @@ BM.find u !parents) end
-    in 
-      parents := BM.add entry (-1) !parents;
-      gatherDFS entry err_loc (-1);
-      let path_cond = getPathCond err_loc in 
-      let path_cond = List.rev path_cond in 
-      Printf.printf "...Got path condition\n";
-      log_weights "Path condition is: " path_cond;
-      let interpolants = K.interpolate [ K.zero ] (mk_false ()) in 
-      match interpolants with 
-      | `Invalid -> Printf.printf " --- invalid\n"
-      | `Unknown -> Printf.printf "  --- unknown\n"
-      | `Valid interpolants ->
-        log_formulas " *** Interpolants: " interpolants 
-
-
-(* driver for plain mcmillan *)
-let analyze_plain_mcl file = 
-  populate_offset_table file;
-  match file.entry_points with
-  | [main] -> begin
-
-      let rg = Interproc.make_recgraph file in
-      let entry = (RG.block_entry rg main).did in
-      let (ts, assertions) = make_transition_system true rg in
-      let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
-      TSDisplay.display ts;
-      Printf.printf "\nentry: %d\n" entry; 
-     (* List.iter (fun err_loc -> 
-        Printf.printf "Processing erro %d-----------------------------\n" err_loc;
-        test_interpolate_path ts entry err_loc 
-        ) new_vertices*)
-      List.iter (fun err_loc ->
-        Printf.printf "testing reachability of location %d\n" err_loc ; 
-        Printf.printf "------------------------------\n";
-        match McMillanChecker.mc_exec McMillanChecker.PlainMcMillan ts entry err_loc with 
-        | Safe -> Printf.printf "  proven safe\n"
-        | Unsafe _ -> Printf.printf "  proven unsafe\n";
-        Printf.printf "------------------------------\n"
-        ) new_vertices 
-      end
-  | _ -> assert false
 
 (* driver for concolic mcmillan *)
 let analyze_concolic_mcl file = 
@@ -1312,15 +1300,11 @@ let analyze_concolic_mcl file =
       let ts, new_vertices = make_ts_assertions_unreachable ts assertions in 
       TSDisplay.display ts;
       Printf.printf "\nentry: %d\n" entry; 
-     (* List.iter (fun err_loc -> 
-        Printf.printf "Processing erro %d-----------------------------\n" err_loc;
-        test_interpolate_path ts entry err_loc 
-        ) new_vertices*)
       List.iter (fun err_loc ->
         Printf.printf "testing reachability of location %d\n" err_loc ; 
         Printf.printf "------------------------------\n";
-        match McMillanChecker.mc_exec McMillanChecker.ConcolicMcMillan ts entry err_loc with 
-        | Safe -> Printf.printf "  proven safe\n";
+        match GPS.execute ts entry err_loc with 
+        | Safe _ -> Printf.printf "  proven safe\n";
         | Unsafe _ -> Printf.printf "  proven unsafe\n";
         Printf.printf "------------------------------\n"
         ) new_vertices 
@@ -1824,9 +1808,7 @@ let _ =
   CmdLine.register_pass
     ("-rba", resource_bound_analysis, " Resource bound analysis");
   CmdLine.register_pass 
-    ("-mcl-plain", analyze_plain_mcl, " Plain McMillan");
-  CmdLine.register_pass 
-    ("-mcl-concolic", analyze_concolic_mcl, " Combined McMillan+Concolic execution algorithm");
+    ("-mcl-concolic", analyze_concolic_mcl, " GPS model checking algorithm");
   CmdLine.register_pass
     ("-dump-simplified-cfg", dump_cfg true, " Dump simplified control-flow-graph before analysis");
   CmdLine.register_pass
