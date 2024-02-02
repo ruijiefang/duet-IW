@@ -12,13 +12,14 @@ module type Var = sig
   val is_global : t -> bool
 end
 
+
 module Make
     (C : sig
        type t
        val context : t context
      end)
     (Var : Var) : sig
-
+  
   (** There are two components in the representation of a transition: its {i
       transform}and its {i guard}.  The transform maps each variable that is
       {i written} during the transition to a term over its input variables.
@@ -27,8 +28,10 @@ module Make
       transform or the guard are called the {i footprint} of the
       transition. *)
   type t
+  type dt 
 
   type var = Var.t
+
 
       (** Test whether two transitions are equal up to logical equivalence and
       renaming skolem constants.  The input transitions must be normal in the
@@ -81,6 +84,9 @@ module Make
   (** Non-deterministically choose between two transitions *)
   val add : t -> t -> t
 
+  (** take the conjunction of two transitions *)
+  val conjunct : t -> t -> t 
+
   (** Unexecutable transition (unit of [add]). *)
   val zero : t
 
@@ -98,6 +104,11 @@ module Make
       variable [x] out of a transition [tr] is logically equivalent to
       [(exists x. tr) && x' = x]. *)
   val exists : (var -> bool) -> t -> t
+
+  (** Underapproximate existential quantification using model-based projection. 
+      The variables to be preserved are set to `true` in the initial map. 
+      Note the input map specifies variables to be preserved, not removed. *)
+  val project : (var -> bool) -> t -> [> `Sat of t | `Unsat]
 
   val is_zero : t -> bool
   val is_one : t -> bool
@@ -125,7 +136,7 @@ module Make
                                              | `Invalid
                                              | `Unknown ]
 
-  val extrapolate :  t -> t -> t -> int -> [ `Sat of (C.t formula * C.t formula ) | `Unsat ]
+  val contextualize :  t -> t -> t  -> [ `Sat of t | `Unsat ]
 
   (** Same as interpolate, but returns a concrete model if interpllation fails. *)
   val interpolate_or_concrete_model : t list -> C.t formula 

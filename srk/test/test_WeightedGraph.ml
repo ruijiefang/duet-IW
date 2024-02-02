@@ -31,6 +31,10 @@ module V = struct
   let is_global _ = true
   let equal = (=)
   let hash = Hashtbl.hash
+  let make_var _ _ = failwith ""
+  let prophesize _ = failwith "" 
+  let var_of_prophecy_var _ = failwith ""
+  let prophecy_var_of_var _ = failwith "" 
 end
 module T = Transition.Make(Ctx)(V)
 module WG = WeightedGraph

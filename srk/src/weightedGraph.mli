@@ -63,7 +63,10 @@ val in_degree : vertex -> 'a t -> int
 val cut_graph : 'a t -> vertex list -> 'a t
 
 (** Remove a vertex from a graph. *)
-val remove_vertex : 'a t -> vertex -> 'a t
+val remove_vertex : 'a t -> vertex -> 'a t 
+
+(** Remove an edge from a graph.*)
+val remove_edge : 'a t -> vertex -> vertex -> 'a t
 
 (** [contract g v] removes vertex [v] from [g] while preserving all weighted
     paths among remaining vertices.  That is, for each pair of edges [p -pw->

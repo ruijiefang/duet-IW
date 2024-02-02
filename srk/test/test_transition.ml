@@ -28,6 +28,10 @@ module V = struct
     else
       None
   let is_global _ = false 
+  let make_var _ _ = failwith "" 
+  let prophesize _ = failwith "" 
+  let var_of_prophecy_var = failwith "" 
+  let prophecy_var_of_var = failwith "" 
 end
 module T = Transition.Make(Ctx)(V)
 
@@ -241,9 +245,9 @@ let split2 () =
     x = y
   in
   assert_post tr post
-
+(*
 let check_extrapolate test_name tr1 tr2 tr3 = 
-  match T.extrapolate tr1 tr2 tr3 0 with 
+  match T.contextualize tr1 tr2 tr3 0 with 
       | `Sat (f1, f2) -> 
         Printf.printf "extrapolate: SAT, formulas: \n";
         Syntax.pp_expr_unnumbered srk Format.std_formatter f1;
@@ -351,7 +355,7 @@ let extrapolate3 () =
   in 
   Printf.printf "extrapolate3-----------------------------\n";
   check_extrapolate "extrapolate3" tr1 tr2 tr3
-
+*)
 let equal1 () =
   (*let open Infix in *)
   let tr1 =
@@ -667,9 +671,9 @@ let suite = "Transition" >::: [
     "interpolate_havoc2" >:: interpolate_havoc2;
     "interpolate_havoc3" >:: interpolate_havoc3;
     "negative_eigenvalue" >:: negative_eigenvalue;
-    "extrapolate1" >:: extrapolate1;
+    (*"extrapolate1" >:: extrapolate1;
     "extrapolate2" >:: extrapolate2;
-    "extrapolate3" >:: extrapolate3;
+    "extrapolate3" >:: extrapolate3;*)
     "interpolate_fail" >:: interpolate_fail;
     "interpolate_fail1" >:: interpolate_fail1;
     "interpolate_fail2" >:: interpolate_fail2;

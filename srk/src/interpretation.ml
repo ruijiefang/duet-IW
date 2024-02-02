@@ -27,6 +27,9 @@ let add_real k v interp =
   | `TyReal | `TyInt -> { interp with map = SM.add k (`Real v) interp.map }
   | _ -> invalid_arg "add_real: constant symbol is non-arithmetic"
 
+let restrict (f : symbol -> bool) interp = 
+  {interp with map = SM.filter (fun k _ -> f k) interp.map}
+
 let add_bool k v interp =
   match typ_symbol interp.srk k with
   | `TyBool -> { interp with map = SM.add k (`Bool v) interp.map }

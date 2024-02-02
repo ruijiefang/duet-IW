@@ -54,6 +54,8 @@ val evaluate_formula : 'a interpretation ->
 
 val get_context : 'a interpretation -> 'a context
 
+val restrict : (symbol -> bool) -> 'a interpretation -> 'a interpretation
+
 (** [select_implicant srk m ?env phi] selects an implicant [I] of [phi] such
     that [m,?env |= I |= phi].  The implicant [I] is a list of atomic
     formulas, which can be destructed using [destruct_atom]. *)
