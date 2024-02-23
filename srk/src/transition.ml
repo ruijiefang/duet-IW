@@ -360,24 +360,37 @@ struct
   let transform tr = M.enum tr.transform
   let guard tr = tr.guard
 
-  let get_post_model m f = 
+  let get_post_model m f =
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
       if Var.of_symbol sym == None then Syntax.mk_const C.context sym 
       else mk_real C.context @@ Interpretation.real m sym 
-      in 
-    let f_guard' = Syntax.substitute_const C.context replacer f_guard in 
-    let f_transform = transform f in 
-    let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in 
-    match Smt.get_model ~symbols:(symbols) C.context f_guard' with 
-    | `Sat skolem_model -> 
-      let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
-        let sub_expr = Syntax.substitute_const C.context replacer rhs in 
-        let lhs_symbol =  Var.symbol_of lhs in
-        let sub_val = Interpretation.evaluate_term skolem_model sub_expr in 
-        Interpretation.add lhs_symbol (`Real sub_val) m'
-      ) m f_transform in Some post_model 
-    | _ -> None 
+    in
+    let f_guard' = Syntax.substitute_const C.context replacer f_guard in
+    let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in
+    let post pm =
+      BatEnum.fold (fun m' (lhs, rhs) ->
+          let sub_expr = Syntax.substitute_const C.context replacer rhs in
+          let lhs_symbol =  Var.symbol_of lhs in
+          let sub_val = Interpretation.evaluate_term pm sub_expr in
+          Interpretation.add lhs_symbol (`Real sub_val) m')
+        m
+        (M.enum f.transform)
+    in
+    match Formula.destruct srk f_guard' with
+    | `Fls -> None
+    | `Tru ->
+      let zero_model = Interpretation.wrap srk (fun s ->
+          match typ_symbol srk s with
+          | `TyInt | `TyReal -> `Real QQ.zero
+          | `TyBool -> `Bool true
+          | _ -> assert false)
+      in
+      Some (post zero_model)
+    | _ ->
+      match Smt.get_model ~symbols:(symbols) C.context f_guard' with
+      | `Sat skolem_model -> Some (post skolem_model)
+      | _ -> None
 
   let rec destruct_and srk phi =
     match Formula.destruct srk phi with
