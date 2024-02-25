@@ -360,24 +360,37 @@ struct
   let transform tr = M.enum tr.transform
   let guard tr = tr.guard
 
-  let get_post_model m f = 
+  let get_post_model m f =
     let f_guard = guard f in 
     let replacer (sym : Syntax.symbol) = 
       if Var.of_symbol sym == None then Syntax.mk_const C.context sym 
       else mk_real C.context @@ Interpretation.real m sym 
-      in 
-    let f_guard' = Syntax.substitute_const C.context replacer f_guard in 
-    let f_transform = transform f in 
-    let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in 
-    match Smt.get_model ~symbols:(symbols) C.context f_guard' with 
-    | `Sat skolem_model -> 
-      let post_model = BatEnum.fold (fun m' (lhs, rhs) ->  
-        let sub_expr = Syntax.substitute_const C.context replacer rhs in 
-        let lhs_symbol =  Var.symbol_of lhs in
-        let sub_val = Interpretation.evaluate_term skolem_model sub_expr in 
-        Interpretation.add lhs_symbol (`Real sub_val) m'
-      ) m f_transform in Some post_model 
-    | _ -> None 
+    in
+    let f_guard' = Syntax.substitute_const C.context replacer f_guard in
+    let symbols = Syntax.symbols f_guard' |> Symbol.Set.elements in
+    let post pm =
+      BatEnum.fold (fun m' (lhs, rhs) ->
+          let sub_expr = Syntax.substitute_const C.context replacer rhs in
+          let lhs_symbol =  Var.symbol_of lhs in
+          let sub_val = Interpretation.evaluate_term pm sub_expr in
+          Interpretation.add lhs_symbol (`Real sub_val) m')
+        m
+        (M.enum f.transform)
+    in
+    match Formula.destruct srk f_guard' with
+    | `Fls -> None
+    | `Tru ->
+      let zero_model = Interpretation.wrap srk (fun s ->
+          match typ_symbol srk s with
+          | `TyInt | `TyReal -> `Real QQ.zero
+          | `TyBool -> `Bool true
+          | _ -> assert false)
+      in
+      Some (post zero_model)
+    | _ ->
+      match Smt.get_model ~symbols:(symbols) C.context f_guard' with
+      | `Sat skolem_model -> Some (post skolem_model)
+      | _ -> None
 
   let rec destruct_and srk phi =
     match Formula.destruct srk phi with
@@ -931,4 +944,105 @@ struct
       Nonlinear.linearize srk (mk_and srk (tr.guard::defs))
     in
     { transform; guard }
+
+  
+  (* Given a guarded translation and a loop counter k, compute a
+     representation of its k-fold repetition.  *)
+  let cf_translation loop_counter trans guard =
+    let cf k = (* x + k*v *)
+      M.mapi (fun var t ->
+          mk_add srk [mk_const srk (Var.symbol_of var); mk_mul srk [mk_real srk t; k]])
+        trans
+    in
+
+    (* forall subcounter. 0 <= subcounter < loop_counter ==> G(Sx + t*subcounter) *)
+    let subcounter = mk_symbol srk `TyInt in
+    let subcounter_term = mk_const srk subcounter in
+    let prestate sym = Var.of_symbol sym != None in
+    let guard = Quantifier.mbp srk prestate guard in
+    let cf_subst =
+      let sub_cf = cf subcounter_term in
+      substitute_const srk (fun sym ->
+          match Var.of_symbol sym with
+          | Some v -> (try M.find v sub_cf with Not_found -> mk_const srk sym)
+          | None -> assert false)
+    in
+    let guard_tf =
+      mk_if srk
+        (mk_and srk [mk_leq srk (mk_int srk 0) subcounter_term;
+                     mk_lt srk subcounter_term loop_counter])
+        (cf_subst guard)
+      |> mk_not srk
+      |> Quantifier.mbp srk (fun x -> x != subcounter)
+      |> mk_not srk
+    in
+    { transform = cf loop_counter; guard = guard_tf }
+
+  let try_rtc tr =
+    let solver = Smt.mk_solver srk in
+    let translation_of_model m =
+      M.fold (fun var rhs trans ->
+          M.add
+            var
+            (QQ.sub
+               (Interpretation.evaluate_term m rhs)
+               (Interpretation.real m (Var.symbol_of var)))
+            trans)
+        tr.transform
+        M.empty
+    in
+    let translation_formula trans =
+      M.fold (fun var rhs xs ->
+          (mk_eq srk
+             (mk_sub srk rhs (mk_const srk (Var.symbol_of var)))
+             (mk_real srk (M.find var trans)))
+          ::xs
+        )
+        tr.transform
+        []
+      |> mk_and srk
+    in
+    Smt.Solver.add solver [tr.guard];
+    match Smt.Solver.get_model solver with
+    | `Unknown -> None
+    | `Unsat -> Some one
+    | `Sat m ->
+      let trans1 = translation_of_model m in
+      let trans1_formula = translation_formula trans1 in
+      Smt.Solver.add solver [mk_not srk trans1_formula];
+      match Smt.Solver.get_model solver with
+      | `Unsat ->
+        let loop_counter = mk_const srk (mk_symbol srk `TyInt) in
+        Some (cf_translation loop_counter trans1 tr.guard)
+      | `Unknown -> None
+      | `Sat m2 ->
+        let trans2 = translation_of_model m2 in
+        let trans2_formula = translation_formula trans2 in
+        Smt.Solver.add solver [mk_not srk trans2_formula];
+        match Smt.Solver.check solver [] with
+        | `Sat | `Unknown -> None
+        | _ ->
+          let tr1 = { tr with guard = mk_and srk [ tr.guard; trans1_formula ] } in
+          let tr2 = { tr with guard = mk_and srk [ tr.guard; trans2_formula ] } in
+          match Smt.is_sat srk (guard (mul tr1 tr2)),
+                Smt.is_sat srk (guard (mul tr2 tr1))
+          with
+          | `Unsat, `Sat -> (* 12 UNSAT => (1+2)* = 2*1* *)
+            let loop_counter1 = mk_const srk (mk_symbol srk `TyInt) in
+            let loop_counter2 = mk_const srk (mk_symbol srk `TyInt) in
+            Some (mul
+                    (cf_translation loop_counter2 trans2 tr2.guard)
+                    (cf_translation loop_counter1 trans1 tr1.guard))
+          | `Sat, `Unsat -> (* 21 UNSAT => (1+2)* = 1*2* *)
+            let loop_counter1 = mk_const srk (mk_symbol srk `TyInt) in
+            let loop_counter2 = mk_const srk (mk_symbol srk `TyInt) in
+            Some (mul
+                    (cf_translation loop_counter1 trans1 tr1.guard)
+                    (cf_translation loop_counter2 trans2 tr2.guard))
+          | `Unsat, `Unsat ->  (* 12 & 21 UNSAT => (1+2)* = 1*+2* *)
+            let loop_counter = mk_const srk (mk_symbol srk `TyInt) in
+            Some (add
+                    (cf_translation loop_counter trans1 tr1.guard)
+                    (cf_translation loop_counter trans2 tr2.guard))
+          | _, _ -> None
 end

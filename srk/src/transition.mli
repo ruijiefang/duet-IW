@@ -172,4 +172,5 @@ module Make
   val domain : (module Iteration.PreDomain) ref
   val star : t -> t
   val linearize : t -> t
+  val try_rtc : t -> t option
 end
