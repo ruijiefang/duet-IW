@@ -80,9 +80,9 @@ module Make
      starting at a given vertex. *)
   val omega_path_weight : query -> (transition,'b) Pathexpr.omega_algebra -> 'b
 
-  (** Project out local variables from each transition that are referenced
-      only by that transition. *)
-  val remove_temporaries : t -> t
+  (** Project out variables that do not satisfy the given predicate from each
+     transition that are referenced only by that transition. *)
+  val remove_temporaries : (Var.t -> bool) -> t -> t
 
   (** Compute interval invariants for each loop header of a transition system.
       The invariant computed for a loop is defined only over the variables
