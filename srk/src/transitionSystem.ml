@@ -688,7 +688,7 @@ module Make
               begin if WG.mem_edge tg v v then
                   match WG.edge_weight tg v v with
                   | Weight tr ->
-                    (match T.try_rtc tr with
+                    (try begin match T.try_rtc tr with
                      | Some rtc ->
                        let u = -1 in
                        (try
@@ -699,7 +699,8 @@ module Make
                           continue := true;
                           tg
                         with _ -> tg)
-                     | None -> tg)
+                     | None -> tg end
+                      with _ -> tg)
                   | Call (_, _) -> tg
                 else
                   tg
