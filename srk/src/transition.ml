@@ -976,7 +976,9 @@ struct
       |> Quantifier.mbp srk (fun x -> x != subcounter)
       |> mk_not srk
     in
-    { transform = cf loop_counter; guard = guard_tf }
+    { transform = cf loop_counter;
+      guard = mk_and srk [guard_tf;
+                          mk_leq srk (mk_int srk 0) loop_counter] }
 
   let try_rtc tr =
     let solver = Smt.mk_solver srk in
