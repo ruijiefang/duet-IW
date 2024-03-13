@@ -825,6 +825,8 @@ let instrument_with_gas (ts: cfg_t) =
   List.iter (fun u -> g := modify !g u) (loop_headers @ call_edge_headers);
   !g
 
+
+
 module Summarizer = 
   struct 
       module SMap = BatMap.Make(ProcName)
@@ -916,6 +918,8 @@ module GPS = struct
   (* to print the reachability tree (+ worklist), or not *) 
   let print_tree = false
 
+
+
   (* contextual information maintained by GPS algorithm. *)
   (* intraprocedural context *)
   type intra_context = {
@@ -938,6 +942,19 @@ module GPS = struct
       | Safe of K.t 
       | Unsafe of K.t
   (** some helper functions that operate on the context *)
+
+
+  let rec contains_call ctx (tree_path: ReachTree.node list) = 
+    match tree_path with 
+    | u :: v :: t -> 
+      let weight = WG.edge_weight (!ctx.ts) (ReachTree.maps_to !ctx.art u) (ReachTree.maps_to !ctx.art v) in 
+        begin match weight with 
+        | Call _ -> true 
+        | _ -> contains_call ctx (v :: t) 
+        end 
+    | [] -> false 
+    | _ -> failwith "contains_call: malformed path"
+  
 
 
   let demote_precondition (precondition: K.t) =
@@ -1255,21 +1272,37 @@ module GPS = struct
               ReachTree.tree_path !ctx.art w 
               |> art_cfg_path_pair ctx 
               |> List.map (fun (u, (u_vtx, v_vtx), v) -> (u, WG.edge_weight !ctx.ts u_vtx v_vtx, v)) in
-            begin match path_to_w with 
-            | curr :: right -> 
-              begin match handle_path_to_error ctx [] curr right `Right w with 
-                | `Safe -> (* path-to-error concretization failed. frontier_node is the src node of a call-edge. *)
-                  (* we can mark `w` as a frontier node to be refined, and continue. *)
-                  !ctx.worklist <- worklist_push w !ctx.worklist;
-                  continue := true
-                | `Unsafe pathcond ->  
-                  logf ~level:`always "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
-                  state := `Concretized (pathcond);
+            if List.length (List.filter (fun (_, w, _) -> 
+              match w with 
+              | Call _ -> true 
+              | _ -> false) path_to_w) > 0 then
+              begin match path_to_w with 
+              | curr :: right -> 
+                begin match handle_path_to_error ctx [] curr right `Right w with 
+                  | `Safe -> (* path-to-error concretization failed. frontier_node is the src node of a call-edge. *)
+                    (* we can mark `w` as a frontier node to be refined, and continue. *)
+                    !ctx.worklist <- worklist_push w !ctx.worklist;
+                    continue := true
+                  | `Unsafe pathcond ->  
+                    logf ~level:`always "--- conoclic_mcmilan_execute: managed to concretize an intraprocedural path-to-error. returning... ";
+                    state := `Concretized (pathcond);
+                    continue := false
+                  end
+              | [] -> 
+                (* corner case: the path to error is of length 0. *)
+                state := `Concretized (K.one)  
+              end
+            else begin 
+              if !ctx.recurse_level > 0 then 
+                begin 
+                  state := `Concretized (seq (List.filter_map (fun (_, w, _) -> match w with | Call _ -> None | Weight w -> Some w) path_to_w));
                   continue := false
                 end
-            | [] -> 
-              (* corner case: the path to error is of length 0. *)
-              state := `Concretized (K.one)  
+              else 
+                begin 
+                  state := `Concretized (K.one);
+                  continue := false
+                end
             end
           | `Safe -> 
             state := `Continue
